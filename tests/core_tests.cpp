@@ -23,5 +23,10 @@ int main(){
  {std::ofstream(root/"data"/"progress.txt",std::ios::trunc)<<"bad";}
  ProgressStore backup(root/"data"/"progress.txt");
  assert(backup.load());assert(backup.get("0123456789abcdef").page==49);
+ fs::create_directories(root/"bulk");
+ for(int i=0;i<1000;++i)std::ofstream(root/"bulk"/("Book_"+std::to_string(i)+".epub"))<<"x";
+ assert(scan(root).size()==1002);
+ assert(scan(root,25).size()==25);
+ assert(search(scan(root),"Book ").size()==1000);
  fs::remove_all(root);std::cout<<"PASS core tests\n";
 }
