@@ -1,0 +1,20 @@
+name: PaperNX guarded core verification
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type BUILD to authorize a GitHub-hosted core build'
+        required: true
+        type: string
+jobs:
+  portable-core:
+    if: ${{ inputs.confirm == 'BUILD' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile portable core
+        run: cmake -S . -B build -DBUILD_TESTING=ON && cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Explain status
+        run: echo 'No cross-compile toolchain or NRO packaging is configured. No release is produced.'
