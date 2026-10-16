@@ -4,6 +4,7 @@
 #include <SDL_ttf.h>
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -51,6 +52,13 @@ struct App {
  explicit App(fs::path rootPath):root(std::move(rootPath)),progress(root/"data"/"progress.txt"){}
  ~App(){closeBook();if(font)TTF_CloseFont(font);if(small)TTF_CloseFont(small);if(renderer)SDL_DestroyRenderer(renderer);if(window)SDL_DestroyWindow(window);}
  void dimensions(int&w,int&h){SDL_GetRendererOutputSize(renderer,&w,&h);}
+ std::string epubCss() const {
+  const auto &p=palettes[theme];char buffer[256];
+  std::snprintf(buffer,sizeof(buffer),
+   "html,body{background:#%02x%02x%02x;color:#%02x%02x%02x;line-height:1.4;} ",
+   p.bg.r,p.bg.g,p.bg.b,p.fg.r,p.fg.g,p.fg.b);
+  return std::string(buffer);
+ }
  void scanBrowser(){
   browserItems.clear();browserSelected=0;browserOffset=0;
   std::error_code ec;
@@ -135,7 +143,7 @@ struct App {
   closeBook();int w=1280,h=720;dimensions(w,h);
   const auto&p=books[idx];auto state=progress.get(p.id);
   char err[256]={};theme=state.theme;fontSize=state.fontSize;
-  doc=px_document_open(p.path.c_str(),w-100,h-120,(float)fontSize,"body {line-height:1.4;}",err,sizeof(err));
+  doc=px_document_open(p.path.c_str(),w-100,h-120,(float)fontSize,epubCss().c_str(),err,sizeof(err));
   if(!doc){error=err;return;}
   currentId=p.id;selected=idx;pages=px_document_pages(doc);page=restorePage(state,pages);
   reading=true;toolbar=false;renderPage();
@@ -150,9 +158,21 @@ struct App {
   Progress previous;previous.page=page;previous.pageCount=pages;
   previous.fraction=pages>1?(double)page/(pages-1):0.0;
   int w=1280,h=720;dimensions(w,h);char err[256]={};
-  if(px_document_relayout(doc,w-100,h-120,(float)target,"body {line-height:1.4;}",err,sizeof(err))){
+  if(px_document_relayout(doc,w-100,h-120,(float)target,epubCss().c_str(),err,sizeof(err))){
    fontSize=target;pages=px_document_pages(doc);page=restorePage(previous,pages);renderPage();savePosition();
   }else error=err;
+ }
+ void cycleTheme(){
+  theme=(theme+1)%6;
+  if(reading&&px_document_is_epub(doc)){
+   Progress previous;previous.page=page;previous.pageCount=pages;
+   previous.fraction=pages>1?(double)page/(pages-1):0;
+   int w=1280,h=720;dimensions(w,h);char err[256]={};
+   if(px_document_relayout(doc,w-100,h-120,(float)fontSize,epubCss().c_str(),err,sizeof(err))){
+    pages=px_document_pages(doc);page=restorePage(previous,pages);renderPage();
+   }else error=err;
+  }
+  if(reading)savePosition();
  }
  void navigate(int delta){
   if(browsing){
@@ -254,7 +274,7 @@ struct App {
   else if(hit(SDLK_LEFT,SDL_CONTROLLER_BUTTON_DPAD_LEFT)||hit(SDLK_PAGEUP,SDL_CONTROLLER_BUTTON_LEFTSHOULDER))navigate(-1);
   else if(hit(SDLK_DOWN,SDL_CONTROLLER_BUTTON_DPAD_DOWN)){int w=1280,h=720;dimensions(w,h);navigate(std::max(1,(w-80)/190));}
   else if(hit(SDLK_UP,SDL_CONTROLLER_BUTTON_DPAD_UP)){int w=1280,h=720;dimensions(w,h);navigate(-std::max(1,(w-80)/190));}
-  else if(!pad&&key==SDLK_t){theme=(theme+1)%6;if(reading)savePosition();}
+  else if(!pad&&key==SDLK_t){cycleTheme();}
   else if(reading&&hit(SDLK_EQUALS,SDL_CONTROLLER_BUTTON_X))resizeFont(2);
   else if(reading&&hit(SDLK_MINUS,SDL_CONTROLLER_BUTTON_Y))resizeFont(-2);
   else if(!reading&&!browsing&&hit(SDLK_x,SDL_CONTROLLER_BUTTON_X)){searching=true;SDL_StartTextInput();}
