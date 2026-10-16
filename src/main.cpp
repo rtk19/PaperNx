@@ -188,11 +188,16 @@ struct App {
    return;
   }
   if(reading){turn(delta);return;}
-  if(books.empty())return;
-  selected=std::clamp(selected+delta,0,(int)books.size()-1);
+  auto visible=search(books,query);
+  if(visible.empty())return;
+  auto current=std::find_if(visible.begin(),visible.end(),[&](const Book&b){return b.id==books[selected].id;});
+  int position=current==visible.end()?0:(int)(current-visible.begin());
+  position=std::clamp(position+delta,0,(int)visible.size()-1);
+  auto selectedBook=std::find_if(books.begin(),books.end(),[&](const Book&b){return b.id==visible[position].id;});
+  if(selectedBook!=books.end())selected=(int)(selectedBook-books.begin());
   int w=1280,h=720;dimensions(w,h);const int cols=std::max(1,(w-80)/190);
-  if(selected/cols<offset)offset=selected/cols;
-  if(selected/cols>=offset+3)offset=selected/cols-2;
+  if(position/cols<offset)offset=position/cols;
+  if(position/cols>=offset+3)offset=position/cols-2;
  }
  void draw(){
   int w=1280,h=720;dimensions(w,h);const auto &pal=palettes[theme];
@@ -264,9 +269,17 @@ struct App {
  }
  void event(const SDL_Event&e,bool &running){
   if(e.type==SDL_QUIT){running=false;return;}
-  if(e.type==SDL_TEXTINPUT&&searching){query+=e.text.text;offset=0;selected=0;return;}
+  if(e.type==SDL_TEXTINPUT&&searching){
+   query+=e.text.text;offset=0;
+   auto visible=search(books,query);
+   if(!visible.empty()){
+    auto found=std::find_if(books.begin(),books.end(),[&](const Book&b){return b.id==visible[0].id;});
+    if(found!=books.end())selected=(int)(found-books.begin());
+   }
+   return;
+  }
   if(e.type==SDL_FINGERDOWN){touch(e.tfinger.x,e.tfinger.y);return;}
-  if(e.type==SDL_MOUSEBUTTONDOWN){int w=1280,h=720;dimensions(w,h);touch((float)e.button.x/w,(float)e.button.y/h);return;}
+  if(e.type==SDL_MOUSEBUTTONDOWN){if(e.button.which==SDL_TOUCH_MOUSEID)return;int w=1280,h=720;dimensions(w,h);touch((float)e.button.x/w,(float)e.button.y/h);return;}
   if(e.type!=SDL_KEYDOWN&&e.type!=SDL_CONTROLLERBUTTONDOWN)return;
   bool pad=e.type==SDL_CONTROLLERBUTTONDOWN;int key=pad?e.cbutton.button:e.key.keysym.sym;
   auto hit=[&](int k,int p){return pad?key==p:key==k;};
