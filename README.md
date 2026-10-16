@@ -26,13 +26,13 @@ cmake --build native --parallel
 ./native/PaperNX ./PaperNX-data
 ```
 
-Missing libraries cause a hard configuration error, not a fake reader.
+Missing libraries cause a hard configuration error, not a fake reader. An experimental libnx `Makefile` is present but requires a cross-compiled MuPDF toolchain prefix (`MUPDF_AARCH64_ROOT`) and is unverified.
 
 ## Book storage and fonts
 
 On Switch the intended default path is `sdmc:/switch/PaperNX/books/`. Subdirectories are scanned for EPUB/PDF. Settings/progress lives in `data/progress.txt` and `.bak`. A user-provided TTF file at `fonts/NotoSans-Regular.ttf` or `fonts/DejaVuSans.ttf` enables readable UI text; **the project currently bundles no fonts**.
 
-The current core indexes filename/title only and placeholder covers; proper EPUB metadata, real cover caching, robust EPUB locators, custom font menus, file explorer, TOC and bookmarks remain unfinished.
+The current library initially indexes filename/title only (MuPDF title/author is read when a document opens) and displays placeholder covers. A read-only native file picker is implemented. Real cover caching, robust EPUB locators, custom font menus, TOC and bookmarks remain unfinished.
 
 ## Copyright and licenses
 

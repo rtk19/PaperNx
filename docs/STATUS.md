@@ -12,12 +12,12 @@ This is a partial implementation, not a completed Switch application.
 | Font-size relayout, theme cycling | Initial | No | No | No |
 | True EPUB location anchors | No; page/fraction estimate | No | No | No |
 | Cover extraction/caching and metadata | No | No | No | No |
-| Native SD file explorer | No | No | No | No |
+| Read-only native SD file picker | Initial | No | No | No |
 | TOC, bookmarks, text search | No | No | No | No |
 | Background jobs, PDF zoom/tiling | No | No | No | No |
 | NRO/Switch package | No | No | No | No |
 
-Local environment had a C++ compiler/CMake but lacked devkitPro, libnx, Switch SDL2 and MuPDF. One local CTest test executable passed; it checks file types, nested scan, Unicode path, search, identity, position estimate, persistence and primary-file corruption recovery. The exact GitHub-pushed source has not been independently executed in this environment.
+Local environment had a C++ compiler/CMake but lacked devkitPro, libnx, Switch SDL2 and MuPDF. One local CTest executable passed (including an added 1,000-book library scenario). It checks file types, nested scan, Unicode path, search, identity, position estimate, persistence and primary-file corruption recovery. The exact GitHub-pushed source has not been independently executed in this environment.
 
 ## Next engineering steps
 
