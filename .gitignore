@@ -1,0 +1,12 @@
+/build/
+/native/
+/dist/
+/test-data/
+*.nro
+*.elf
+*.o
+*.a
+*.zip
+*.sha256
+*.log
+.DS_Store
