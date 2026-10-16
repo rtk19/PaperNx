@@ -43,11 +43,60 @@ struct App {
  PxDocument*doc{};SDL_Texture*pageTexture{};
  std::string currentId,query,error;
  int selected{},offset{},page{},pages{},fontSize{22},theme{},imageW{},imageH{};
- bool reading{},toolbar{},searching{},dirty{};
+ bool reading{},toolbar{},searching{},dirty{},browsing{};
+ struct BrowserItem {fs::path path;bool folder;};
+ std::vector<BrowserItem> browserItems;fs::path browserRoot,browserPath;
+ int browserSelected{},browserOffset{};
  std::chrono::steady_clock::time_point changed=std::chrono::steady_clock::now();
  explicit App(fs::path rootPath):root(std::move(rootPath)),progress(root/"data"/"progress.txt"){}
  ~App(){closeBook();if(font)TTF_CloseFont(font);if(small)TTF_CloseFont(small);if(renderer)SDL_DestroyRenderer(renderer);if(window)SDL_DestroyWindow(window);}
  void dimensions(int&w,int&h){SDL_GetRendererOutputSize(renderer,&w,&h);}
+ void scanBrowser(){
+  browserItems.clear();browserSelected=0;browserOffset=0;
+  std::error_code ec;
+  fs::directory_iterator it(browserPath,fs::directory_options::skip_permission_denied,ec),end;
+  for(;it!=end && browserItems.size()<512;it.increment(ec)){
+   if(ec){ec.clear();continue;}
+   if(it->is_symlink(ec))continue;
+   bool folder=it->is_directory(ec);
+   if(!folder && (!it->is_regular_file(ec)||detectFormat(it->path())==Format::Unsupported))continue;
+   browserItems.push_back({it->path(),folder});
+  }
+  std::sort(browserItems.begin(),browserItems.end(),[](const BrowserItem&a,const BrowserItem&b){
+   if(a.folder!=b.folder)return a.folder>b.folder;
+   return a.path.filename().string()<b.path.filename().string();
+  });
+ }
+ void openBrowser(){
+#ifdef __SWITCH__
+  browserRoot="sdmc:/";
+#else
+  browserRoot=root;
+#endif
+  browserPath=browserRoot;browsing=true;scanBrowser();
+ }
+ void browseBack(){
+  if(browserPath==browserRoot){browsing=false;return;}
+  browserPath=browserPath.parent_path();
+  if(browserPath.empty())browserPath=browserRoot;
+  scanBrowser();
+ }
+ void selectBrowser(){
+  if(browserSelected<0||browserSelected>=(int)browserItems.size())return;
+  const auto entry=browserItems[browserSelected];
+  if(entry.folder){browserPath=entry.path;scanBrowser();return;}
+  std::error_code ec;auto bytes=fs::file_size(entry.path,ec);if(ec)return;
+  const std::string path=entry.path.string();
+  auto found=std::find_if(books.begin(),books.end(),[&](const Book&b){return b.path==path;});
+  int index=0;
+  if(found==books.end()){
+   Book b;b.path=path;b.bytes=bytes;b.title=defaultTitle(entry.path);
+   b.id=documentId(path,bytes);b.format=detectFormat(entry.path);
+   books.push_back(std::move(b));index=(int)books.size()-1;
+  }else index=(int)(found-books.begin());
+  browsing=false;openBook(index);
+ }
+
  bool init(){
   std::error_code ec;fs::create_directories(root/"books",ec);progress.load();
   books=scan(root/"books");
@@ -106,6 +155,13 @@ struct App {
   }else error=err;
  }
  void navigate(int delta){
+  if(browsing){
+   if(browserItems.empty())return;
+   browserSelected=std::clamp(browserSelected+delta,0,(int)browserItems.size()-1);
+   if(browserSelected<browserOffset)browserOffset=browserSelected;
+   if(browserSelected>=browserOffset+12)browserOffset=browserSelected-11;
+   return;
+  }
   if(reading){turn(delta);return;}
   if(books.empty())return;
   selected=std::clamp(selected+delta,0,(int)books.size()-1);
@@ -116,7 +172,17 @@ struct App {
  void draw(){
   int w=1280,h=720;dimensions(w,h);const auto &pal=palettes[theme];
   fill(renderer,{0,0,w,h},pal.bg);
-  if(reading){
+  if(browsing){
+   text(renderer,font,"Dosyadan Aç",48,28,pal.fg);
+   text(renderer,small,browserPath.string(),48,75,pal.muted,w-80);
+   text(renderer,small,"A: Aç / Klasöre gir   B: Geri",48,108,pal.muted);
+   for(int i=browserOffset;i<(int)browserItems.size()&&i<browserOffset+12;++i){
+    int y=151+(i-browserOffset)*44;
+    if(i==browserSelected)fill(renderer,{40,y,w-80,40},pal.accent);
+    text(renderer,small,(browserItems[i].folder?"[DIR] ":"[BOOK] ")+browserItems[i].path.filename().string(),58,y+8,
+         i==browserSelected?pal.bg:pal.fg,w-110);
+   }
+  }else if(reading){
    if(pageTexture){SDL_Rect box{(w-imageW)/2,(h-imageH)/2,imageW,imageH};SDL_RenderCopy(renderer,pageTexture,nullptr,&box);}
    if(toolbar){
     fill(renderer,{0,0,w,68},pal.bg);
@@ -129,7 +195,7 @@ struct App {
   }else{
    text(renderer,font,"PaperNX",48,24,pal.fg);
    text(renderer,small,"My Library",48,70,pal.muted);
-   text(renderer,small,"A Open  B Back  X Search  T Theme  R Rescan",w-480,42,pal.muted);
+   text(renderer,small,"A Open  B Back  X Search  Y Browse  T Theme",w-480,42,pal.muted);
    if(searching)text(renderer,small,"Search: "+query,48,104,pal.accent);
    const auto filtered=search(books,query);
    const int cols=std::max(1,(w-80)/190),top=searching?155:127;
@@ -155,6 +221,12 @@ struct App {
   SDL_RenderPresent(renderer);
  }
  void touch(float x,float y){
+  if(browsing){
+   int w=1280,h=720;dimensions(w,h);
+   int index=browserOffset+(int)((y*h-151)/44);
+   if(y*h>=151&&index>=0&&index<(int)browserItems.size()){browserSelected=index;selectBrowser();}
+   return;
+  }
   if(reading){if(x<.22f)turn(-1);else if(x>.78f)turn(1);else toolbar=!toolbar;return;}
   int w=1280,h=720;dimensions(w,h);const int cols=std::max(1,(w-80)/190);
   if(y<.15f)return;
@@ -174,9 +246,10 @@ struct App {
   bool pad=e.type==SDL_CONTROLLERBUTTONDOWN;int key=pad?e.cbutton.button:e.key.keysym.sym;
   auto hit=[&](int k,int p){return pad?key==p:key==k;};
   if(hit(SDLK_ESCAPE,SDL_CONTROLLER_BUTTON_B)){
-   if(searching){searching=false;SDL_StopTextInput();query.clear();}
+   if(browsing)browseBack();
+   else if(searching){searching=false;SDL_StopTextInput();query.clear();}
    else if(reading)closeBook();else running=false;
-  }else if(hit(SDLK_RETURN,SDL_CONTROLLER_BUTTON_A)){if(reading)toolbar=!toolbar;else openBook(selected);}
+  }else if(hit(SDLK_RETURN,SDL_CONTROLLER_BUTTON_A)){if(browsing)selectBrowser();else if(reading)toolbar=!toolbar;else openBook(selected);}
   else if(hit(SDLK_RIGHT,SDL_CONTROLLER_BUTTON_DPAD_RIGHT)||hit(SDLK_PAGEDOWN,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))navigate(1);
   else if(hit(SDLK_LEFT,SDL_CONTROLLER_BUTTON_DPAD_LEFT)||hit(SDLK_PAGEUP,SDL_CONTROLLER_BUTTON_LEFTSHOULDER))navigate(-1);
   else if(hit(SDLK_DOWN,SDL_CONTROLLER_BUTTON_DPAD_DOWN)){int w=1280,h=720;dimensions(w,h);navigate(std::max(1,(w-80)/190));}
@@ -184,9 +257,10 @@ struct App {
   else if(!pad&&key==SDLK_t){theme=(theme+1)%6;if(reading)savePosition();}
   else if(reading&&hit(SDLK_EQUALS,SDL_CONTROLLER_BUTTON_X))resizeFont(2);
   else if(reading&&hit(SDLK_MINUS,SDL_CONTROLLER_BUTTON_Y))resizeFont(-2);
-  else if(!reading&&hit(SDLK_x,SDL_CONTROLLER_BUTTON_X)){searching=true;SDL_StartTextInput();}
+  else if(!reading&&!browsing&&hit(SDLK_x,SDL_CONTROLLER_BUTTON_X)){searching=true;SDL_StartTextInput();}
+  else if(!reading&&!browsing&&hit(SDLK_f,SDL_CONTROLLER_BUTTON_Y)){openBrowser();}
   else if(!pad&&key==SDLK_BACKSPACE&&searching&&!query.empty())query.pop_back();
-  else if(!pad&&key==SDLK_r&&!reading){books=scan(root/"books");selected=0;offset=0;}
+  else if(!pad&&key==SDLK_r&&!reading&&!browsing){books=scan(root/"books");selected=0;offset=0;}
  }
  void run(){
   bool running=true;
