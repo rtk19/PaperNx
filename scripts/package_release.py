@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package ONLY an authentic NRO0 image; does not build one."""
+"""Package an NRO candidate after basic structural checks; cannot prove device compatibility."""
 import argparse
 import hashlib
 import json
@@ -14,6 +14,11 @@ def package(nro: Path, destination: Path, version: str) -> tuple[Path, str]:
     declared_size = struct.unpack_from("<I", image, 0x18)[0]
     if declared_size < 0x80 or declared_size > len(image):
         raise ValueError("Invalid NRO header size")
+    segments = [struct.unpack_from("<II", image, 0x20 + 8 * i) for i in range(3)]
+    if not any(length for _, length in segments):
+        raise ValueError("NRO has no nonempty code/data segments")
+    if any(offset > declared_size or length > declared_size - offset for offset, length in segments):
+        raise ValueError("NRO segment exceeds declared image size")
     destination.mkdir(parents=True, exist_ok=True)
     name = f"PaperNX-switch-{version}.zip"
     archive = destination / name
