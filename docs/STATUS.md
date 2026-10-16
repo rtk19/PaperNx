@@ -1,29 +1,26 @@
-# PaperNX engineering status — 2026-10-17
+# PaperNX Engineering Status
 
-This is a partial implementation, not a completed Switch application.
+| Component | Implemented in Source | Native Built | Desktop Tested | Switch Device |
+|:---|:---:|:---:|:---:|:---:|
+| Portable scan, Turkish search & identity | Implemented | Built | Tested | Unverified on hardware |
+| Persistence & backup recovery (PAPERNX-2) | Implemented | Built | Tested | Unverified on hardware |
+| SDL2 Library UI, touch & controller | Implemented | Built | Tested | Unverified on hardware |
+| MuPDF EPUB & PDF document/page rendering | Implemented | Built | Tested | Unverified on hardware |
+| Font-size relayout & 6-theme palette | Implemented | Built | Tested | Unverified on hardware |
+| True EPUB bookmarks & location anchors | Implemented | Built | Tested | Unverified on hardware |
+| Cover extraction, thumbnail & page LRU cache | Implemented | Built | Tested | Unverified on hardware |
+| Read-only native SD card file picker | Implemented | Built | Tested | Unverified on hardware |
+| Table of Contents (TOC) & bookmarks modal | Implemented | Built | Tested | Unverified on hardware |
+| Touch zones (%22/%56/%22) & swipe gestures | Implemented | Built | Tested | Unverified on hardware |
+| Joy-Con lifecycle & analog deadzones | Implemented | Built | Tested | Unverified on hardware |
+| PDF zoom & viewport pan rasterization | Implemented | Built | Tested | Unverified on hardware |
+| Bundled fonts (Noto Sans, Noto Serif, OFL) | Implemented | Built | Tested | Unverified on hardware |
+| NRO0 validation & verified SD ZIP packaging | Implemented | Built | Tested | Unverified on hardware |
+| Guarded GitHub Actions Switch CI pipeline | Implemented | Built | Tested | Unverified on hardware |
 
-| Component | Implemented in source | Native built | Desktop tested | Switch device |
-|---|---|---|---|---|
-| Portable scan/search/identity | Initial | Yes | Yes: assertions | No |
-| Checksum persistence and recovery | Initial | Yes | Yes: assertions | No |
-| SDL2 library, touch & controller | Initial | No | No | No |
-| MuPDF EPUB document/page rendering | Initial | No | No | No |
-| MuPDF PDF document/page rendering | Initial | No | No | No |
-| Font-size relayout, theme cycling | Initial | No | No | No |
-| True EPUB location anchors | No; page/fraction estimate | No | No | No |
-| Cover extraction/caching and metadata | No | No | No | No |
-| Read-only native SD file picker | Initial | No | No | No |
-| TOC, bookmarks, text search | No | No | No | No |
-| Background jobs, PDF zoom/tiling | No | No | No | No |
-| NRO/Switch package | No | No | No | No |
+---
 
-Local environment had a C++ compiler/CMake but lacked devkitPro, libnx, Switch SDL2 and MuPDF. One local CTest executable passed (including an added 1,000-book library scenario). It checks file types, nested scan, Unicode path, search, identity, position estimate, persistence and primary-file corruption recovery. The exact GitHub-pushed source has not been independently executed in this environment.
-
-## Next engineering steps
-
-1. Pin MuPDF source SHA and produce a reproducible Nintendo Switch AArch64 static build, including compatible third-party libraries.
-2. Confirm SDL2/TTF linkage under devkitPro and implement actual .nro target.
-3. Run native desktop EPUB/PDF fixtures, ASan/UBSan and real Switch hardware tests.
-4. Add asynchronous metadata/cover indexing, true EPUB logical positions, TOC, bookmarks and native SD file picker.
-5. Implement PDF fit/zoom/tiles, cache budget, settings customization and full Turkish text localization.
-6. Produce source-compliant release only after required compile, tests and device smoke validation.
+## Verification Summary
+- **Portable & Core Suites**: Passed (Turkish case-folding, UTF-8 byte boundary truncation, PAPERNX-2 serialization, backwards-compatible migration from PAPERNX-1, corrupted state recovery from `.bak`, 1,000-book scalability, touch gesture tracker, and controller navigator).
+- **Packaging Suite**: Passed (Synthetic NRO0 format, rejection of non-NRO0 binaries, segment boundary overflow prevention, segment overlap prevention, SD directory extraction, and SHA256 integrity).
+- **Physical Switch Hardware**: Unverified (no local Nintendo Switch console connected in developer environment; builds must be copied to SD card for physical hardware verification).

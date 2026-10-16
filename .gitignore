@@ -1,7 +1,10 @@
-/build/
+/build*/
 /native/
 /dist/
 /test-data/
+/prefix-*/
+__pycache__/
+*.pyc
 *.nro
 *.elf
 *.o

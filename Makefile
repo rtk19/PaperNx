@@ -1,7 +1,11 @@
-# Adapted from switchbrew/switch-examples SDL2 Makefile.
-# EXPERIMENTAL/UNVERIFIED. Never treat a successful portable build as an NRO.
-ifeq ($(strip $(MUPDF_AARCH64_ROOT)),)
-$(error MUPDF_AARCH64_ROOT must refer to a real cross-compiled ARM64 MuPDF prefix)
+# Nintendo Switch native Makefile for PaperNX (devkitA64 / libnx)
+MUPDF_PREFIX ?= $(MUPDF_AARCH64_ROOT)
+ifeq ($(strip $(MUPDF_PREFIX)),)
+ifneq ($(wildcard $(CURDIR)/prefix-mupdf-switch/lib/libmupdf.a),)
+	MUPDF_PREFIX := $(CURDIR)/prefix-mupdf-switch
+else
+$(error "MUPDF_PREFIX must refer to a real cross-compiled ARM64 MuPDF prefix containing lib/libmupdf.a. Run scripts/build-mupdf-switch.sh first.")
+endif
 endif
 #---------------------------------------------------------------------------------
 .SUFFIXES:
@@ -46,15 +50,19 @@ TARGET := PaperNX
 BUILD := build-switch
 SOURCES := src
 DATA :=
-INCLUDES	:=	include
-#ROMFS	:=	romfs
+INCLUDES	:=	include $(MUPDF_PREFIX)/include
+ROMFS	:=	romfs
+
+APP_TITLE	:=	PaperNX
+APP_AUTHOR	:=	ysfbz
+APP_VERSION	:=	0.1.0
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
+CFLAGS	:=	-g -Wall -O2 -ffunction-sections -fdata-sections \
 			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	-D__SWITCH__ $(INCLUDE) `sdl2-config --cflags`
@@ -62,15 +70,15 @@ CFLAGS	+=	-D__SWITCH__ $(INCLUDE) `sdl2-config --cflags`
 CXXFLAGS := $(CFLAGS) -std=c++17 -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
 
-LIBS := -lmupdf $(MUPDF_EXTRA_LIBS) -lSDL2_ttf `sdl2-config --libs` -lfreetype -lm
+LIBS := -lmupdf -lmupdf-third -lSDL2_ttf `sdl2-config --libs` -lfreetype -lbz2 -lpng -lz -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS := $(MUPDF_AARCH64_ROOT) $(PORTLIBS) $(LIBNX)
+LIBDIRS := $(MUPDF_PREFIX) $(PORTLIBS) $(LIBNX)
 
 
 #---------------------------------------------------------------------------------

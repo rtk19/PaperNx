@@ -1,45 +1,159 @@
 #!/usr/bin/env python3
-"""Package an NRO candidate after basic structural checks; cannot prove device compatibility."""
+"""
+scripts/package_release.py
+Production-grade Nintendo Switch packaging and verification tool for PaperNX.
+Validates NRO0 binary headers, segments, bundled font assets, licenses, and SD layout.
+"""
+
 import argparse
 import hashlib
 import json
+import os
 import struct
+import sys
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
-def package(nro: Path, destination: Path, version: str) -> tuple[Path, str]:
-    image = nro.read_bytes()
-    if len(image) < 0x80 or image[0x10:0x14] != b"NRO0":
-        raise ValueError("Not a valid NRO0 magic at offset 0x10")
-    declared_size = struct.unpack_from("<I", image, 0x18)[0]
+def validate_nro(image: bytes) -> dict:
+    if len(image) < 0x80:
+        raise ValueError(f"NRO candidate too small: {len(image)} bytes (minimum 128 bytes required)")
+    
+    magic = image[0x10:0x14]
+    if magic != b"NRO0":
+        raise ValueError(f"Invalid magic '{magic}'; expected 'NRO0' at offset 0x10. Desktop ELFs are not NROs!")
+
+    version, declared_size = struct.unpack_from("<II", image, 0x14)
     if declared_size < 0x80 or declared_size > len(image):
-        raise ValueError("Invalid NRO header size")
-    segments = [struct.unpack_from("<II", image, 0x20 + 8 * i) for i in range(3)]
-    if not any(length for _, length in segments):
-        raise ValueError("NRO has no nonempty code/data segments")
-    if any(offset > declared_size or length > declared_size - offset for offset, length in segments):
-        raise ValueError("NRO segment exceeds declared image size")
+        raise ValueError(f"Invalid declared NRO size {declared_size} (file size {len(image)})")
+
+    # Segment headers: 3 pairs of (offset, size) for .text, .rodata, .data
+    segments = []
+    seg_names = [".text", ".rodata", ".data"]
+    for i in range(3):
+        offset, length = struct.unpack_from("<II", image, 0x20 + 8 * i)
+        if offset > declared_size or length > declared_size - offset:
+            raise ValueError(f"Segment {seg_names[i]} (offset {offset}, len {length}) exceeds declared image size {declared_size}")
+        segments.append({"name": seg_names[i], "offset": offset, "size": length})
+
+    if not any(s["size"] > 0 for s in segments):
+        raise ValueError("NRO has no non-empty executable or data segments")
+
+    # Ensure segments do not overlap
+    for i in range(2):
+        if segments[i]["size"] > 0 and segments[i + 1]["size"] > 0:
+            if segments[i]["offset"] + segments[i]["size"] > segments[i + 1]["offset"]:
+                raise ValueError(f"Segment {seg_names[i]} overlaps with {seg_names[i+1]}")
+
+    return {
+        "version": version,
+        "declared_size": declared_size,
+        "actual_size": len(image),
+        "segments": segments
+    }
+
+def package(nro_path: Path, destination: Path, version: str, repo_root: Path = None) -> tuple[Path, str]:
+    if not nro_path.is_file():
+        raise FileNotFoundError(f"NRO file not found: {nro_path}")
+
+    if repo_root is None:
+        repo_root = Path.cwd()
+
+    image = nro_path.read_bytes()
+    nro_meta = validate_nro(image)
+
     destination.mkdir(parents=True, exist_ok=True)
-    name = f"PaperNX-switch-{version}.zip"
-    archive = destination / name
-    with ZipFile(archive, "w", ZIP_DEFLATED, compresslevel=6) as z:
+    archive_name = f"PaperNX-switch-{version}.zip"
+    archive_path = destination / archive_name
+
+    fonts_dir = repo_root / "fonts"
+    required_fonts = [
+        "NotoSans-Regular.ttf",
+        "NotoSerif-Regular.ttf",
+        "OFL.txt"
+    ]
+
+    for f in required_fonts:
+        fpath = fonts_dir / f
+        if not fpath.is_file():
+            raise FileNotFoundError(f"Required bundled font asset missing: {fpath}")
+
+    with ZipFile(archive_path, "w", ZIP_DEFLATED, compresslevel=9) as z:
+        # Standard Switch SD Card directory structure:
+        # sdmc:/switch/PaperNX/
         z.writestr("switch/PaperNX/books/", "")
-        z.writestr("switch/PaperNX/fonts/", "")
         z.writestr("switch/PaperNX/data/", "")
+        z.writestr("switch/PaperNX/fonts/", "")
+
+        # Write NRO binary
         z.writestr("switch/PaperNX/PaperNX.nro", image)
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    (destination / (name + ".sha256")).write_text(f"{digest}  {name}\n", encoding="utf-8")
-    (destination / "manifest.json").write_text(
-        json.dumps({"name": name, "sha256": digest, "nro_sha256": hashlib.sha256(image).hexdigest(),
-                    "nro_image_size": declared_size, "verified": "format-header-only",
-                    "hardware_verified": False}, indent=2) + "\n", encoding="utf-8")
-    return archive, digest
+
+        # Write Bundled Fonts & OFL
+        for f in required_fonts:
+            fpath = fonts_dir / f
+            z.writestr(f"switch/PaperNX/fonts/{f}", fpath.read_bytes())
+
+        # Include README and LICENSE if available
+        readme = repo_root / "README.md"
+        if readme.is_file():
+            z.writestr("switch/PaperNX/README.md", readme.read_bytes())
+
+        license_file = repo_root / "LICENSE"
+        if license_file.is_file():
+            z.writestr("switch/PaperNX/LICENSE", license_file.read_bytes())
+
+        # Verify no path traversal in created archive
+        for info in z.infolist():
+            if info.filename.startswith("/") or ".." in info.filename:
+                raise ValueError(f"Security error: dangerous relative path in archive '{info.filename}'")
+
+    archive_bytes = archive_path.read_bytes()
+    digest = hashlib.sha256(archive_bytes).hexdigest()
+    nro_digest = hashlib.sha256(image).hexdigest()
+
+    # Write SHA256 checksum file
+    sha_file = destination / f"{archive_name}.sha256"
+    sha_file.write_text(f"{digest}  {archive_name}\n", encoding="utf-8")
+
+    # Write detailed Manifest
+    manifest_file = destination / "manifest.json"
+    manifest_data = {
+        "name": archive_name,
+        "version": version,
+        "sha256": digest,
+        "nro": {
+            "sha256": nro_digest,
+            "declared_size": nro_meta["declared_size"],
+            "actual_size": nro_meta["actual_size"],
+            "segments": nro_meta["segments"]
+        },
+        "contents": [
+            "switch/PaperNX/PaperNX.nro",
+            "switch/PaperNX/books/",
+            "switch/PaperNX/data/",
+            "switch/PaperNX/fonts/NotoSans-Regular.ttf",
+            "switch/PaperNX/fonts/NotoSerif-Regular.ttf",
+            "switch/PaperNX/fonts/OFL.txt"
+        ],
+        "sd_root_target": "sdmc:/",
+        "verified_format": "NRO0",
+        "hardware_verified": False
+    }
+    manifest_file.write_text(json.dumps(manifest_data, indent=2) + "\n", encoding="utf-8")
+
+    return archive_path, digest
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("nro", type=Path)
-    parser.add_argument("--destination", type=Path, default=Path("dist"))
-    parser.add_argument("--version", default="v0.1.0")
+    parser = argparse.ArgumentParser(description="Package PaperNX release ZIP for Nintendo Switch")
+    parser.add_argument("nro", type=Path, help="Path to compiled PaperNX.nro")
+    parser.add_argument("--destination", type=Path, default=Path("dist"), help="Output directory")
+    parser.add_argument("--version", default="v0.1.0", help="Release version tag")
+    parser.add_argument("--repo-root", type=Path, default=Path("."), help="Path to repository root")
+
     args = parser.parse_args()
-    archive, digest = package(args.nro, args.destination, args.version)
-    print(f"{archive}: SHA256 {digest}")
+    try:
+        archive, sha = package(args.nro, args.destination, args.version, args.repo_root)
+        print(f"[OK] Release package created: {archive}")
+        print(f"[OK] SHA256: {sha}")
+    except Exception as ex:
+        print(f"[ERROR] Packaging failed: {ex}", file=sys.stderr)
+        sys.exit(1)
