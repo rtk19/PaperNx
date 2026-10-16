@@ -145,6 +145,11 @@ struct App {
   char err[256]={};theme=state.theme;fontSize=state.fontSize;
   doc=px_document_open(p.path.c_str(),w-100,h-120,(float)fontSize,epubCss().c_str(),err,sizeof(err));
   if(!doc){error=err;return;}
+  char title[512]={},author[512]={};
+  if(px_document_metadata(doc,"info:Title",title,sizeof(title))>0 && title[0])
+   books[idx].title=title;
+  if(px_document_metadata(doc,"info:Author",author,sizeof(author))>0 && author[0])
+   books[idx].author=author;
   currentId=p.id;selected=idx;pages=px_document_pages(doc);page=restorePage(state,pages);
   reading=true;toolbar=false;renderPage();
  }
