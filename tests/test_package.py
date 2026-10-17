@@ -50,6 +50,18 @@ def make_synthetic_nro(magic=b"NRO0", total_size=0x1000, seg_offsets=((0x80, 0x4
 def run_tests():
     print("[TEST] Running PaperNX packaging validation tests...")
     
+    from scripts.validate_branding import validate_icon
+    custom_icon = Path("assets/branding/PaperNX-icon-switch.jpg")
+    assert validate_icon(custom_icon)["components"] == 3
+    with tempfile.TemporaryDirectory() as invalid:
+        p = Path(invalid) / "invalid.jpg"
+        p.write_bytes(b"invalid")
+        try:
+            validate_icon(p)
+            assert False, "Invalid custom branding accepted"
+        except ValueError:
+            pass
+
     # 1. Valid NRO0 validation
     valid_nro = make_synthetic_nro()
     meta = validate_nro(valid_nro)

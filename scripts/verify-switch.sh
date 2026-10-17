@@ -13,4 +13,4 @@ mkdir -p third-party-licenses/SDK-notices
 cp scripts/license-notices/* third-party-licenses/SDK-notices/
 dkp-pacman -Q > verification/switch-packages.txt
 python3 scripts/verify_artifacts.py
-python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.1.0-rc1
+python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.2.0-rc1

@@ -53,9 +53,11 @@ DATA :=
 INCLUDES	:=	include $(MUPDF_PREFIX)/include
 ROMFS	:=	romfs
 
+ICON := assets/branding/PaperNX-icon-switch.jpg
+
 APP_TITLE	:=	PaperNX
 APP_AUTHOR	:=	ysfbz
-APP_VERSION	:=	0.1.0-rc1
+APP_VERSION	:=	0.2.0-rc1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -176,7 +178,13 @@ endif
 .PHONY: $(BUILD) clean all
 
 #---------------------------------------------------------------------------------
-all: $(BUILD)
+all: validate-branding $(BUILD)
+
+.PHONY: validate-branding
+validate-branding:
+	python3 scripts/validate_branding.py
+
+$(BUILD): validate-branding
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -206,7 +214,7 @@ ifeq ($(strip $(APP_JSON)),)
 all	:	$(OUTPUT).nro
 
 ifeq ($(strip $(NO_NACP)),)
-$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp
+$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp $(APP_ICON)
 else
 $(OUTPUT).nro	:	$(OUTPUT).elf
 endif
@@ -220,6 +228,8 @@ $(OUTPUT).nsp	:	$(OUTPUT).nso $(OUTPUT).npdm
 $(OUTPUT).nso	:	$(OUTPUT).elf
 
 endif
+
+$(OUTPUT).nacp: $(TOPDIR)/Makefile
 
 $(OUTPUT).elf	:	$(OFILES)
 
