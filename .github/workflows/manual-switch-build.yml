@@ -40,7 +40,7 @@ jobs:
           python tests/test_package.py
 
   # =========================================================================
-  # Stage B: Native Desktop Reader Verification
+  # Stage B: Native Desktop Reader & MuPDF EPUB/PDF Verification
   # =========================================================================
   native-desktop-integration:
     needs: source-preflight-and-tests
@@ -54,29 +54,52 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build build-essential \
-            libsdl2-dev libsdl2-ttf-dev libmupdf-dev mupdf-tools
+            libsdl2-dev libsdl2-ttf-dev libmupdf-dev mupdf-tools \
+            libfreetype-dev libharfbuzz-dev libjbig2dec0-dev libopenjp2-7-dev libjpeg-dev zlib1g-dev
 
-      - name: Build PaperNX native desktop executable
+      - name: Generate real EPUB and PDF test fixtures
+        run: |
+          python3 tests/generate_fixtures.py
+
+      - name: Build PaperNX desktop and native MuPDF render test runner
         run: |
           cmake -S . -B build-desktop -G Ninja -DPAPERNX_NATIVE=ON
-          ninja -C build-desktop PaperNX
+          ninja -C build-desktop PaperNX mupdf_render_tests
 
       - name: Verify desktop executable
         run: |
           test -x build-desktop/PaperNX
           file build-desktop/PaperNX
 
+      - name: Execute native MuPDF EPUB/PDF render verification test suite
+        run: |
+          ./build-desktop/mupdf_render_tests
+
+      - name: Upload render artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-render-snapshots
+          path: tests/fixtures/*.ppm
+
   # =========================================================================
   # Stage C & D & E: Switch AArch64 Cross-Compile & Verified NRO0 Packaging
   # =========================================================================
   switch-aarch64-nro-build:
-    needs: source-preflight-and-tests
+    needs: [source-preflight-and-tests, native-desktop-integration]
     if: ${{ inputs.confirm == 'BUILD' }}
     runs-on: ubuntu-latest
     container: devkitpro/devkita64:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure safe directory and runtime dependencies
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}" || true
+          if ! command -v python3 &> /dev/null; then
+            (apt-get update && apt-get install -y python3) || (pacman -Sy --noconfirm python) || true
+          fi
 
       - name: Install Switch portlibs via dkp-pacman
         run: |
@@ -95,7 +118,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: prefix-mupdf-switch
-          key: mupdf-switch-1.23.11-v1
+          key: mupdf-switch-1.23.11-${{ hashFiles('scripts/build-mupdf-switch.sh') }}
 
       - name: Cross-compile MuPDF for Switch AArch64
         if: steps.cache-mupdf.outputs.cache-hit != 'true'
