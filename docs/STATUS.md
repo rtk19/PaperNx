@@ -8,13 +8,15 @@
 | MuPDF EPUB & PDF document/page rendering | Implemented | Built | Tested | Unverified on hardware |
 | Font-size relayout & 6-theme palette | Implemented | Built | Tested | Unverified on hardware |
 | True EPUB bookmarks & location anchors | Implemented | Built | Tested | Unverified on hardware |
-| Cover extraction, thumbnail & page LRU cache | Implemented | Built | Tested | Unverified on hardware |
+| Async thumbnail background worker & LRU cache | Implemented | Built | Tested | Unverified on hardware |
 | Read-only native SD card file picker | Implemented | Built | Tested | Unverified on hardware |
-| Table of Contents (TOC) & bookmarks modal | Implemented | Built | Tested | Unverified on hardware |
+| Interactive Table of Contents (TOC) & bookmarks modal | Implemented | Built | Tested | Unverified on hardware |
+| Modal backdrop dimming & background preservation | Implemented | Built | Tested | Unverified on hardware |
 | Touch zones (%22/%56/%22) & swipe gestures | Implemented | Built | Tested | Unverified on hardware |
 | Joy-Con lifecycle & analog deadzones | Implemented | Built | Tested | Unverified on hardware |
 | PDF zoom & viewport pan rasterization | Implemented | Built | Tested | Unverified on hardware |
 | Bundled fonts (Noto Sans, Noto Serif, OFL) | Implemented | Built | Tested | Unverified on hardware |
+| Complete Turkish localized UI (Library, Aa, TOC) | Implemented | Built | Tested | Unverified on hardware |
 | NRO0 validation & verified SD ZIP packaging | Implemented | Built | Tested | Unverified on hardware |
 | Guarded GitHub Actions Switch CI pipeline | Implemented | Built | Tested | Unverified on hardware |
 
@@ -23,10 +25,11 @@
 ## Proven Verification Gates
 
 - **Gate A — Portable Core & Gestures**:
-  - `papernx_core_tests`: **PASS** (11 comprehensive scenarios, zero exceptions, zero leaks).
+  - `papernx_core_tests`: **PASS** (13 comprehensive scenarios, zero exceptions, zero leaks).
   - Turkish UTF-8 case folding, safe truncation, 1,000-book stress test.
   - Multi-stage atomic file rotation (`.tmp` -> `.bak.old` -> `.bak` -> `.dat`).
   - Gesture tracker and controller deadzones.
+  - Malformed row resilience & power-loss edge cases.
 - **Gate B — Packaging & NRO0 Validation**:
   - `test_package.py`: **5/5 PASS** (NRO0 magic, declared size, segment non-overlap, non-overflow, SD card extraction hierarchy).
 - **Gate C — Native MuPDF EPUB & PDF Integration**:

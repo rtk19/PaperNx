@@ -43,6 +43,11 @@
     - Tap left (0-22%), tap right (78-100%), tap center (22-78%).
     - Swipe left / right velocity and distance threshold classification.
     - Controller analog stick deadzone filtering (<12000 filtered, >12000 dispatched).
+12. **Malformed Save Data & Power-Loss Edge Cases**:
+    - Parsing corrupted rows, NaN floats, non-integer tokens without crash or exception.
+    - Gracefully preserves valid rows while ignoring damaged records.
+13. **Turkish Search & Diacritic Roundtrip**:
+    - Bidirectional matching for dotted/dotless `I` / `ı` / `İ` / `i`, `ş`, `ç`, `ğ`, `ö`, `ü`.
 
 ---
 
@@ -63,7 +68,7 @@
 ---
 
 ## 3. Native MuPDF EPUB & PDF Integration Test Suite (`mupdf_render_tests`)
-**Result**: **PASS** (Automated C test runner).
+**Result**: **PASS** (Automated C test runner aligned with `papernx/mupdf_bridge.h`).
 
 ### Test Scenarios Covered
 1. **Error Resiliency on Corrupted Inputs**:
@@ -75,11 +80,10 @@
    - `px_document_is_epub` returns `1`.
    - Extracts metadata title ("İstanbul Masalları ve Şiirler") and author ("Ahmet Hamdi Tanpınar").
 3. **EPUB Layout Reflow & Rendering**:
-   - `px_document_layout_epub` computes page count based on viewport dimensions.
-   - Page 0 renders to valid `PxImage` buffer (pixels != NULL, width > 0, height > 0).
-   - Changing font size from 24pt to 36pt reflows the document, resulting in a distinct pixel hash (`hash_epub0 != hash_reflow`).
+   - `px_document_open` and `px_document_render` produce valid 24-bit RGB packed pixel buffers.
+   - Changing font size via `px_document_relayout` reflows the document, producing a distinct pixel hash.
 4. **EPUB Table of Contents & Bookmarks**:
-   - `px_document_get_toc` extracts sections ("Birinci Bölüm: Boğaziçi ve Sabah Güneşi", "İkinci Bölüm: Sonbahar Ağaçları ve Yağmur").
+   - `px_document_toc` extracts sections ("Birinci Bölüm: Boğaziçi ve Sabah Güneşi", "İkinci Bölüm: Sonbahar Ağaçları ve Yağmur").
    - Resolves internal URI destinations (`#chapter1`, `#chapter2`) via `fz_resolve_link`.
    - Creates and looks up layout bookmarks via `px_document_make_bookmark` and `px_document_lookup_bookmark`.
 5. **PDF Rendering & Multi-Page Verification**:
@@ -87,7 +91,7 @@
    - `px_document_is_epub` returns `0`.
    - Renders Page 0 and Page 1; asserts pixel hashes differ (`hash_pdf0 != hash_pdf1`).
 6. **PDF Zoom & Viewport Pan Cutout**:
-   - Renders Page 0 at 1.5x zoom with pan offsets (`panX = 100`, `panY = 50`).
+   - Renders Page 0 at 1.5x zoom with pan offsets (`panX = 100`, `panY = 50`) using `px_document_render_view`.
    - Asserts zoomed/panned cutout produces a distinct pixel hash from full page.
 7. **TOC Outlines in PDF**:
    - Extracts PDF bookmarks ("Sayfa 1 - Giris" -> page 0, "Sayfa 2 - Gelisme" -> page 1).
