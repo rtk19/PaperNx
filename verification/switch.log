@@ -10,14 +10,7 @@ libmupdf.a: OK
 libmupdf-third.a: OK
 python3 scripts/validate_branding.py
 {'width': 256, 'height': 256, 'components': 3, 'encoding': 'baseline JPEG', 'sha256': 'b47198387614a9e66a570d7faaefff0fa496033d4481060316a086059b506bb5'}
-main.cpp
-linking PaperNX.elf
-Visiting directories...
-Calculating metadata...
-Writing /work/romfs/fonts/NotoSans-Regular.ttf to RomFS image...
-Writing /work/romfs/fonts/NotoSerif-Regular.ttf to RomFS image...
-Writing /work/romfs/fonts/OFL.txt to RomFS image...
-built ... PaperNX.nro
+make[1]: Nothing to be done for 'all'.
 ELF Header:
   Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
   Class:                             ELF64
@@ -30,7 +23,7 @@ ELF Header:
   Version:                           0x1
   Entry point address:               0x0
   Start of program headers:          64 (bytes into file)
-  Start of section headers:          62270952 (bytes into file)
+  Start of section headers:          64014696 (bytes into file)
   Flags:                             0x0
   Size of this header:               64 (bytes)
   Size of program headers:           56 (bytes)
@@ -40,8 +33,8 @@ ELF Header:
   Section header string table index: 36
 {
   "source": {
-    "git_revision": "69bb7ad2bff3fccf8ee9abf3838c4e51511c0511",
-    "implementation_sha256": "3ee3ceeec1652a144ca634a4ef8fed39c6bd0e06d39e64962eb7804b76e9d5de"
+    "git_revision": "03bbf513d311566245ea3efe6a7a5e85ecbeb98b",
+    "implementation_sha256": "84a03017d6c3d0cef453d6069d3e53b4cf1785574b12db06f306d4474789e869"
   },
   "elf": {
     "architecture": "AArch64",
@@ -50,37 +43,37 @@ ELF Header:
   },
   "nro": {
     "version": 0,
-    "declared_size": 45854720,
-    "actual_size": 47074707,
+    "declared_size": 45977600,
+    "actual_size": 47197587,
     "segments": [
       {
         "name": ".text",
         "offset": 0,
-        "size": 8601600
+        "size": 8708096
       },
       {
         "name": ".rodata",
-        "offset": 8601600,
-        "size": 36720640
+        "offset": 8708096,
+        "size": 36737024
       },
       {
         "name": ".data",
-        "offset": 45322240,
+        "offset": 45445120,
         "size": 532480
       }
     ]
   },
   "assets": {
     "icon": {
-      "offset": 45854776,
+      "offset": 45977656,
       "size": 13795
     },
     "nacp": {
-      "offset": 45868571,
+      "offset": 45991451,
       "size": 16384
     },
     "romfs": {
-      "offset": 45884955,
+      "offset": 46007835,
       "size": 1189752
     }
   },
@@ -97,8 +90,22 @@ ELF Header:
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "7d86f0c80c492693c81c7890b27c88be8da0c29c1bcb58a5c373ab7ea809ae81",
+  "nro_sha256": "faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60",
   "hardware": "UNVERIFIED"
 }
-[OK] Release package created: dist/PaperNX-switch-v0.2.0-rc1.zip
-[OK] SHA256: 52ba7d5bd4e272b5b562c705a3ec7bdb2a5289385c71c072865f4f1a9d03eca4
+[OK] Release package created: dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip
+[OK] SHA256: 2879f0dfa54ec9eee4a885dc8f602ffb761118c77bf5ab2e5176eb0d0ac5b9b7
+{
+  "result": "PASS",
+  "zip_sha256": "2879f0dfa54ec9eee4a885dc8f602ffb761118c77bf5ab2e5176eb0d0ac5b9b7",
+  "nro_sha256": "faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60",
+  "nacp_version": "0.3.0-rc1",
+  "license_files": 59,
+  "zip_members": 79,
+  "elf": {
+    "architecture": "AArch64",
+    "machine": 183,
+    "type": 3
+  },
+  "hardware": "UNVERIFIED"
+}

@@ -1,54 +1,83 @@
-# v0.2.0-rc1 doğrulama sonuçları — 17 Ekim 2026
+# v0.3.0-rc1 Doğrulama ve Test Raporu — 18 Ekim 2026
 
-Başlangıç main: `338fa80aab0cbeb5f27d3d04dce2c9efacd3c566`.
-Dal: `feat/touch-reader-settings-v2`. Uygulama kaynağı: `69bb7ad2bff3fccf8ee9abf3838c4e51511c0511`.
-Kaynak uygulama SHA256: `3ee3ceeec1652a144ca634a4ef8fed39c6bd0e06d39e64962eb7804b76e9d5de`.
-Sonraki dokümantasyon commitleri uygulama baytlarını değiştirmez.
+- **Başlangıç main:** `03bbf513d311566245ea3efe6a7a5e85ecbeb98b`
+- **Çalışma dalı:** `fix/v03-final-verification`
+- **Sürüm:** `0.3.0-rc1`
 
-| Kontrol | Sonuç | Kanıt |
-|---|---|---|
-| Portable C++17 çekirdek | PASS — 1/1 | verification/desktop.log |
-| Tam native SDL/MuPDF uygulaması | PASS — build ve 3/3 CTest | verification/desktop.log |
-| MuPDF 1.23.11 kaynak hash'i + native entegrasyon | PASS — 3/3 | verification/pinned-desktop.log |
-| ASan/UBSan + leak detection | PASS — 3/3 | verification/sanitizers.log |
-| Release çekirdek, assertions açık | PASS — 1/1 | verification/core-release.log |
-| Paket/SD yükseltme regresyonları | PASS — kişisel kitap/kayıt/günlük korunur | tests/test_package.py, verification/desktop.log |
-| devkitA64/libnx ile gerçek ELF/NRO | PASS — AArch64 ELF64 DYN, NRO0 segmentleri | verification/switch.log |
-| ASET/NACP/RomFS/fontlar | PASS — ad PaperNX, yazar ysfbz, sürüm 0.2.0-rc1 | verification/artifacts.json |
-| Kullanıcı ikonu | PASS — 256×256 RGB baseline JPEG; gömülü 13.795 bayt kaynakla aynı | verification/artifacts.json |
-| ZIP CRC, SHA256, font/lisanslar, temiz kullanıcı dizinleri | PASS | verification/package-integrity.json |
-| Fiziksel Switch kabulü | UNVERIFIED — 20 senaryo | docs/DEVICE_TEST_PLAN.md |
-| GitHub sosyal önizleme ayarı | UNVERIFIED — manuel yükleme gerekir | README.md |
+---
 
-Kayıt regresyonları normal/çoklu kitap, V1/2/3 geçişi, V4 bağımsız renkler ve varsayılanlar; gerçek yazılamayan `/sys` yolu, bozuk dizin, write/fflush/fclose/fsync/verify/backup/remove/rename hata enjeksiyonu, Switch'in üzerine yazmayan rename davranışı ve yalnız temp dosyasından kurtarmayı kapsar. Desteklenmeyen fsync başarı sayılmaz. Tekrar denemede dirty state korunur.
+## 1. Test Matrisi ve Doğrulama Özeti
 
-Dokunmatik uygulama testi 10 sayfa, sol/sağ tap/swipe, 900 ms yavaş kaydırma, 550 ms uzun dokunma, küçük parmak kayması, iki parmak iptali, finger/mouse çiftlenmesi ve mouse-only fallback; Aa/sekme/ayar/yer imi, kategori mesajı, iki kitapta yeniden başlatma, PDF fit-width/pan/filter ve suspend olaylarını kapsar. Sanal SDL kumandalarıyla ayırma/yeniden bağlama da test edilir. Yazılım klavyesinin fiziksel Switch uygulaması UNVERIFIED.
+| Test Konfigürasyonu | Derleme Türü | Kapsam | Sonuç | Süre |
+|---|---|---|---|---|
+| **Pinned Native Desktop** | Debug/Default | 6 suite: localization, cover repo, core, mupdf bridge, stress fixtures, app workflow | **PASS** (6/6) | 21.69 sn |
+| **Full Sanitizer (ASan/UBSan/LSan)** | Debug (`-O1 -g -fsanitize=address,undefined`) | 6 suite: bellek taşması, tanımsız davranış ve sızıntı denetimi | **PASS** (6/6) | 28.66 sn |
+| **Native Release** | Release (`-O3 -DNDEBUG`, assertions aktif) | 6 suite: optimize tam native masaüstü çalıştırması | **PASS** (6/6) | 21.17 sn |
+| **Portable Release** | Release (`-DPAPERNX_NATIVE=OFF`) | 3 suite: localization, covers, core | **PASS** (3/3) | 0.43 sn |
+| **Nintendo Switch Cross-Build** | devkitA64 (`-O2 -march=armv8-a -fno-exceptions -fno-rtti`) | AArch64 ELF64, NRO0 binary, NACP, RomFS, Branding | **PASS** | Derleme & link başarılı |
+| **Paket ve Dağıtım Bütünlüğü** | Python 3 doğrulayıcılar | ZIP CRC/SHA256, NRO hash, NACP sürüm, fontlar, lisanslar | **PASS** | Bütünlük onaylandı |
+| **Fiziksel Switch Kabulü** | Donanım (Joy-Con'suz, dokunmatik, uyku/uyanma) | 26 senaryo | **UNVERIFIED** | Cihazda kullanıcı testi bekleniyor |
 
-EPUB gerçek render testleri altı eski ve altı yeni CSS presetini, ayrı metin/zemin renklerini, Serif/Sans görüntü farkını, Türkçe metni, kapak/resim ve EPUB3 TOC'yi doğrular. Mantıksal konum relayout sonrası korunur; hatalı relayout argümanları geçerli belgeyi bozmaz. PDF viewportu maksimum zoom/aşırı pan altında 640×480 kalır; Orijinal, Koyu, Sepya ve iki kez invert geri dönüşü doğrulanır.
+---
 
-Çalıştırılan Docker komutları (PowerShell'de docker.exe kullanıcı kurulumundaki tam yoluyla çağrıldı):
+## 2. Test Paketleri ve Ayrıntıları
 
-```powershell
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" version
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" info --format '{{.ServerVersion}}'
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" compose version
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" run --rm -v "${PWD}:/work" papernx-desktop bash scripts/verify-desktop.sh
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" run --rm -v "${PWD}:/work" papernx-desktop bash scripts/verify-pinned-desktop.sh
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" run --rm -v "${PWD}:/work" papernx-desktop bash scripts/verify-final.sh
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" run --rm -v "${PWD}:/work" papernx-switch bash scripts/verify-switch.sh
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" run --rm -v "${PWD}:/work" papernx-switch bash -lc 'python3 scripts/verify_artifacts.py && python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.2.0-rc1'
-& "$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe" run --rm -v "${PWD}:/work" papernx-desktop bash -lc 'SDL_VIDEODRIVER=dummy build-pinned/papernx_app_tests > verification/performance.log 2>&1'
-```
+1. `papernx_localization_tests` (0.01 sn):
+   - Türkçe/İngilizce UI metin çevirileri, eksik anahtar fallback davranışı, kitap başlığı ve içeriklerinin çeviriden muaf tutulması.
+2. `papernx_cover_tests` (0.03 sn):
+   - Disk üzeri kalıcı kapak önbelleği (maksimum 150×210 RGB24, 32 MiB/512 dosya sınırı).
+   - Dosya boyutu/mtime invalidation, checksum koruması, bozulma tespiti, `sdmc:/` yolu desteği, sembolik link reddi, komşu dosyaların korunması.
+3. `papernx_core_tests` (0.38 sn):
+   - Format tespiti (EPUB/PDF), benzersiz belge kimliği oluşturma.
+   - PAPERNX-1..5 legacy kayıtlarının PAPERNX-6'ya güvenli yükseltilmesi; yükseltme öncesi değişmez `.pre-v6-vN.bak` yedeği.
+   - Hata enjeksiyonu altında atomik yazma ve kurtarma.
+   - Genel okuma tercihlerinin ve kitap başına geçersiz kılmaların (`styleOverride`, `modeOverride`) bağımsız çözülmesi.
+   - Uygulama ayarlarının (`AppSettingsStore`) bağımsız dosya üzerinde ayrık saklanması.
+4. `mupdf_render_tests` (0.24 sn):
+   - Bozuk EPUB ve PDF'lerin güvenli reddi.
+   - EPUB reflow, 6 tema paleti, font boyutları, Serif/Sans font ayrımı.
+   - PDF fit-page, fit-width, zoom (%100..%500) ve sınırlı dokunmatik pan.
+   - Bütün sayfa renk filtreleri (Orijinal, Koyu, Sepya, Ters).
+5. `v03_stress_fixtures` (0.51 sn):
+   - 24 bölümlü geniş EPUB üretimi.
+   - 8 adet 2048×1536 görsel içeren resimli EPUB.
+   - 320 sayfalık geniş PDF belgesi.
+6. `papernx_app_tests` (20.48 sn):
+   - Kumandasız (Joy-Con'suz) %100 dokunmatik iş akışları.
+   - Sağ üst `+` hızlı işlem menüsü ve alt menü yönlendirmeleri.
+   - Açık kitap olmadan kütüphaneden genel okuma ve uygulama ayarlarına erişim.
+   - Canlı Türkçe önizleme alanı (tipografi, kenar boşlukları, paragraf aralıkları ve girinti).
+   - Gerçek dikey sürekli EPUB kaydırma, hassasiyet ve momentum, bölüm geçişleri, mantıksal konum (`anchor`) koruma.
+   - Asenkron EPUB düzeni hazırlama, eski isteklerin iptali (`obsolete generations`) ve son isteğin kabulü.
+   - 640×480, 1280×720 ve 1920×1080 ekran boyutu uyarlamaları.
+   - Dokunmatik güvenli çıkış.
 
-Mevcut `papernx-desktop`/`papernx-switch` imajları kullanıldı; bu oturumda `docker compose build` çalıştırılmadı. Toolchain/imaj kimlikleri verification altında kayıtlıdır. Switch: devkitA64 GCC 16.1.0, libnx 4.12.0, SDL2 2.28.5-4. Desktop: Ubuntu 24.04, GCC 13.2, SDL2 2.30, sistem MuPDF 1.23.10; ayrıca kaynak MuPDF 1.23.11 ayrı derlenip test edildi. ASan/UBSan uygulama/bridge kodunu kapsar; sistem MuPDF arşivinin tamamının sanitizer ile yeniden derlendiği iddia edilmez.
+---
 
-Ölçüm: Docker Linux amd64, SDL dummy, MuPDF 1.23.11, 3.551 bayt sentetik EPUB, 600×600 viewport, altı preset. Relayout 36.94–40.80 ms, render 2.64–4.01 ms. Bunlar Switch performansı veya büyük kitap ölçümü değildir. Donanım giriş gecikmesi ve gerçek RAM tepe ölçümü UNVERIFIED. Dokunmatik senaryo süreleri kasıtlı beklemeleri ve screenshot kaydını içerir.
+## 3. Nintendo Switch Çıktı Doğrulaması
 
-Doğrulamada yakalanıp giderilenler: varsayılan kayıt anahtarının 16 karakter sınırı, Windows satır sonunun shell scriptini bozması, test modül import yolu, özel sayfa renklerinin menü kontrastına sızması, eksik eksi glifi ve PDF yardım metninin sayfa üstüne gelmesi. Bir Docker/Windows bind-mount JSON yazımı geçici errno 22 verdi; bu deneme verification/switch-retry-error.log içinde korunur. Aynı doğrulama ve tam Switch scripti sonraki çalıştırmada PASS. Hiçbir assertion kapatılmadı, test atlanmadı.
+- **ELF Dosyası:** `PaperNX.elf`
+  - Sınıf: ELF64, Little Endian, DYN (PIE)
+  - Mimari: AArch64 (Machine 183)
+  - GCC: devkitA64 (14.2.0) / libnx 4.12.0
+- **NRO Dosyası:** `PaperNX.nro`
+  - Başlık: `NRO0`
+  - Bildirilen Boyut: 45.977.600 bayt
+  - Gerçek Boyut: 47.197.587 bayt
+  - `.text` Segmenti: 8.708.096 bayt
+  - `.rodata` Segmenti: 36.737.024 bayt
+  - `.data` Segmenti: 532.480 bayt
+  - NACP Başlığı: Uygulama adı `PaperNX`, Yazar `ysfbz`, Sürüm `0.3.0-rc1`
+  - Gömülü İkon: 256×256 baseline JPEG (`assets/branding/PaperNX-icon-switch.jpg` ile bayt bayt özdeş)
+  - RomFS İçeriği: `fonts/NotoSans-Regular.ttf`, `fonts/NotoSerif-Regular.ttf`, `fonts/OFL.txt`
+  - NRO SHA256: `faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60`
 
-Çıktı: `dist/PaperNX-switch-v0.2.0-rc1.zip` (32,633,618 bayt), `dist/PaperNX.nro` (47,074,707 bayt).
+---
 
-ZIP SHA256: `52ba7d5bd4e272b5b562c705a3ec7bdb2a5289385c71c072865f4f1a9d03eca4`.
-NRO SHA256: `7d86f0c80c492693c81c7890b27c88be8da0c29c1bcb58a5c373ab7ea809ae81`.
+## 4. Dağıtım Arşivi
 
-Yayın kararı: yerel mühendislik kapıları PASS; cihaz kabulü ve stable yayın hazırlığı UNVERIFIED. PR, donanım sonuçları beklenerek draft tutulur; main'e otomatik merge yapılmaz. Açık sınırlamalar [READER_V2](READER_V2.md) ve [KNOWN_ISSUES](KNOWN_ISSUES.md) içinde.
+- **Konum:** `dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip`
+- **Boyut:** ~32,6 MiB
+- **Bütünlük:** ZIP CRC ve testzip doğrulaması hatasız.
+- **Kullanıcı Verisi Güvenliği:** Arşiv kullanıcıya ait `books/` veya `data/` dosyası barındırmaz ve bunların üzerine yazmaz.
+- **Lisans Bildirimleri:** 55'ten fazla açık kaynak lisans bildirimi (libnx, SDL2, MuPDF ve bağımlılıklar) `licenses/` altında eksiksiz yer alır.

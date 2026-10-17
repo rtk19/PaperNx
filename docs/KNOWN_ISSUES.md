@@ -1,39 +1,37 @@
-﻿# Açık doğrulamalar ve sınırlamalar
+# PaperNX v0.3.0-rc1 — Bilinen Durumlar ve Açık Sınırlar
 
-## P1-HW: Fiziksel Switch doğrulaması eksik
+## 1. P1-HW: Fiziksel Nintendo Switch Doğrulaması
 
-Joy-Con/Pro Controller düğme eşlemesi ve yeniden bağlantı, libnx yazılım klavyesi,
-çoklu dokunma, uyku/uyanma, hbmenu çıkışı, handheld/docked geçişi ve application/applet
-RAM davranışı **UNVERIFIED**. Masaüstü sanal SDL kontrol testleri bu doğrulamaların
-yerine geçmez. Kaynak: `src/main.cpp` olay döngüsü, `toggleSearch`, `handleEvent`;
-[cihaz matrisi](DEVICE_TEST_PLAN.md). Stable v1.0 için engeldir.
+- Joy-Con'suz (çıkarılmış) kullanım, libnx yazılım klavyesi, donanım çoklu dokunma, uyku/uyanma (`sleep/resume`), Homebrew Menu'ye temiz çıkış, docked/handheld geçişi ve gerçek microSD okuma/yazma gecikmeleri **UNVERIFIED** (doğrulanmamış) durumdadır.
+- Masaüstü SDL simülasyonları ve Docker testleri bu donanım doğrulamalarının yerine geçemez.
+- İlgili prosedür [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md) içerisinde tanımlanmıştır.
 
-## P2: Konum hassasiyeti ve dosya taşıma
+---
 
-Kalıcı EPUB konumu bölüm/oran yaklaşımıdır; düzen değişiminde yakın metne döner,
-CFI/karakter kesinliği sağlamaz. Eski ham MuPDF pointer bookmark'ları kullanılmaz.
-`src/mupdf_bridge.c`: `px_document_make_bookmark`, `px_document_lookup_bookmark`.
+## 2. P2: Konum Hassasiyeti ve Geometrik Fallback
 
-Belge kimliği yol/boyuttan türetilir. Taşınan/yeniden adlandırılan dosyaya otomatik
-ilerleme eşleştirme yapılmaz (`src/core.cpp: documentId`). Aynı yol ve boyutla değişen
-farklı içerik için de otomatik kimlik ayrımı yoktur.
+- Mantıksal EPUB konumları bölüm ve karakter/offset bazlıdır (`px_document_anchor`).
+- İç etiket veya karakter bilgisi bulunmayan sıra dışı/bozuk XHTML bölümlerinde, geometrik bölüm yüksekliği oranına (1/8191 hassasiyet) geri düşülür.
+- Çok uzun (on binlerce piksel) tek parça bölümlerde geometrik geri düşüş durumunda 1-2 piksel sapma görülebilir.
 
-## Belgeler, sınırlar ve dağıtım
+---
 
-DRM ve parola korumalı dosyalar desteklenmez. EPUB script/video/interaktivite çalıştırılmaz.
-TOC 256 girişle, scanner 10.000 kitapla sınırlıdır. Kaynakta bellek sınırları vardır;
-tüm büyük/bozuk belge türleri veya bütün allocation hata noktaları denenmemiştir.
-Taranmış PDF'de metin araması veya OCR uygulama özelliği değildir.
+## 3. P2: Bütün Sayfa PDF Renk Filtreleri
 
-Docker taban imajları ve MuPDF kaynak hash'i sabittir; devkitPro paket kurulumu rolling
-depoya bağlıdır. Kullanılan sürümler loglanır; gelecekte byte düzeyinde aynı toolchain
-kurulumu garanti edilmez. Genel yayımdan önce lisans/kaynak erişimi korunmalı ve cihaz
-matrisi tamamlanmalıdır. [TEST_RESULTS](TEST_RESULTS.md) son yürütme kanıtıdır.
+- PDF Koyu, Sepya ve Ters renk modları tüm sayfayı raster piksel düzeyinde filtreler.
+- Sayfa içindeki fotoğraflar ve renkli illüstrasyonlar da bu filtrelerden etkilenir. Vektör/metin ve görsel ayrıştırmalı PDF reflow bu sürümün kapsamında değildir.
 
-## v0.2.0-rc1 ek sınırlar
+---
 
-- Bütün sayfa PDF filtreleri fotoğrafları da değiştirir; görüntü koruyan metin/zemin ayrıştırması uygulanmadı.
-- EPUB yalnız renk değişiminde de yeniden düzenlenir; mantıksal bölüm/oran konumu yaklaşık korunur.
-- İlk SD kitap taraması eşzamanlıdır. Büyük kitap/gerçek donanım gecikmesi ve RAM tepesi UNVERIFIED.
-- GitHub sosyal önizleme görselinin yüklenmesi README’deki manuel adımdır.
-- Fiziksel Switch’te bildirilen kayıt hatasının rename kaynaklı olduğu kod incelemesine dayalıdır; yeni native Result günlüğüyle cihazda teyit edilmelidir.
+## 4. Kapsam Dışı Bırakılan (Gelecek Yol Haritası) Özellikler
+
+Aşağıdaki özellikler v0.3.0-rc1 kapsamında **kasıtlı olarak yer almamaktadır** ve [PRODUCT_ROADMAP_2026.md](PRODUCT_ROADMAP_2026.md) içerisinde planlanan sürümlere devredilmiştir:
+- Kitap içi tam metin araması (v0.5)
+- Metin seçimi, notlar ve altını çizme (v0.5)
+- Çevrimdışı sözlük (v0.5)
+- Okuma istatistikleri ve tahmini bitirme süresi (ETA) (v0.4)
+- PDF OCR ve reflow (v0.7)
+- Bulut / Calibre kablosuz senkronizasyonu (v0.6+)
+- Sesli okuma (TTS) (Araştırma)
+
+Arayüzde bu özellikler için tıklanabilir sahte/ölü butonlar yer almaz.

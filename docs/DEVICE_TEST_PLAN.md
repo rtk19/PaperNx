@@ -2,7 +2,9 @@
 
 All results below are **UNVERIFIED** until a new device session is recorded. Desktop simulation, component tests and successful AArch64 linking do not change physical results. The six earlier videos are acceptance input, not acceptance of this new build.
 
-Back up `switch/PaperNX/data/` and preserve `books/`. Install only the new package application assets, merging directories. Record NRO SHA256, package version, Switch LCD/OLED model, HOS/hbmenu version, applet/application mode and test-book names. Start with both controllers detached. Keep a text-heavy EPUB, an image-heavy EPUB and a multi-hundred-page PDF available if possible. Never remove SD or cut power while the app is writing.
+Back up `switch/PaperNX/data/` and preserve `books/`. Install only the new package application assets from `dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip`, merging directories.
+Target NRO SHA256: `faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60`.
+Record installed NRO SHA256, package version, Switch LCD/OLED model, HOS/hbmenu version, applet/application mode and test-book names. Start with both controllers detached. Keep a text-heavy EPUB, an image-heavy EPUB and a multi-hundred-page PDF available if possible. Never remove SD or cut power while the app is writing.
 
 | # | Short procedure | Acceptance | Result |
 |---|---|---|---|
