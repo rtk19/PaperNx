@@ -7,7 +7,8 @@ Gerçek RC önizleme derlemesi vardır; stable v1.0 onayı verilmemiştir.
 
 - Dal: `feat/native-reader-foundation`.
 - Derlenen uygulama commit'i: `5c9cd44fe6d27457b8096a0452ea8d75974ed1f1`.
-- [PR #1](https://github.com/ysfbz/PaperNx/pull/1): OPEN/DRAFT; main'e merge yapılmadı.
+- [PR #1](https://github.com/ysfbz/PaperNx/pull/1): güncel birleştirme durumu GitHub üzerindedir.
+  Main'e birleştirme bu rapordaki donanım sınırlarını veya stable sürüm kararını değiştirmez.
 - Başlangıç HEAD'i GitHub fetch ile `204dc4b` olarak doğrulandı; daha yeni değişiklik üzerine yazılmadı.
 - Mantıksal commit'ler: `58f40f3` core/kurtarma, `d4b6838` native/EPUB3,
   `3bda474` UI/PDF/worker, `322c9d2` tema/bellek/metadata, `2595548` Docker/ARM64/CI,

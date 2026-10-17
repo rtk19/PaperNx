@@ -122,4 +122,7 @@ adımlarını başarıyla yürüttü. Workflow yalnızca `actions/upload-artifac
 `Artifact storage quota has been hit` hatasıyla FAIL oldu; bu uygulama/test hatası değildir.
 Mevcut GitHub artifact'leri silinmedi. PR koşularında job logu ve step summary korunur;
 yükleme `workflow_dispatch` için `upload_artifacts=true` açık seçeneğine taşındı.
-Hiçbir başarısız test skip edilmedi. Düzeltilen workflow'un sonraki yürütmesi ayrıca izlenir.
+Hiçbir başarısız test skip edilmedi. Düzeltilen workflow'un
+[39035754051 numaralı koşusu](https://github.com/ysfbz/PaperNx/actions/runs/39035754051)
+başarıyla tamamlandı: portable ve desktop PASS; isteğe bağlı Switch işi tetiklenmedi.
+Gerçek ARM64/NRO kanıtı yukarıdaki yerel Docker doğrulamasıdır.

@@ -2,7 +2,8 @@
 
 Tarih: 17 Ekim 2026. Dal: `feat/native-reader-foundation`.
 Uygulama/build kaynağı: `5c9cd44fe6d27457b8096a0452ea8d75974ed1f1`.
-PR: [#1](https://github.com/ysfbz/PaperNx/pull/1), taslak; main'e merge yapılmadı.
+PR: [#1](https://github.com/ysfbz/PaperNx/pull/1). Güncel birleştirme durumu GitHub üzerindedir;
+bu doğrulama raporu önizleme sürümüne aittir, stable onayı değildir.
 
 | Kapı | Sonuç | Kanıt |
 |---|---|---|
