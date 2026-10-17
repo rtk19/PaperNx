@@ -71,3 +71,7 @@ son paket kontrolünün sonucudur. NRO0 başlığı konsolda çalıştırma kan�
 Stable v1.0 için fiziksel matrisin tamamlanması, yeni bulunan P0/P1'lerin giderilmesi
 ve lisans/karşılık gelen kaynak erişiminin dağıtım boyunca korunması gereklidir.
 RC dosyaları yalnızca **HARDWARE: UNVERIFIED** etiketiyle değerlendirilmelidir.
+
+GitHub PR core/native adımları ilk gerçek koşuda PASS aldı; otomatik artifact yüklemesi
+depolama kotasından FAIL oldu. CI testleri değişmeden, yükleme manuel `upload_artifacts`
+seçeneğine taşındı. PR koşusu log ve job summary ile kanıt verir. Mevcut artifact'ler silinmedi.

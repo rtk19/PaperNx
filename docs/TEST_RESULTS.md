@@ -114,3 +114,12 @@ ASan sonuçları yalnızca bu testlere aittir; distro/harici statik MuPDF'nin b�
 sanitizer ile yeniden derlenmiş değildir. ThreadSanitizer/Valgrind ve fiziksel Switch
 çalıştırılmadı. Donanım performansı, uyku/dock/applet, gerçek swkbd ve fiziksel pinch:
 **UNVERIFIED**. GitHub CI sonuçları yerel testlerin yerine yazılmayacaktır.
+
+## GitHub Actions ek kanıtı
+
+Push sonrası otomatik PR koşusu `39035561321` core ve tam native Docker build/test
+adımlarını başarıyla yürüttü. Workflow yalnızca `actions/upload-artifact` adımında
+`Artifact storage quota has been hit` hatasıyla FAIL oldu; bu uygulama/test hatası değildir.
+Mevcut GitHub artifact'leri silinmedi. PR koşularında job logu ve step summary korunur;
+yükleme `workflow_dispatch` için `upload_artifacts=true` açık seçeneğine taşındı.
+Hiçbir başarısız test skip edilmedi. Düzeltilen workflow'un sonraki yürütmesi ayrıca izlenir.

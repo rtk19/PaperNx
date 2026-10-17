@@ -20,6 +20,11 @@ on:
         description: 'Type BUILD to run the Switch ARM64 build and preview packaging'
         required: true
         type: string
+      upload_artifacts:
+        description: 'Upload binary/evidence archives (requires available artifact storage quota)'
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -42,8 +47,17 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose build desktop
       - run: docker compose run --rm desktop
-      - uses: actions/upload-artifact@v4
+      - name: Preserve desktop evidence in the job summary
         if: always()
+        run: |
+          if [ -f verification/desktop.log ]; then
+            echo '### Executed desktop verification' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 100 verification/desktop.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
         with:
           name: desktop-evidence
           path: |
@@ -67,8 +81,17 @@ jobs:
           key: mupdf-arm64-${{ runner.arch }}-${{ hashFiles('Dockerfile', 'scripts/build-mupdf-switch.sh', 'include/papernx/switch_compat.h') }}
       # Always run: cached archives are checked against the real compiler fingerprint.
       - run: docker compose run --rm switch
-      - uses: actions/upload-artifact@v4
+      - name: Preserve Switch evidence in the job summary
         if: always()
+        run: |
+          if [ -f verification/switch.log ]; then
+            echo '### Executed Switch verification' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 100 verification/switch.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
         with:
           name: switch-preview-evidence
           path: |
