@@ -220,6 +220,7 @@ int px_document_metadata(PxDocument *d, const char *key, char *out, int cap) {
     if (!d || !d->ctx || !d->doc || !out || cap <= 0 || !key) return 0;
     out[0] = 0;
     int result = 0;
+    fz_var(result);
     fz_try(d->ctx) {
         result = fz_lookup_metadata(d->ctx, d->doc, key, out, cap);
     }
@@ -350,10 +351,13 @@ int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x,
     fz_pixmap *pix = NULL;
     fz_device *device = NULL;
     int ok = 1;
+    int vx = view_x, vy = view_y;
 
     fz_var(page);
     fz_var(pix);
     fz_var(device);
+    fz_var(vx);
+    fz_var(vy);
 
     fz_try(d->ctx) {
         page = fz_load_page(d->ctx, d->doc, page_idx);
@@ -368,11 +372,11 @@ int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x,
         float final_scale = base_scale * zoom;
 
         // Apply scale, then translate viewport
-        view_x = (int)fmaxf(0, fminf((float)view_x, ceilf(w * final_scale) - view_w));
-        view_y = (int)fmaxf(0, fminf((float)view_y, ceilf(h * final_scale) - view_h));
+        vx = (int)fmaxf(0, fminf((float)vx, ceilf(w * final_scale) - view_w));
+        vy = (int)fmaxf(0, fminf((float)vy, ceilf(h * final_scale) - view_h));
         fz_matrix ctm = fz_make_matrix(final_scale, 0, 0, final_scale,
-            -bounds.x0 * final_scale - view_x + fmaxf(0, (view_w - w * final_scale) / 2),
-            -bounds.y0 * final_scale - view_y + fmaxf(0, (view_h - h * final_scale) / 2));
+            -bounds.x0 * final_scale - vx + fmaxf(0, (view_w - w * final_scale) / 2),
+            -bounds.y0 * final_scale - vy + fmaxf(0, (view_h - h * final_scale) / 2));
         fz_irect irect = fz_make_irect(0, 0, view_w, view_h);
 
         pix = fz_new_pixmap_with_bbox(d->ctx, fz_device_rgb(d->ctx), irect, NULL, 0);
@@ -405,6 +409,7 @@ int px_document_render_thumbnail(PxDocument *d, int max_w, int max_h, PxImage *o
         fz_pixmap *rgb = NULL;
         fz_var(image); fz_var(pix); fz_var(rgb);
         int ok = 0;
+        fz_var(ok);
         fz_try(d->ctx) {
             image = fz_new_image_from_buffer(d->ctx, d->cover);
             if (image->w <= 0 || image->h <= 0 || (int64_t)image->w * image->h > 16000000)
@@ -445,6 +450,7 @@ void px_image_free(PxImage *i) {
 int64_t px_document_make_bookmark(PxDocument *d, int page_idx) {
     if (!d || page_idx < 0 || page_idx >= d->pages) return -1;
     int64_t mark = -1;
+    fz_var(mark);
     fz_try(d->ctx) {
         fz_location loc = fz_location_from_page_number(d->ctx, d->doc, page_idx);
         int count = fz_count_chapter_pages(d->ctx, d->doc, loc.chapter);
@@ -482,6 +488,7 @@ int px_document_get_location(PxDocument *d, int page_idx, int *chapter, int *p) 
     if (chapter) *chapter = -1;
     if (p) *p = -1;
     int ok = 0;
+    fz_var(ok);
     fz_try(d->ctx) {
         fz_location loc = fz_location_from_page_number(d->ctx, d->doc, page_idx);
         if (chapter) *chapter = loc.chapter;
@@ -497,6 +504,7 @@ int px_document_get_location(PxDocument *d, int page_idx, int *chapter, int *p) 
 int px_document_from_location(PxDocument *d, int chapter, int p) {
     if (!d || !d->ctx || !d->doc) return -1;
     int page_idx = -1;
+    fz_var(page_idx);
     fz_try(d->ctx) {
         fz_location loc;
         loc.chapter = chapter;
@@ -511,6 +519,7 @@ int px_document_from_location(PxDocument *d, int chapter, int p) {
 
 static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *node) {
     int result = -1;
+    fz_var(result);
     fz_try(ctx) {
         fz_location loc = node->page;
         if (node->uri && node->uri[0]) {
@@ -547,7 +556,9 @@ int px_document_toc(PxDocument *d, PxTocEntry *entries, int max_entries) {
     if (!d || !d->ctx || !d->doc || !entries || max_entries <= 0) return 0;
     if (d->epub && d->nav_count) {
         int n = d->nav_count < max_entries ? d->nav_count : max_entries;
-        for (int i = 0; i < n; ++i) {
+        volatile int i = 0;
+        fz_var(n);
+        for (i = 0; i < n; ++i) {
             entries[i] = d->nav[i];
             fz_try(d->ctx) {
                 float x = 0, y = 0;

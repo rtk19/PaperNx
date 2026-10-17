@@ -200,7 +200,7 @@ static void v03Workflow(const fs::path &parent) {
         assert(!app.extraStyle_.styleOverride && app.currentTheme_==2 && app.currentFontSize_==26);
         v03WaitLayout(app); v03CloseSettings(app); v03BackLibrary(app);
         // Each geometry is the actual SDL application; lower settings rows remain touch reachable.
-        for(const auto size:{std::pair<int,int>{1920,1080},{640,480},{1280,720}}) {
+        for(const auto &size:{std::pair<int,int>{1920,1080},{640,480},{1280,720}}) {
             SDL_SetWindowSize(app.window_,size.first,size.second);
             v03Plus(app); v03MenuItem(app,0); v03Tab(app,0);
             const int indentation=app.extraStyle_.indentation;
