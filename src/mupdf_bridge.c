@@ -328,6 +328,30 @@ int px_document_from_location(PxDocument *d, int chapter, int p) {
     return page_idx;
 }
 
+static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *node) {
+    if (!ctx || !doc || !node) return 0;
+    if (node->uri && node->uri[0]) {
+        fz_try(ctx) {
+            float x = 0.0f, y = 0.0f;
+            fz_location loc = fz_resolve_link(ctx, doc, node->uri, &x, &y);
+            int page = fz_page_number_from_location(ctx, doc, loc);
+            if (page >= 0) return page;
+        }
+        fz_catch(ctx) {
+            // URI resolution failed, continue to fallback
+        }
+    }
+    fz_try(ctx) {
+        fz_location loc = node->page;
+        int page = fz_page_number_from_location(ctx, doc, loc);
+        if (page >= 0) return page;
+    }
+    fz_catch(ctx) {
+        // Fallback failed
+    }
+    return 0;
+}
+
 static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *node,
                                PxTocEntry *entries, int max_entries, int level, int *count) {
     while (node && *count < max_entries) {
@@ -338,7 +362,7 @@ static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *no
             snprintf(entry->title, sizeof(entry->title), "%s", "Untitled Section");
         }
         entry->level = level;
-        entry->page = node->page.page; // Or location conversion
+        entry->page = resolve_outline_page(ctx, doc, node);
         (*count)++;
 
         if (node->down) {

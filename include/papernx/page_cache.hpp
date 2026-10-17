@@ -6,6 +6,23 @@
 
 namespace papernx {
 
+struct RenderKey {
+    std::string docId;
+    int page{0};
+    int zoomPercent{100}; // e.g. 100 = 1.0x, 150 = 1.5x
+    int panX{0};
+    int panY{0};
+    int viewW{0};
+    int viewH{0};
+    int fontSize{0};
+    int theme{0};
+    int lineHeight{140};
+    int margin{40};
+    int textAlign{0};
+
+    std::string toString() const;
+};
+
 struct CachedTexture {
     std::string key;
     SDL_Texture *texture{nullptr};
@@ -19,7 +36,11 @@ public:
     explicit PageCache(std::size_t maxBytes = 48 * 1024 * 1024);
     ~PageCache();
 
-    static std::string makeKey(const std::string &docId, int page, float zoom = 1.0f, int fontSize = 0, int theme = 0);
+    static std::string makeKey(const RenderKey &k);
+    static std::string makeEpubKey(const std::string &docId, int page, int fontSize, int theme,
+                                   int lineHeight, int margin, int textAlign, int viewW, int viewH);
+    static std::string makePdfKey(const std::string &docId, int page, float zoom, int panX, int panY,
+                                  int viewW, int viewH);
 
     SDL_Texture *get(const std::string &key, int *outW = nullptr, int *outH = nullptr);
     void put(const std::string &key, SDL_Texture *texture, int w, int h);

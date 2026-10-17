@@ -1,18 +1,64 @@
 #include "papernx/page_cache.hpp"
 #include <sstream>
+#include <cmath>
 
 namespace papernx {
+
+std::string RenderKey::toString() const {
+    std::ostringstream ss;
+    ss << docId << "_p" << page
+       << "_z" << zoomPercent
+       << "_x" << panX
+       << "_y" << panY
+       << "_w" << viewW
+       << "_h" << viewH
+       << "_f" << fontSize
+       << "_t" << theme
+       << "_lh" << lineHeight
+       << "_m" << margin
+       << "_ta" << textAlign;
+    return ss.str();
+}
+
+std::string PageCache::makeKey(const RenderKey &k) {
+    return k.toString();
+}
+
+std::string PageCache::makeEpubKey(const std::string &docId, int page, int fontSize, int theme,
+                                   int lineHeight, int margin, int textAlign, int viewW, int viewH) {
+    RenderKey k;
+    k.docId = docId;
+    k.page = page;
+    k.zoomPercent = 100;
+    k.panX = 0;
+    k.panY = 0;
+    k.viewW = viewW;
+    k.viewH = viewH;
+    k.fontSize = fontSize;
+    k.theme = theme;
+    k.lineHeight = lineHeight;
+    k.margin = margin;
+    k.textAlign = textAlign;
+    return k.toString();
+}
+
+std::string PageCache::makePdfKey(const std::string &docId, int page, float zoom, int panX, int panY,
+                                  int viewW, int viewH) {
+    RenderKey k;
+    k.docId = docId;
+    k.page = page;
+    k.zoomPercent = static_cast<int>(std::round(zoom * 100.0f));
+    k.panX = panX;
+    k.panY = panY;
+    k.viewW = viewW;
+    k.viewH = viewH;
+    return k.toString();
+}
 
 PageCache::PageCache(std::size_t maxBytes) : maxBytes_(maxBytes) {}
 
 PageCache::~PageCache() {
     clear();
-}
-
-std::string PageCache::makeKey(const std::string &docId, int page, float zoom, int fontSize, int theme) {
-    std::ostringstream ss;
-    ss << docId << "_" << page << "_" << static_cast<int>(zoom * 100) << "_" << fontSize << "_" << theme;
-    return ss.str();
 }
 
 SDL_Texture *PageCache::get(const std::string &key, int *outW, int *outH) {
