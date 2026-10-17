@@ -1,68 +1,73 @@
-# PaperNX Release Engineering Report
+﻿# PaperNX — sürüm teslim raporu
 
-## Release Target: v0.1.0 (Nintendo Switch Native NRO Bundle)
-**Status**: **ALPHA (HARDWARE UNVERIFIED)**
+17 Ekim 2026. **Karar: NEEDS FIXES. Hazırlık puanı: 82/100** (mühendislik değerlendirmesi).
+Gerçek RC önizleme derlemesi vardır; stable v1.0 onayı verilmemiştir.
 
----
+## Kaynak ve PR
 
-## 1. Executive Summary
+- Dal: `feat/native-reader-foundation`.
+- Derlenen uygulama commit'i: `5c9cd44fe6d27457b8096a0452ea8d75974ed1f1`.
+- [PR #1](https://github.com/ysfbz/PaperNx/pull/1): OPEN/DRAFT; main'e merge yapılmadı.
+- Başlangıç HEAD'i GitHub fetch ile `204dc4b` olarak doğrulandı; daha yeni değişiklik üzerine yazılmadı.
+- Mantıksal commit'ler: `58f40f3` core/kurtarma, `d4b6838` native/EPUB3,
+  `3bda474` UI/PDF/worker, `322c9d2` tema/bellek/metadata, `2595548` Docker/ARM64/CI,
+  `5c9cd44` Switch düğme eşlemesi. Sonraki kanıt/dokümantasyon commit'i uygulama kodunu değiştirmez.
 
-PaperNX has undergone a complete autonomous engineering cycle to transform it into a robust, Kindle-grade native e-reader for the Nintendo Switch.
-All critical compilation blockers, memory lifecycle bugs, modal event routing flaws, asynchronous thumbnail queues, and power loss persistence vulnerabilities have been resolved and proven through automated suites.
+## Değişiklikler
 
----
+| Dosyalar | Giderilen sorun |
+|---|---|
+| `src/main.cpp` | Book::bytes, UTF-8 olayları, swkbd, PDF zoom/pan/drag/pinch, modal kontrolleri, controller instance/eşleme, save retry, thumbnail pending sınırları |
+| `src/core.cpp`, `include/papernx/core.hpp` | errno/range/finite kontrolü; checksum fixture uyumu; güvenli temp/backup davranışı; PAPERNX-3 metadata ve kütüphane kalıcılığı |
+| `src/mupdf_bridge.c`, bridge header | Gerçek MuPDF API'leri, sınırlı allocator, EPUB3 nav/kapak, süreçten bağımsız bölüm/oran yer imleri, tema yüzeyi, viewport temizliği |
+| `src/page_cache.cpp`, cache header | Font ailesi anahtarı, güvenli ownership/replacement, oversized reddi, konservatif byte bütçesi |
+| `src/gestures.cpp` | İlk analog hareketin gecikmeden işlenmesi |
+| `CMakeLists.txt`, `Makefile`, `scripts/build-mupdf-switch.sh` | Tam uygulama linki; ortak HB/FT; ARM64 header/ABI ve POSIX uyumluluğu; C11/C++17; NACP/icon/RomFS |
+| Docker/Compose, `scripts/verify-*`, artifact/package/notice betikleri | Yerel tekrarlanabilir yürütme, gerçek ELF/NRO/RomFS/ZIP kontrolü, hash/manifest/lisans bildirimi |
+| `tests/*`, workflow, README/docs | Uzun EPUB/resimli PDF/PNG fixture; gerçek UI/worker/core regresyonları; PR testleri ve isteğe bağlı Switch tetikleyicisi; kanıta uygun durum |
 
-## 2. Verification Gates Breakdown
+## Son doğrulamalar
 
-| Gate | Description | Status | Evidence |
-|---|---|---|---|
-| **Gate A — Portable Core** | C++17 Core, Turkish UTF-8, Safe Parsing, Persistence, Gestures | **PASS** | `papernx_core_tests` (13 test blocks, zero exceptions) |
-| **Gate B — Packaging & NRO0** | Binary magic, non-ELF enforcement, segment bounds, SD layout | **PASS** | `tests/test_package.py` (5/5 assertions) |
-| **Gate C — Native MuPDF Engine** | EPUB reflow, PDF zoom/pan, bookmarks, TOC, corrupt file recovery | **PASS** | `tests/mupdf_render_tests.c`, PPM image snapshots |
-| **Gate D — Switch Toolchain** | devkitA64 / libnx cross-compilation with `-fno-exceptions -fno-rtti` | **PASS** | Clang 18 AArch64 compile, hardened `build-mupdf-switch.sh` |
-| **Gate E — Physical Device** | Real hardware loading via Homebrew Menu on Nintendo Switch | **PENDING** | Marked as **HARDWARE UNVERIFIED — ALPHA** until physical console load |
+Portable 1/1, Release assertions açık core 1/1, native 3/3, MuPDF 1.23.11 pinned native
+3/3 ve ASan/UBSan/leak detection 3/3 **PASS**. Paket testleri **PASS**.
+Gerçek ARM64 ELF ve NRO derleme/paket kontrolü **PASS**.
+Komutlar ve testlerin sınırları [TEST_RESULTS](TEST_RESULTS.md) içindedir.
 
----
+Doğrudan native render testi 20 sayfalık EPUB açtı; Türkçe metadata, iki bölüm,
+relayout ve TOC çözümlemesini; resimli iki sayfalık PDF ve zoom/pan çizimini doğruladı.
+Uygulama testleri gerçek PNG kapağını, altı tema pikselini, yeniden açmayı, UI girdilerini,
+worker reload ve başarısız kaydı ayrıca çalıştırdı. Cihazda çalıştığı iddia edilmez.
 
-## 3. Key Issues Resolved
+## Üretilen gerçek dosyalar
 
-1. **Compilation Blockers**:
-   - Fixed member name discrepancy in `src/main.cpp` (`currentErrorMessage` -> `currentErrorMessage_`).
-   - Aligned `tests/mupdf_render_tests.c` with the exact signatures in `include/papernx/mupdf_bridge.h` and `src/mupdf_bridge.c`.
+Yerel çıktı: `dist/PaperNX.nro`, `dist/PaperNX-switch-v0.1.0-rc1.zip`, iki SHA256
+metni ve `dist/manifest.json`. GitHub stable release veya binary yayını yapılmadı.
 
-2. **Modal Rendering & Background Preservation**:
-   - Fixed `render()` in `src/main.cpp`: when `AaModal`, `TocModal`, or `BookmarksModal` is open, `renderReaderScreen()` is preserved in the background underneath a dark semi-transparent scrim (`rgba(0,0,0,150)`).
-   - Reading position remains intact; dismissing modals returns to the exact same page.
+```text
+PaperNX.nro
+472336e44501ab893237899a11e33f6c1e7cbedc1dce4b8efdf7a2f714fa2dfc
+PaperNX-switch-v0.1.0-rc1.zip
+a01d10029332644cb8b7242f5fd226047509cadbf7646aa153b7a565af494b5c
+```
 
-3. **Touch Toolbar & Gesture Routing**:
-   - Fixed `handleGesture()`: taps are properly routed to `handleTap()`, allowing full touchscreen activation of toolbar header buttons (`< Kitaplık`, `İçindekiler`, `Yer İmleri`, `Aa`), footer scrubber, and modal options without accidental dismissals or page flips.
+NRO 47.042.549 byte; ELF64 AArch64. NACP `0.1.0-rc1`, üç NRO segmenti, RomFS fontları,
+ZIP yerleşimi/CRC ve 59 lisans bildirimi denetlendi. Manifest, kaynak revision ve
+implementation SHA256 değerini içerir. `verification/package-integrity.json` bağımsız
+son paket kontrolünün sonucudur. NRO0 başlığı konsolda çalıştırma kanıtı değildir.
 
-4. **Interactive TOC & Bookmarks Panels**:
-   - Implemented real touchscreen and D-pad navigation for `TocModal` and `BookmarksModal`.
-   - Selecting a section or bookmark immediately jumps to the targeted page index.
-   - Handled empty lists gracefully with informative Turkish prompts.
+## Kalan kabul engelleri
 
-5. **Asynchronous Background Thumbnail Queue**:
-   - Replaced synchronous `px_document_open()` calls during rendering with a dedicated background worker thread (`std::thread`, `std::mutex`, `std::condition_variable`).
-   - Main thread UI never blocks during library browsing; aesthetic placeholder covers render instantly until thumbnails are uploaded to SDL textures on the main thread.
+- **P1-HW / UNVERIFIED:** gerçek Switch üzerinde başlangıç, Joy-Con/Pro ve reconnect,
+  swkbd, fiziksel pinch, uyku/uyanma, handheld/docked ve application/applet bellek/çıkış.
+  Kod temasları: `src/main.cpp:45`, `src/main.cpp:220`, `src/main.cpp:437`,
+  `src/main.cpp:807`, `src/main.cpp:869`. [Cihaz matrisi](DEVICE_TEST_PLAN.md) tamamlanmalıdır.
+- Kalan doğrulanmış P0 derleme/test engeli yoktur. Sonlu testler bütün P1 ihtimallerinin
+  yokluğunu ispatlamaz; fiziksel uyumluluk onayı verilmez.
+- P2: konum düzen değişiminde yaklaşık (`src/mupdf_bridge.c:440`); dosya taşıma/rename
+  kimliği değiştirir (`src/core.cpp:225`). DRM/parola desteklenmez.
+- Büyük/karmaşık gerçek kullanıcı kitapları, bütün allocation hata noktaları ve gerçek RAM
+  profili kapsam dışı kalmıştır. Rolling devkitPro paketleri için sürüm manifest'i korunmalıdır.
 
-6. **Library Scrolling & Focus Synchronization**:
-   - Updated `handleDirectional()` to automatically calculate and adjust `scrollOffset_` in both Grid and List modes so that the focused card or row is always visible on screen.
-
-7. **Complete Turkish Localized Interface**:
-   - Default user interface text localized to authentic Turkish across the Library, Reader, Aa Display Settings, Table of Contents, Bookmarks, and SD File Browser.
-
-8. **Power-Loss Resilient Persistence Rotation**:
-   - Multi-stage atomic file rotation: `.tmp` -> `.bak.old` -> `.bak` -> active primary file.
-   - Triple fallback checks `.bak`, `.bak.old`, and `.tmp` sequentially if the primary file is damaged.
-
----
-
-## 4. Release Distribution Artifacts
-
-- **Archive File**: `PaperNX-switch-v0.1.0.zip`
-- **Integrity File**: `PaperNX-switch-v0.1.0.zip.sha256`
-- **Metadata**: `manifest.json`
-- **SD Installation Path**: `sdmc:/switch/PaperNX/`
-- **Books Path**: `sdmc:/switch/PaperNX/books/`
-- **Logs Path**: `sdmc:/switch/PaperNX/logs/`
+Stable v1.0 için fiziksel matrisin tamamlanması, yeni bulunan P0/P1'lerin giderilmesi
+ve lisans/karşılık gelen kaynak erişiminin dağıtım boyunca korunması gereklidir.
+RC dosyaları yalnızca **HARDWARE: UNVERIFIED** etiketiyle değerlendirilmelidir.

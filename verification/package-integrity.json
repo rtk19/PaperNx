@@ -1,0 +1,14 @@
+{
+  "result": "PASS",
+  "zip_sha256": "a01d10029332644cb8b7242f5fd226047509cadbf7646aa153b7a565af494b5c",
+  "nro_sha256": "472336e44501ab893237899a11e33f6c1e7cbedc1dce4b8efdf7a2f714fa2dfc",
+  "nacp_version": "0.1.0-rc1",
+  "license_files": 59,
+  "zip_members": 68,
+  "elf": {
+    "architecture": "AArch64",
+    "machine": 183,
+    "type": 3
+  },
+  "hardware": "UNVERIFIED"
+}

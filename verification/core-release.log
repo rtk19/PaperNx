@@ -1,0 +1,12 @@
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /work/build-core-release
+ninja: no work to do.
+Internal ctest changing into directory: /work/build-core-release
+Test project /work/build-core-release
+    Start 1: papernx_core_tests
+1/1 Test #1: papernx_core_tests ...............   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.12 sec
