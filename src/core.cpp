@@ -51,6 +51,33 @@ std::string unescapeString(const std::string &s) {
     return res;
 }
 
+bool parseSafeInt(const std::string &s, int &out) {
+    if (s.empty()) return false;
+    char *end = nullptr;
+    long val = std::strtol(s.c_str(), &end, 10);
+    if (!end || *end != '\0') return false;
+    out = static_cast<int>(val);
+    return true;
+}
+
+bool parseSafeLL(const std::string &s, std::int64_t &out) {
+    if (s.empty()) return false;
+    char *end = nullptr;
+    long long val = std::strtoll(s.c_str(), &end, 10);
+    if (!end || *end != '\0') return false;
+    out = static_cast<std::int64_t>(val);
+    return true;
+}
+
+bool parseSafeDouble(const std::string &s, double &out) {
+    if (s.empty()) return false;
+    char *end = nullptr;
+    double val = std::strtod(s.c_str(), &end);
+    if (!end || *end != '\0') return false;
+    out = val;
+    return true;
+}
+
 std::string payloadV2(const std::map<std::string, Progress> &records) {
     std::ostringstream out;
     out << "PAPERNX-2\n";
@@ -378,36 +405,41 @@ bool ProgressStore::load() {
 
                 Progress p;
                 std::string id = tokens[0];
-                try {
-                    p.page = std::stoi(tokens[1]);
-                    p.pageCount = std::stoi(tokens[2]);
-                    p.fraction = std::stod(tokens[3]);
-                    p.fontSize = std::stoi(tokens[4]);
-                    p.theme = std::stoi(tokens[5]);
-                    p.favorite = std::stoi(tokens[6]) != 0;
-                    p.muBookmark = std::stoll(tokens[7]);
-                    p.chapter = std::stoi(tokens[8]);
-                    p.lineHeight = std::stoi(tokens[9]);
-                    p.margin = std::stoi(tokens[10]);
-                    p.textAlign = std::stoi(tokens[11]);
-                    p.fontFamily = std::stoi(tokens[12]);
-                    p.lastRead = std::stoll(tokens[13]);
-                    int bmCount = std::stoi(tokens[14]);
+                int fav = 0, bmCount = 0;
 
-                    std::size_t cursor = 15;
-                    for (int b = 0; b < bmCount && cursor + 3 < tokens.size(); ++b) {
-                        Bookmark bm;
-                        bm.page = std::stoi(tokens[cursor++]);
-                        bm.timestamp = std::stoll(tokens[cursor++]);
-                        bm.muBookmark = std::stoll(tokens[cursor++]);
-                        bm.title = unescapeString(tokens[cursor++]);
-                        p.bookmarks.push_back(std::move(bm));
+                bool valid = parseSafeInt(tokens[1], p.page) &&
+                             parseSafeInt(tokens[2], p.pageCount) &&
+                             parseSafeDouble(tokens[3], p.fraction) &&
+                             parseSafeInt(tokens[4], p.fontSize) &&
+                             parseSafeInt(tokens[5], p.theme) &&
+                             parseSafeInt(tokens[6], fav) &&
+                             parseSafeLL(tokens[7], p.muBookmark) &&
+                             parseSafeInt(tokens[8], p.chapter) &&
+                             parseSafeInt(tokens[9], p.lineHeight) &&
+                             parseSafeInt(tokens[10], p.margin) &&
+                             parseSafeInt(tokens[11], p.textAlign) &&
+                             parseSafeInt(tokens[12], p.fontFamily) &&
+                             parseSafeLL(tokens[13], p.lastRead) &&
+                             parseSafeInt(tokens[14], bmCount);
+
+                if (!valid) continue;
+                p.favorite = (fav != 0);
+
+                std::size_t cursor = 15;
+                bool bookmarksValid = true;
+                for (int b = 0; b < bmCount && cursor + 3 < tokens.size(); ++b) {
+                    Bookmark bm;
+                    if (!parseSafeInt(tokens[cursor++], bm.page) ||
+                        !parseSafeLL(tokens[cursor++], bm.timestamp) ||
+                        !parseSafeLL(tokens[cursor++], bm.muBookmark)) {
+                        bookmarksValid = false;
+                        break;
                     }
-                } catch (...) {
-                    continue;
+                    bm.title = unescapeString(tokens[cursor++]);
+                    p.bookmarks.push_back(std::move(bm));
                 }
 
-                if (id.size() == 16 && p.page >= 0 && std::isfinite(p.fraction)) {
+                if (bookmarksValid && id.size() == 16 && p.page >= 0 && std::isfinite(p.fraction)) {
                     restored[id] = p;
                 }
             }
@@ -445,7 +477,15 @@ bool ProgressStore::load() {
 
     fs::path backup = path_;
     backup += ".bak";
-    return readFile(backup);
+    if (readFile(backup)) return true;
+
+    fs::path backupOld = path_;
+    backupOld += ".bak.old";
+    if (readFile(backupOld)) return true;
+
+    fs::path temp = path_;
+    temp += ".tmp";
+    return readFile(temp);
 }
 
 bool ProgressStore::save() const {
@@ -465,26 +505,58 @@ bool ProgressStore::save() const {
         if (!out.good()) return false;
     }
 
-    fs::path backup = path_;
-    backup += ".bak";
-
-    // Safely rotate: preserve valid backup until replacement is verified
-    if (fs::exists(path_, ec)) {
-        fs::remove(backup, ec);
+    // Verify temp file exists and has data before rotating
+    auto tempSize = fs::file_size(temp, ec);
+    if (ec || tempSize == 0) {
         ec.clear();
-        fs::rename(path_, backup, ec);
-        if (ec) return false;
+        fs::remove(temp, ec);
+        return false;
     }
 
+    fs::path backup = path_;
+    backup += ".bak";
+    fs::path backupOld = path_;
+    backupOld += ".bak.old";
+
+    // Step 1: Preserve existing backup into backup.old
+    if (fs::exists(backup, ec)) {
+        ec.clear();
+        fs::remove(backupOld, ec);
+        ec.clear();
+        fs::rename(backup, backupOld, ec);
+    }
+    ec.clear();
+
+    // Step 2: Rotate active primary file to backup
+    if (fs::exists(path_, ec)) {
+        ec.clear();
+        fs::rename(path_, backup, ec);
+        if (ec) {
+            // Restore backup from backup.old if rotation failed
+            if (fs::exists(backupOld, ec)) {
+                ec.clear();
+                fs::rename(backupOld, backup, ec);
+            }
+            return false;
+        }
+    }
+    ec.clear();
+
+    // Step 3: Promote verified temp to active primary file
     fs::rename(temp, path_, ec);
     if (ec) {
         ec.clear();
+        // Rollback: restore primary from backup
         if (fs::exists(backup, ec)) {
             ec.clear();
             fs::rename(backup, path_, ec);
         }
         return false;
     }
+
+    // Step 4: Transaction committed; safe to purge stale backup.old
+    ec.clear();
+    fs::remove(backupOld, ec);
     return true;
 }
 

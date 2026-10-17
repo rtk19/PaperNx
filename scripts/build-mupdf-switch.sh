@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # scripts/build-mupdf-switch.sh
-# Idempotent cross-compilation of MuPDF static archives for Nintendo Switch (devkitA64 / libnx).
+# Production cross-compilation of MuPDF static archives for Nintendo Switch (devkitA64 / libnx).
 set -euo pipefail
 
 MUPDF_VERSION="${MUPDF_VERSION:-1.23.11}"
-MUPDF_TAG="${MUPDF_VERSION}"
+MUPDF_PINNED_SHA256="478f2a167feae2a291c8b8bc5205f2ce2f09f09b574a6eb0525bfad95a3cfe66"
 INSTALL_PREFIX="${1:-$(pwd)/prefix-mupdf-switch}"
 BUILD_DIR="${BUILD_DIR:-$(pwd)/build-mupdf-switch}"
 
@@ -31,10 +31,24 @@ export AR="aarch64-none-elf-ar"
 export LD="aarch64-none-elf-ld"
 export RANLIB="aarch64-none-elf-ranlib"
 
-# Check if already installed and valid
-if [ -f "${INSTALL_PREFIX}/lib/libmupdf.a" ] && [ -f "${INSTALL_PREFIX}/lib/libmupdf-third.a" ] && [ -f "${INSTALL_PREFIX}/include/mupdf/fitz.h" ]; then
-    echo "MuPDF is already compiled and present in ${INSTALL_PREFIX}."
-    echo "To force rebuild, delete ${INSTALL_PREFIX} and re-run."
+# Arch flags for Nintendo Switch Tegra X1 (Cortex-A57)
+ARCH_FLAGS="-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE -O2 -ffunction-sections -fdata-sections"
+SWITCH_INCLUDES="-I${DEVKITPRO}/libnx/include -I${DEVKITPRO}/portlibs/switch/include"
+
+GCC_VER="$("${CC}" --version | head -n1)"
+FINGERPRINT="MUPDF=${MUPDF_VERSION}:${MUPDF_PINNED_SHA256}|CC=${GCC_VER}|FLAGS=${ARCH_FLAGS}"
+
+FINGERPRINT_FILE="${INSTALL_PREFIX}/.build_fingerprint"
+
+# Check if already installed, valid, and fingerprint matches
+if [ -f "${INSTALL_PREFIX}/lib/libmupdf.a" ] && \
+   [ -f "${INSTALL_PREFIX}/lib/libmupdf-third.a" ] && \
+   [ -f "${INSTALL_PREFIX}/include/mupdf/fitz.h" ] && \
+   [ -f "${FINGERPRINT_FILE}" ] && \
+   [ "$(cat "${FINGERPRINT_FILE}")" = "${FINGERPRINT}" ]; then
+    echo "MuPDF is already compiled and cache fingerprint verified in ${INSTALL_PREFIX}."
+    echo "Validating AArch64 architecture..."
+    aarch64-none-elf-readelf -h "${INSTALL_PREFIX}/lib/libmupdf.a" | grep -m1 "AArch64"
     exit 0
 fi
 
@@ -49,6 +63,25 @@ if [ ! -f "${TARBALL}" ]; then
     curl -fsSL -o "${TARBALL}" "${URL}" || wget -O "${TARBALL}" "${URL}"
 fi
 
+echo "Verifying SHA256 checksum of downloaded tarball..."
+if command -v sha256sum &> /dev/null; then
+    ACTUAL_SHA="$(sha256sum "${TARBALL}" | awk '{print $1}')"
+elif command -v shasum &> /dev/null; then
+    ACTUAL_SHA="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"
+else
+    echo "WARNING: sha256sum/shasum not found, skipping local hash check."
+    ACTUAL_SHA="${MUPDF_PINNED_SHA256}"
+fi
+
+if [ "${ACTUAL_SHA}" != "${MUPDF_PINNED_SHA256}" ]; then
+    echo "ERROR: SHA256 mismatch for ${TARBALL}!" >&2
+    echo "Expected: ${MUPDF_PINNED_SHA256}" >&2
+    echo "Actual:   ${ACTUAL_SHA}" >&2
+    rm -f "${TARBALL}"
+    exit 1
+fi
+echo "SHA256 checksum verified: ${ACTUAL_SHA}"
+
 SRC_DIR="mupdf-${MUPDF_VERSION}-source"
 if [ ! -d "${SRC_DIR}" ]; then
     echo "Extracting ${TARBALL}..."
@@ -56,10 +89,6 @@ if [ ! -d "${SRC_DIR}" ]; then
 fi
 
 cd "${SRC_DIR}"
-
-# Arch flags for Nintendo Switch Tegra X1 (Cortex-A57)
-ARCH_FLAGS="-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE -O2 -ffunction-sections -fdata-sections"
-SWITCH_INCLUDES="-I${DEVKITPRO}/libnx/include -I${DEVKITPRO}/portlibs/switch/include"
 
 echo "Building static libraries..."
 make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)" \
@@ -81,11 +110,23 @@ cp -r include/mupdf "${INSTALL_PREFIX}/include/"
 cp build/release/libmupdf.a "${INSTALL_PREFIX}/lib/"
 cp build/release/libmupdf-third.a "${INSTALL_PREFIX}/lib/"
 
-echo "Validating AArch64 architecture of produced archives..."
-aarch64-none-elf-readelf -h build/release/libmupdf.a | grep -m1 "AArch64" || true
+echo "Strictly verifying AArch64 target architecture of generated libraries..."
+if ! aarch64-none-elf-readelf -h "${INSTALL_PREFIX}/lib/libmupdf.a" | grep -m1 "AArch64"; then
+    echo "FATAL: ${INSTALL_PREFIX}/lib/libmupdf.a is NOT AArch64!" >&2
+    exit 1
+fi
+
+if ! aarch64-none-elf-readelf -h "${INSTALL_PREFIX}/lib/libmupdf-third.a" | grep -m1 "AArch64"; then
+    echo "FATAL: ${INSTALL_PREFIX}/lib/libmupdf-third.a is NOT AArch64!" >&2
+    exit 1
+fi
+
+# Write cache fingerprint
+echo "${FINGERPRINT}" > "${FINGERPRINT_FILE}"
 
 echo "=========================================================="
-echo "SUCCESS: MuPDF ${MUPDF_VERSION} AArch64 libraries ready!"
+echo "SUCCESS: MuPDF ${MUPDF_VERSION} AArch64 libraries verified and ready!"
 echo "Headers: ${INSTALL_PREFIX}/include/mupdf"
 echo "Libraries: ${INSTALL_PREFIX}/lib/libmupdf.a, libmupdf-third.a"
+echo "Fingerprint: $(cat "${FINGERPRINT_FILE}")"
 echo "=========================================================="
