@@ -12,13 +12,19 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <ctime>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <mutex>
+#include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace papernx;
@@ -31,8 +37,7 @@ enum class ScreenState {
     FileBrowser,
     AaModal,
     TocModal,
-    BookmarksModal,
-    BookDetailsModal
+    BookmarksModal
 };
 
 enum class ViewMode {
@@ -46,6 +51,14 @@ struct BrowserEntry {
     std::uintmax_t size{0};
 };
 
+struct LoadedThumb {
+    std::string id;
+    int w{0};
+    int h{0};
+    int stride{0};
+    std::vector<unsigned char> rgb;
+};
+
 class PaperNxApp {
 public:
     explicit PaperNxApp(fs::path rootPath)
@@ -55,8 +68,17 @@ public:
           thumbCache_(32 * 1024 * 1024) {}
 
     ~PaperNxApp() {
+        // 1. Stop background thumbnail worker thread safely
+        workerRunning_ = false;
+        queueCv_.notify_all();
+        if (thumbWorker_.joinable()) {
+            thumbWorker_.join();
+        }
+
+        // 2. Close active document
         closeBook();
-        // Crucial: Release all textures and fonts BEFORE destroying renderer
+
+        // 3. Crucial: Release all textures and fonts BEFORE destroying renderer
         pageCache_.clear();
         thumbCache_.clear();
         typography_.reset();
@@ -139,6 +161,12 @@ public:
             }
         }
 
+        // Start background thumbnail worker thread
+        workerRunning_ = true;
+        thumbWorker_ = std::thread([this]() {
+            thumbWorkerLoop();
+        });
+
         updateVisibleBooks();
         dirty_ = true;
         return true;
@@ -165,6 +193,9 @@ public:
                     lastProgressSave_ = now;
                 }
             }
+
+            // Process any newly rendered background thumbnails
+            processCompletedThumbnails();
 
             if (dirty_ && running) {
                 render();
@@ -208,7 +239,7 @@ private:
     int currentLineHeight_{140};
     int currentMargin_{40};
     int currentTextAlign_{0};
-    int currentFontFamily_{0};
+    int currentFontFamily_{0}; // 0: Serif, 1: Sans
     float pdfZoom_{1.0f};
     int pdfPanX_{0};
     int pdfPanY_{0};
@@ -223,7 +254,7 @@ private:
     int bmOffset_{0};
 
     // Modal navigation
-    int aaTab_{0}; // 0: Font, 1: Layout, 2: Theme, 3: Controls
+    int aaTab_{0}; // 0: Tipografi, 1: Düzen, 2: Temalar, 3: Kontroller
 
     // File browser
     fs::path browserPath_;
@@ -238,6 +269,79 @@ private:
     bool dirty_{true};
     bool progressDirty_{false};
     std::chrono::steady_clock::time_point lastProgressSave_{std::chrono::steady_clock::now()};
+
+    // Background thumbnail worker
+    std::thread thumbWorker_;
+    std::atomic<bool> workerRunning_{false};
+    std::mutex queueMutex_;
+    std::condition_variable queueCv_;
+    std::deque<Book> thumbQueue_;
+    std::set<std::string> queuedThumbIds_;
+    std::set<std::string> failedThumbIds_;
+
+    std::mutex completedMutex_;
+    std::vector<LoadedThumb> completedThumbs_;
+
+    void thumbWorkerLoop() {
+        while (workerRunning_) {
+            Book b;
+            {
+                std::unique_lock<std::mutex> lock(queueMutex_);
+                queueCv_.wait(lock, [this]() {
+                    return !workerRunning_ || !thumbQueue_.empty();
+                });
+                if (!workerRunning_) break;
+                b = thumbQueue_.front();
+                thumbQueue_.pop_front();
+            }
+
+            char err[256] = {};
+            PxDocument *thumbDoc = px_document_open(b.path.c_str(), 160, 220, 16.0f, "", err, sizeof(err));
+            if (!thumbDoc) {
+                std::lock_guard<std::mutex> lock(queueMutex_);
+                failedThumbIds_.insert(b.id);
+                continue;
+            }
+
+            PxImage img{};
+            if (px_document_render_thumbnail(thumbDoc, 150, 210, &img, err, sizeof(err)) && img.rgb && img.width > 0 && img.height > 0) {
+                LoadedThumb lt;
+                lt.id = b.id;
+                lt.w = img.width;
+                lt.h = img.height;
+                lt.stride = img.stride;
+                lt.rgb.assign(img.rgb, img.rgb + (size_t)img.height * img.stride);
+                px_image_free(&img);
+
+                {
+                    std::lock_guard<std::mutex> lock(completedMutex_);
+                    completedThumbs_.push_back(std::move(lt));
+                }
+            } else {
+                std::lock_guard<std::mutex> lock(queueMutex_);
+                failedThumbIds_.insert(b.id);
+            }
+            px_document_close(thumbDoc);
+        }
+    }
+
+    void processCompletedThumbnails() {
+        std::vector<LoadedThumb> toUpload;
+        {
+            std::lock_guard<std::mutex> lock(completedMutex_);
+            if (completedThumbs_.empty()) return;
+            toUpload.swap(completedThumbs_);
+        }
+        for (const auto &lt : toUpload) {
+            std::string key = "thumb_" + lt.id;
+            SDL_Texture *tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, lt.w, lt.h);
+            if (tex) {
+                SDL_UpdateTexture(tex, nullptr, lt.rgb.data(), lt.stride);
+                thumbCache_.put(key, tex, lt.w, lt.h);
+                dirty_ = true;
+            }
+        }
+    }
 
     void getWindowSize(int &w, int &h) {
         SDL_GetRendererOutputSize(renderer_, &w, &h);
@@ -285,7 +389,8 @@ private:
                                 buildEpubCss().c_str(), err, sizeof(err));
 
         if (!doc_) {
-            currentErrorMessage = std::string("Error opening book: ") + err;
+            currentErrorMessage_ = std::string("Kitap açılamadı: ") + err;
+            logMessage(currentErrorMessage_);
             screen_ = ScreenState::Library;
             dirty_ = true;
             return;
@@ -406,7 +511,8 @@ private:
             currentPage_ = std::clamp(restored, 0, std::max(0, pageCount_ - 1));
             saveCurrentPosition();
         } else {
-            currentErrorMessage = err;
+            currentErrorMessage_ = std::string("Yeniden boyutlandırma hatası: ") + err;
+            logMessage(currentErrorMessage_);
         }
         dirty_ = true;
     }
@@ -435,7 +541,7 @@ private:
         if (px_document_is_epub(doc_)) {
             ok = px_document_render(doc_, pageIdx, w - (currentMargin_ * 2), h - 80, &img, err, sizeof(err));
         } else {
-            // PDF: support viewport zoom
+            // PDF: support viewport zoom and panning
             if (pdfZoom_ > 1.05f) {
                 ok = px_document_render_view(doc_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_,
                                              w - 80, h - 80, &img, err, sizeof(err));
@@ -460,47 +566,38 @@ private:
         SDL_Texture *tex = thumbCache_.get(key);
         if (tex) return tex;
 
-        PxDocument *thumbDoc = px_document_open(b.path.c_str(), 160, 220, 16.0f, "", nullptr, 0);
-        if (thumbDoc) {
-            PxImage img{};
-            if (px_document_render_thumbnail(thumbDoc, 150, 210, &img, nullptr, 0)) {
-                tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, img.width, img.height);
-                if (tex) {
-                    SDL_UpdateTexture(tex, nullptr, img.rgb, img.stride);
-                    thumbCache_.put(key, tex, img.width, img.height);
-                }
-                px_image_free(&img);
-            }
-            px_document_close(thumbDoc);
+        // If not already in cache and not failed, enqueue for asynchronous background loading
+        std::lock_guard<std::mutex> lock(queueMutex_);
+        if (failedThumbIds_.find(b.id) == failedThumbIds_.end() &&
+            queuedThumbIds_.find(b.id) == queuedThumbIds_.end()) {
+            queuedThumbIds_.insert(b.id);
+            thumbQueue_.push_back(b);
+            queueCv_.notify_one();
         }
-        return tex;
+        return nullptr;
     }
 
     void scanBrowserDirectory() {
         browserEntries_.clear();
-        browserSelected_ = 0;
-        browserOffset_ = 0;
-
         std::error_code ec;
-        fs::directory_iterator it(browserPath_, fs::directory_options::skip_permission_denied, ec), end;
-        for (; it != end && browserEntries_.size() < 512; it.increment(ec)) {
-            if (ec) { ec.clear(); continue; }
-            if (it->is_symlink(ec)) continue;
+        if (!fs::exists(browserPath_, ec)) return;
 
-            bool isDir = it->is_directory(ec);
-            if (!isDir) {
-                auto fmt = detectFormat(it->path());
-                if (fmt == Format::Unsupported) continue;
+        for (const auto &entry : fs::directory_iterator(browserPath_, ec)) {
+            if (entry.is_directory(ec)) {
+                browserEntries_.push_back({entry.path(), true, 0});
+            } else if (entry.is_regular_file(ec)) {
+                auto fmt = detectFormat(entry.path().string());
+                if (fmt == Format::Epub || fmt == Format::Pdf) {
+                    browserEntries_.push_back({entry.path(), false, entry.file_size(ec)});
+                }
             }
-            auto sz = isDir ? 0 : it->file_size(ec);
-            ec.clear();
-            browserEntries_.push_back({it->path(), isDir, sz});
         }
-
         std::sort(browserEntries_.begin(), browserEntries_.end(), [](const BrowserEntry &a, const BrowserEntry &b) {
             if (a.isDirectory != b.isDirectory) return a.isDirectory > b.isDirectory;
-            return a.path.filename().string() < b.path.filename().string();
+            return a.path.filename() < b.path.filename();
         });
+        browserSelected_ = 0;
+        browserOffset_ = 0;
         dirty_ = true;
     }
 
@@ -511,8 +608,9 @@ private:
         browserRoot_ = root_;
 #endif
         browserPath_ = browserRoot_;
-        screen_ = ScreenState::FileBrowser;
         scanBrowserDirectory();
+        screen_ = ScreenState::FileBrowser;
+        dirty_ = true;
     }
 
     void handleBrowserSelect() {
@@ -522,41 +620,21 @@ private:
             browserPath_ = entry.path;
             scanBrowserDirectory();
         } else {
-            std::string p = entry.path.string();
-            auto found = std::find_if(books_.begin(), books_.end(), [&](const Book &b) { return b.path == p; });
-            if (found == books_.end()) {
-                Book b;
-                b.path = p;
-                b.bytes = entry.size;
-                b.title = defaultTitle(entry.path);
-                b.id = documentId(p, entry.size);
-                b.format = detectFormat(entry.path);
-                books_.push_back(b);
-                updateVisibleBooks();
-                openBook(b);
-            } else {
-                openBook(*found);
-            }
+            // Open selected book directly
+            Book b;
+            b.path = entry.path.string();
+            b.format = detectFormat(b.path);
+            b.id = documentId(b.path, entry.size);
+            b.title = entry.path.stem().string();
+            b.size = entry.size;
+            openBook(b);
         }
     }
 
-    // Event Handling
+    // Input & Event Handling
     void handleEvent(const SDL_Event &e, bool &running) {
         if (e.type == SDL_QUIT) {
             running = false;
-            return;
-        }
-
-        if (e.type == SDL_WINDOWEVENT) {
-            if (e.window.event == SDL_WINDOWEVENT_RESIZED || e.window.event == SDL_WINDOWEVENT_EXPOSED) {
-                dirty_ = true;
-            }
-            return;
-        }
-
-        if (e.type == SDL_TEXTINPUT && searchActive_) {
-            searchQuery_ += e.text.text;
-            updateVisibleBooks();
             return;
         }
 
@@ -629,22 +707,14 @@ private:
 
     void handleGesture(const GestureResult &res) {
         if (screen_ == ScreenState::Reader) {
-            if (toolbarVisible_) {
-                toolbarVisible_ = false;
-                dirty_ = true;
-                return;
-            }
             if (res.type == GestureType::SwipeLeft) {
+                toolbarVisible_ = false;
                 turnPage(1);
             } else if (res.type == GestureType::SwipeRight) {
+                toolbarVisible_ = false;
                 turnPage(-1);
-            } else if (res.type == GestureType::TapLeft) {
-                turnPage(-1);
-            } else if (res.type == GestureType::TapRight) {
-                turnPage(1);
-            } else if (res.type == GestureType::TapCenter) {
-                toolbarVisible_ = true;
-                dirty_ = true;
+            } else if (res.type == GestureType::TapLeft || res.type == GestureType::TapRight || res.type == GestureType::TapCenter) {
+                handleTap(res.tapX, res.tapY);
             }
         } else {
             handleTap(res.tapX, res.tapY);
@@ -657,18 +727,24 @@ private:
         int px = static_cast<int>(x * w);
         int py = static_cast<int>(y * h);
 
+        // Dismiss any active error banner on tap
+        if (!currentErrorMessage_.empty()) {
+            currentErrorMessage_.clear();
+            dirty_ = true;
+        }
+
         if (screen_ == ScreenState::Reader) {
             if (toolbarVisible_) {
                 // Header buttons
                 if (py < 65) {
-                    if (px < 100) { closeBook(); return; } // Back to library
-                    if (px > w - 80) { screen_ = ScreenState::AaModal; dirty_ = true; return; } // Aa
-                    if (px > w - 160) { screen_ = ScreenState::BookmarksModal; dirty_ = true; return; } // Bookmarks
-                    if (px > w - 240) { screen_ = ScreenState::TocModal; dirty_ = true; return; } // TOC
+                    if (px < 120) { closeBook(); return; } // Geri -> Kitaplık
+                    if (px > w - 85) { screen_ = ScreenState::AaModal; dirty_ = true; return; } // Aa
+                    if (px > w - 185) { screen_ = ScreenState::BookmarksModal; dirty_ = true; return; } // Yer İmleri
+                    if (px > w - 285) { screen_ = ScreenState::TocModal; dirty_ = true; return; } // İçindekiler
                     return;
                 }
                 // Footer scrubber
-                if (py > h - 60) {
+                if (py > h - 65) {
                     if (pageCount_ > 1) {
                         float frac = std::clamp(static_cast<float>(px - 60) / (w - 120), 0.0f, 1.0f);
                         currentPage_ = static_cast<int>(frac * (pageCount_ - 1));
@@ -686,6 +762,12 @@ private:
             if (x < 0.22f) turnPage(-1);
             else if (x > 0.78f) turnPage(1);
             else { toolbarVisible_ = true; dirty_ = true; }
+        } else if (screen_ == ScreenState::AaModal) {
+            handleAaModalTap(px, py, w, h);
+        } else if (screen_ == ScreenState::TocModal) {
+            handleTocModalTap(px, py, w, h);
+        } else if (screen_ == ScreenState::BookmarksModal) {
+            handleBookmarksModalTap(px, py, w, h);
         } else if (screen_ == ScreenState::Library) {
             // Header category buttons
             if (py >= 55 && py <= 90) {
@@ -703,15 +785,22 @@ private:
             if (py < 50) {
                 if (px > w - 100) { openBrowser(); return; }
                 if (px > w - 190) { viewMode_ = (viewMode_ == ViewMode::Grid) ? ViewMode::List : ViewMode::Grid; dirty_ = true; return; }
-                if (px > w - 280) { searchActive_ = !searchActive_; if (searchActive_) SDL_StartTextInput(); else { SDL_StopTextInput(); searchQuery_.clear(); updateVisibleBooks(); } return; }
+                if (px > w - 280) {
+                    searchActive_ = !searchActive_;
+                    if (searchActive_) SDL_StartTextInput();
+                    else { SDL_StopTextInput(); searchQuery_.clear(); updateVisibleBooks(); }
+                    return;
+                }
             }
             // Card grid click
             if (viewMode_ == ViewMode::Grid) {
-                int cols = std::max(1, (w - 96) / 190);
-                int topY = 120;
+                int cardW = 160, spacingX = 28, startX = 36;
+                int cols = std::max(1, (w - startX * 2) / (cardW + spacingX));
+                int topY = 96;
+                int cardH = 220, spacingY = 24;
                 if (py >= topY) {
-                    int col = (px - 48) / 190;
-                    int row = (py - topY) / 240;
+                    int col = (px - startX) / (cardW + spacingX);
+                    int row = (py - topY) / (cardH + spacingY);
                     if (col >= 0 && col < cols && row >= 0) {
                         int idx = (scrollOffset_ + row) * cols + col;
                         if (idx >= 0 && idx < static_cast<int>(visibleBooks_.size())) {
@@ -722,8 +811,8 @@ private:
                 }
             } else {
                 // List view click
-                int topY = 110;
-                int rowH = 50;
+                int topY = 96;
+                int rowH = 48;
                 if (py >= topY) {
                     int idx = scrollOffset_ + (py - topY) / rowH;
                     if (idx >= 0 && idx < static_cast<int>(visibleBooks_.size())) {
@@ -732,11 +821,9 @@ private:
                     }
                 }
             }
-        } else if (screen_ == ScreenState::AaModal) {
-            handleAaModalTap(px, py, w, h);
         } else if (screen_ == ScreenState::FileBrowser) {
-            if (py >= 120) {
-                int idx = browserOffset_ + (py - 120) / 44;
+            if (py >= 96) {
+                int idx = browserOffset_ + (py - 96) / 44;
                 if (idx >= 0 && idx < static_cast<int>(browserEntries_.size())) {
                     browserSelected_ = idx;
                     handleBrowserSelect();
@@ -745,18 +832,77 @@ private:
         }
     }
 
-    void handleAaModalTap(int px, int py, int w, int h) {
-        int modalW = 600, modalH = 460;
+    void handleTocModalTap(int px, int py, int w, int h) {
+        int modalW = 600, modalH = 500;
         int mx = (w - modalW) / 2, my = (h - modalH) / 2;
 
-        // Close button top right of modal
-        if (px >= mx + modalW - 45 && px <= mx + modalW && py >= my && py <= my + 45) {
+        // Close button top right of modal or tap outside modal
+        if (px < mx || px > mx + modalW || py < my || py > my + modalH ||
+            (px >= mx + modalW - 45 && py <= my + 45)) {
             screen_ = ScreenState::Reader;
             dirty_ = true;
             return;
         }
 
-        // Tabs
+        // Row clicks
+        int rowH = 40;
+        int topY = my + 65;
+        if (py >= topY && py <= topY + 9 * rowH) {
+            int clickedRow = (py - topY) / rowH;
+            int idx = tocOffset_ + clickedRow;
+            if (idx >= 0 && idx < static_cast<int>(tocEntries_.size())) {
+                tocSelected_ = idx;
+                currentPage_ = std::clamp(tocEntries_[idx].page, 0, std::max(0, pageCount_ - 1));
+                screen_ = ScreenState::Reader;
+                toolbarVisible_ = false;
+                saveCurrentPosition();
+                dirty_ = true;
+            }
+        }
+    }
+
+    void handleBookmarksModalTap(int px, int py, int w, int h) {
+        int modalW = 600, modalH = 460;
+        int mx = (w - modalW) / 2, my = (h - modalH) / 2;
+
+        // Close button or tap outside modal
+        if (px < mx || px > mx + modalW || py < my || py > my + modalH ||
+            (px >= mx + modalW - 45 && py <= my + 45)) {
+            screen_ = ScreenState::Reader;
+            dirty_ = true;
+            return;
+        }
+
+        auto p = progressStore_.get(currentBookId_);
+        int rowH = 42;
+        int topY = my + 65;
+        if (py >= topY && py <= topY + 8 * rowH) {
+            int clickedRow = (py - topY) / rowH;
+            int idx = bmOffset_ + clickedRow;
+            if (idx >= 0 && idx < static_cast<int>(p.bookmarks.size())) {
+                bmSelected_ = idx;
+                currentPage_ = std::clamp(p.bookmarks[idx].page, 0, std::max(0, pageCount_ - 1));
+                screen_ = ScreenState::Reader;
+                toolbarVisible_ = false;
+                saveCurrentPosition();
+                dirty_ = true;
+            }
+        }
+    }
+
+    void handleAaModalTap(int px, int py, int w, int h) {
+        int modalW = 600, modalH = 460;
+        int mx = (w - modalW) / 2, my = (h - modalH) / 2;
+
+        // Close button top right of modal or tap outside modal
+        if (px < mx || px > mx + modalW || py < my || py > my + modalH ||
+            (px >= mx + modalW - 45 && py <= my + 45)) {
+            screen_ = ScreenState::Reader;
+            dirty_ = true;
+            return;
+        }
+
+        // Tabs (0: Tipografi, 1: Düzen, 2: Temalar, 3: Kontroller)
         if (py >= my + 45 && py <= my + 85) {
             int tabW = modalW / 4;
             aaTab_ = std::clamp((px - mx) / tabW, 0, 3);
@@ -764,24 +910,49 @@ private:
             return;
         }
 
-        // Theme tab color swatches
-        if (aaTab_ == 2 && py >= my + 130 && py <= my + 260) {
-            int swatchW = 85, swatchH = 85;
-            for (int i = 0; i < g_paletteCount; ++i) {
-                int sx = mx + 30 + (i % 3) * 180;
-                int sy = my + 130 + (i / 3) * 100;
-                if (px >= sx && px <= sx + swatchW && py >= sy && py <= sy + swatchH) {
-                    reflowEpub(currentFontSize_, i);
+        // Tab 0: Tipografi (Font Size + Font Family)
+        if (aaTab_ == 0) {
+            if (py >= my + 115 && py <= my + 165) {
+                if (px >= mx + 190 && px <= mx + 245) { reflowEpub(currentFontSize_ - 2); return; }
+                if (px >= mx + 345 && px <= mx + 400) { reflowEpub(currentFontSize_ + 2); return; }
+            }
+            if (py >= my + 180 && py <= my + 230) {
+                if (px >= mx + 190 && px <= mx + 400) {
+                    currentFontFamily_ = (currentFontFamily_ == 0) ? 1 : 0;
+                    reflowEpub(currentFontSize_);
                     return;
                 }
             }
         }
-
-        // Font size +/-
-        if (aaTab_ == 0) {
-            if (py >= my + 130 && py <= my + 180) {
-                if (px >= mx + 200 && px <= mx + 250) { reflowEpub(currentFontSize_ - 2); return; }
-                if (px >= mx + 350 && px <= mx + 400) { reflowEpub(currentFontSize_ + 2); return; }
+        // Tab 1: Düzen (Satır Aralığı + Kenar Boşluğu + Hizalama)
+        else if (aaTab_ == 1) {
+            if (py >= my + 110 && py <= my + 155) {
+                if (px >= mx + 180 && px <= mx + 240) { currentLineHeight_ = 120; reflowEpub(currentFontSize_); return; }
+                if (px >= mx + 250 && px <= mx + 310) { currentLineHeight_ = 140; reflowEpub(currentFontSize_); return; }
+                if (px >= mx + 320 && px <= mx + 380) { currentLineHeight_ = 160; reflowEpub(currentFontSize_); return; }
+            }
+            if (py >= my + 170 && py <= my + 215) {
+                if (px >= mx + 180 && px <= mx + 240) { currentMargin_ = 20; reflowEpub(currentFontSize_); return; }
+                if (px >= mx + 250 && px <= mx + 310) { currentMargin_ = 40; reflowEpub(currentFontSize_); return; }
+                if (px >= mx + 320 && px <= mx + 380) { currentMargin_ = 60; reflowEpub(currentFontSize_); return; }
+            }
+            if (py >= my + 230 && py <= my + 275) {
+                if (px >= mx + 180 && px <= mx + 275) { currentTextAlign_ = 0; reflowEpub(currentFontSize_); return; }
+                if (px >= mx + 285 && px <= mx + 380) { currentTextAlign_ = 1; reflowEpub(currentFontSize_); return; }
+            }
+        }
+        // Tab 2: Temalar (6 renk teması)
+        else if (aaTab_ == 2) {
+            if (py >= my + 130 && py <= my + 340) {
+                int swatchW = 160, swatchH = 80;
+                for (int i = 0; i < g_paletteCount; ++i) {
+                    int sx = mx + 36 + (i % 3) * 180;
+                    int sy = my + 130 + (i / 3) * 95;
+                    if (px >= sx && px <= sx + swatchW && py >= sy && py <= sy + swatchH) {
+                        reflowEpub(currentFontSize_, i);
+                        return;
+                    }
+                }
             }
         }
     }
@@ -797,15 +968,65 @@ private:
                 if (dx > 0) turnPage(1);
                 else if (dx < 0) turnPage(-1);
             }
+        } else if (screen_ == ScreenState::TocModal) {
+            if (dy != 0 && !tocEntries_.empty()) {
+                int total = static_cast<int>(tocEntries_.size());
+                tocSelected_ = std::clamp(tocSelected_ + dy, 0, total - 1);
+                if (tocSelected_ < tocOffset_) tocOffset_ = tocSelected_;
+                if (tocSelected_ >= tocOffset_ + 9) tocOffset_ = tocSelected_ - 8;
+                dirty_ = true;
+            }
+        } else if (screen_ == ScreenState::BookmarksModal) {
+            auto p = progressStore_.get(currentBookId_);
+            if (dy != 0 && !p.bookmarks.empty()) {
+                int total = static_cast<int>(p.bookmarks.size());
+                bmSelected_ = std::clamp(bmSelected_ + dy, 0, total - 1);
+                if (bmSelected_ < bmOffset_) bmOffset_ = bmSelected_;
+                if (bmSelected_ >= bmOffset_ + 8) bmOffset_ = bmSelected_ - 7;
+                dirty_ = true;
+            }
+        } else if (screen_ == ScreenState::AaModal) {
+            if (dx != 0) {
+                aaTab_ = std::clamp(aaTab_ + dx, 0, 3);
+                dirty_ = true;
+            } else if (dy != 0) {
+                if (aaTab_ == 0) {
+                    reflowEpub(currentFontSize_ + (dy < 0 ? 2 : -2));
+                } else if (aaTab_ == 2) {
+                    int nextTheme = std::clamp(currentTheme_ + (dy > 0 ? 1 : -1), 0, g_paletteCount - 1);
+                    reflowEpub(currentFontSize_, nextTheme);
+                }
+            }
         } else if (screen_ == ScreenState::Library) {
             int w = 1280, h = 720;
             getWindowSize(w, h);
-            int cols = (viewMode_ == ViewMode::Grid) ? std::max(1, (w - 96) / 190) : 1;
+            int cardW = 160, spacingX = 28, startX = 36;
+            int cols = (viewMode_ == ViewMode::Grid) ? std::max(1, (w - startX * 2) / (cardW + spacingX)) : 1;
             int total = static_cast<int>(visibleBooks_.size());
             if (total == 0) return;
 
             int target = selectedBookIdx_ + dx + dy * cols;
             selectedBookIdx_ = std::clamp(target, 0, total - 1);
+
+            // Ensure focused card or row is scrolled into view
+            if (viewMode_ == ViewMode::Grid) {
+                int topY = 96, cardH = 220, spacingY = 24;
+                int maxVisibleRows = std::max(1, (h - topY - 40) / (cardH + spacingY));
+                int selectedRow = selectedBookIdx_ / cols;
+                if (selectedRow < scrollOffset_) {
+                    scrollOffset_ = selectedRow;
+                } else if (selectedRow >= scrollOffset_ + maxVisibleRows) {
+                    scrollOffset_ = selectedRow - maxVisibleRows + 1;
+                }
+            } else {
+                int rowH = 48, topY = 96;
+                int maxRows = std::max(1, (h - topY - 40) / rowH);
+                if (selectedBookIdx_ < scrollOffset_) {
+                    scrollOffset_ = selectedBookIdx_;
+                } else if (selectedBookIdx_ >= scrollOffset_ + maxRows) {
+                    scrollOffset_ = selectedBookIdx_ - maxRows + 1;
+                }
+            }
             dirty_ = true;
         } else if (screen_ == ScreenState::FileBrowser) {
             int total = static_cast<int>(browserEntries_.size());
@@ -843,7 +1064,30 @@ private:
         }
 
         if (match(SDLK_RETURN, SDL_CONTROLLER_BUTTON_A)) {
-            if (screen_ == ScreenState::FileBrowser) {
+            if (screen_ == ScreenState::TocModal) {
+                if (!tocEntries_.empty() && tocSelected_ >= 0 && tocSelected_ < static_cast<int>(tocEntries_.size())) {
+                    currentPage_ = std::clamp(tocEntries_[tocSelected_].page, 0, std::max(0, pageCount_ - 1));
+                    screen_ = ScreenState::Reader;
+                    toolbarVisible_ = false;
+                    saveCurrentPosition();
+                    dirty_ = true;
+                }
+                return;
+            } else if (screen_ == ScreenState::BookmarksModal) {
+                auto p = progressStore_.get(currentBookId_);
+                if (!p.bookmarks.empty() && bmSelected_ >= 0 && bmSelected_ < static_cast<int>(p.bookmarks.size())) {
+                    currentPage_ = std::clamp(p.bookmarks[bmSelected_].page, 0, std::max(0, pageCount_ - 1));
+                    screen_ = ScreenState::Reader;
+                    toolbarVisible_ = false;
+                    saveCurrentPosition();
+                    dirty_ = true;
+                }
+                return;
+            } else if (screen_ == ScreenState::AaModal) {
+                screen_ = ScreenState::Reader;
+                dirty_ = true;
+                return;
+            } else if (screen_ == ScreenState::FileBrowser) {
                 handleBrowserSelect();
             } else if (screen_ == ScreenState::Library) {
                 if (selectedBookIdx_ >= 0 && selectedBookIdx_ < static_cast<int>(visibleBooks_.size())) {
@@ -878,7 +1122,7 @@ private:
                 if (it != p.bookmarks.end()) {
                     p.bookmarks.erase(it);
                 } else {
-                    p.bookmarks.push_back({currentPage_, "Page " + std::to_string(currentPage_ + 1),
+                    p.bookmarks.push_back({currentPage_, "Sayfa " + std::to_string(currentPage_ + 1),
                                            std::chrono::duration_cast<std::chrono::seconds>(
                                                std::chrono::system_clock::now().time_since_epoch()).count(),
                                            px_document_make_bookmark(doc_, currentPage_)});
@@ -925,15 +1169,24 @@ private:
             renderReaderScreen(w, h, pal);
         } else if (screen_ == ScreenState::FileBrowser) {
             renderFileBrowserScreen(w, h, pal);
-        }
+        } else if (screen_ == ScreenState::AaModal || screen_ == ScreenState::TocModal || screen_ == ScreenState::BookmarksModal) {
+            // Keep the reader page rendered in the background!
+            renderReaderScreen(w, h, pal);
 
-        // Modals rendered on top
-        if (screen_ == ScreenState::AaModal) {
-            renderAaModal(w, h, pal);
-        } else if (screen_ == ScreenState::TocModal) {
-            renderTocModal(w, h, pal);
-        } else if (screen_ == ScreenState::BookmarksModal) {
-            renderBookmarksModal(w, h, pal);
+            // Draw dimming backdrop scrim
+            SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 150);
+            SDL_Rect fullscreen{0, 0, w, h};
+            SDL_RenderFillRect(renderer_, &fullscreen);
+
+            // Render modal on top
+            if (screen_ == ScreenState::AaModal) {
+                renderAaModal(w, h, pal);
+            } else if (screen_ == ScreenState::TocModal) {
+                renderTocModal(w, h, pal);
+            } else if (screen_ == ScreenState::BookmarksModal) {
+                renderBookmarksModal(w, h, pal);
+            }
         }
 
         SDL_RenderPresent(renderer_);
@@ -944,42 +1197,49 @@ private:
         typography_->drawBox(renderer_, {0, 0, w, 52}, pal.header, pal.cardBorder);
         typography_->renderText(renderer_, typography_->titleFont(), "PaperNX", 36, 10, pal.fg);
 
-        std::string modeText = (viewMode_ == ViewMode::Grid) ? "[Grid]" : "[List]";
-        typography_->renderText(renderer_, typography_->smallFont(), modeText, w - 180, 16, pal.muted);
-        typography_->renderText(renderer_, typography_->smallFont(), "[Browse SD]", w - 100, 16, pal.accent);
+        std::string modeText = (viewMode_ == ViewMode::Grid) ? "[Kılavuz]" : "[Liste]";
+        typography_->renderText(renderer_, typography_->smallFont(), modeText, w - 190, 16, pal.muted);
+        typography_->renderText(renderer_, typography_->smallFont(), "[SD Gözat]", w - 105, 16, pal.accent);
 
         if (searchActive_) {
-            typography_->renderText(renderer_, typography_->uiFont(), "Search: " + searchQuery_ + "_", 220, 12, pal.accent, 400);
+            typography_->renderText(renderer_, typography_->uiFont(), "Ara: " + searchQuery_ + "_", 200, 12, pal.accent, 400);
         }
 
         // Category bar
-        const char *cats[] = {"All", "Reading", "Recent", "Favorites", "Unread", "Done"};
+        const char *cats[] = {"Tümü", "Okunanlar", "Son Eklenenler", "Favoriler", "Okunmamış", "Bitenler"};
         int startX = 36;
         for (int i = 0; i < 6; ++i) {
             bool active = (static_cast<int>(category_) == i);
-            SDL_Rect catRect{startX + i * 105, 58, 95, 26};
-            typography_->drawBox(renderer_, catRect, active ? pal.accent : pal.card, active ? pal.accent : pal.cardBorder);
-            typography_->renderText(renderer_, typography_->smallFont(), cats[i], catRect.x + 12, catRect.y + 4,
+            SDL_Rect catRect{startX + i * 115, 58, 105, 26};
+            typography_->drawBox(renderer_, catRect, active ? pal.accent : pal.header, pal.cardBorder);
+            typography_->renderText(renderer_, typography_->smallFont(), cats[i], catRect.x + 8, catRect.y + 4,
                                    active ? pal.bg : pal.fg);
         }
 
-        // Books display
+        // View content
         if (visibleBooks_.empty()) {
-            typography_->renderText(renderer_, typography_->uiFont(), "No books found in this category.", 48, h / 2 - 30, pal.fg);
-            typography_->renderText(renderer_, typography_->smallFont(), "Place .epub or .pdf files into sdmc:/switch/PaperNX/books/", 48, h / 2 + 10, pal.muted);
-            return;
-        }
-
-        if (viewMode_ == ViewMode::Grid) {
-            renderGrid(w, h, pal);
+            typography_->renderText(renderer_, typography_->uiFont(), "Kitaplığınızda henüz kitap bulunmuyor.", 48, 160, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(),
+                                   "sdmc:/switch/PaperNX/books/ klasörüne .epub veya .pdf dosyaları ekleyin.",
+                                   48, 195, pal.muted);
         } else {
-            renderList(w, h, pal);
+            if (viewMode_ == ViewMode::Grid) {
+                renderGrid(w, h, pal);
+            } else {
+                renderList(w, h, pal);
+            }
         }
 
-        // Bottom controller hints
+        // Error message banner if present
+        if (!currentErrorMessage_.empty()) {
+            typography_->drawBox(renderer_, {36, h - 70, w - 72, 34}, pal.card, pal.accent);
+            typography_->renderText(renderer_, typography_->smallFont(), currentErrorMessage_, 48, h - 62, pal.accent);
+        }
+
+        // Bottom shortcut guide
         typography_->drawBox(renderer_, {0, h - 30, w, 30}, pal.header, pal.cardBorder);
         typography_->renderText(renderer_, typography_->smallFont(),
-                               "A: Open   X: Search   Y: Browse SD   -: View Mode   T: Theme",
+                               "A: Aç   X: Ara   Y: SD Gözat   -: Görünüm   T: Tema",
                                36, h - 24, pal.muted);
     }
 
@@ -991,7 +1251,7 @@ private:
         int cols = std::max(1, (w - startX * 2) / (cardW + spacingX));
 
         int startIndex = scrollOffset_ * cols;
-        int maxVisibleRows = (h - topY - 40) / (cardH + spacingY);
+        int maxVisibleRows = std::max(1, (h - topY - 40) / (cardH + spacingY));
 
         for (int i = startIndex; i < static_cast<int>(visibleBooks_.size()) && i < startIndex + maxVisibleRows * cols; ++i) {
             int col = (i - startIndex) % cols;
@@ -1032,7 +1292,7 @@ private:
     void renderList(int w, int h, const ThemePalette &pal) {
         int rowH = 48;
         int topY = 96;
-        int maxRows = (h - topY - 40) / rowH;
+        int maxRows = std::max(1, (h - topY - 40) / rowH);
 
         for (int i = scrollOffset_; i < static_cast<int>(visibleBooks_.size()) && i < scrollOffset_ + maxRows; ++i) {
             int y = topY + (i - scrollOffset_) * rowH;
@@ -1068,23 +1328,23 @@ private:
         if (toolbarVisible_) {
             // Header bar
             typography_->drawBox(renderer_, {0, 0, w, 54}, pal.header, pal.cardBorder);
-            typography_->renderText(renderer_, typography_->uiFont(), "< Library", 24, 14, pal.accent);
+            typography_->renderText(renderer_, typography_->uiFont(), "< Kitaplık", 24, 14, pal.accent);
 
             std::string title = currentBookId_;
             for (const auto &b : books_) {
                 if (b.id == currentBookId_) { title = b.title; break; }
             }
-            typography_->renderText(renderer_, typography_->smallFont(), title, 160, 16, pal.fg, w - 460);
+            typography_->renderText(renderer_, typography_->smallFont(), title, 150, 16, pal.fg, w - 450);
 
-            typography_->renderText(renderer_, typography_->smallFont(), "[TOC]", w - 240, 16, pal.fg);
-            typography_->renderText(renderer_, typography_->smallFont(), "[Bookmark]", w - 160, 16, pal.fg);
-            typography_->renderText(renderer_, typography_->uiFont(), "Aa", w - 60, 12, pal.accent);
+            typography_->renderText(renderer_, typography_->smallFont(), "[İçindekiler]", w - 275, 16, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "[Yer İmi]", w - 175, 16, pal.fg);
+            typography_->renderText(renderer_, typography_->uiFont(), "Aa", w - 75, 12, pal.accent);
 
             // Footer bar
             typography_->drawBox(renderer_, {0, h - 56, w, 56}, pal.header, pal.cardBorder);
 
             char pageBuf[64];
-            std::snprintf(pageBuf, sizeof(pageBuf), "Page %d of %d", currentPage_ + 1, std::max(1, pageCount_));
+            std::snprintf(pageBuf, sizeof(pageBuf), "Sayfa %d / %d", currentPage_ + 1, std::max(1, pageCount_));
             typography_->renderText(renderer_, typography_->smallFont(), pageBuf, 36, h - 44, pal.fg);
 
             float prog = (pageCount_ > 1) ? static_cast<float>(currentPage_) / (pageCount_ - 1) : 1.0f;
@@ -1094,7 +1354,7 @@ private:
 
     void renderFileBrowserScreen(int w, int h, const ThemePalette &pal) {
         typography_->drawBox(renderer_, {0, 0, w, 54}, pal.header, pal.cardBorder);
-        typography_->renderText(renderer_, typography_->titleFont(), "Open from SD Card", 36, 10, pal.fg);
+        typography_->renderText(renderer_, typography_->titleFont(), "SD Dosya Gezgini", 36, 10, pal.fg);
         typography_->renderText(renderer_, typography_->smallFont(), browserPath_.string(), 36, 62, pal.muted, w - 80);
 
         int topY = 96;
@@ -1105,7 +1365,7 @@ private:
             SDL_Rect r{36, y, w - 72, rowH - 4};
             typography_->drawBox(renderer_, r, sel ? pal.accent : pal.card, pal.cardBorder);
 
-            std::string prefix = browserEntries_[i].isDirectory ? "[DIR]  " : "[BOOK] ";
+            std::string prefix = browserEntries_[i].isDirectory ? "[KLASÖR] " : "[KİTAP]  ";
             typography_->renderText(renderer_, typography_->uiFont(),
                                    prefix + browserEntries_[i].path.filename().string(),
                                    48, y + 8, sel ? pal.bg : pal.fg, w - 120);
@@ -1116,59 +1376,89 @@ private:
         int modalW = 600, modalH = 460;
         int mx = (w - modalW) / 2, my = (h - modalH) / 2;
 
-        // Modal backdrop and card
-        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 140);
-        SDL_Rect fullscreen{0, 0, w, h};
-        SDL_RenderFillRect(renderer_, &fullscreen);
-
         typography_->drawBox(renderer_, {mx, my, modalW, modalH}, pal.card, pal.accent);
-        typography_->renderText(renderer_, typography_->titleFont(), "Aa Display Settings", mx + 24, my + 14, pal.fg);
+        typography_->renderText(renderer_, typography_->titleFont(), "Aa Görünüm Ayarları", mx + 24, my + 14, pal.fg);
         typography_->renderText(renderer_, typography_->titleFont(), "X", mx + modalW - 36, my + 14, pal.muted);
 
         // Tab headers
-        const char *tabNames[] = {"Typography", "Layout", "Themes", "Controls"};
+        const char *tabNames[] = {"Tipografi", "Düzen", "Temalar", "Kontroller"};
         int tabW = modalW / 4;
         for (int t = 0; t < 4; ++t) {
             bool active = (aaTab_ == t);
             SDL_Rect tr{mx + t * tabW, my + 54, tabW, 36};
             typography_->drawBox(renderer_, tr, active ? pal.bg : pal.header, pal.cardBorder);
-            typography_->renderText(renderer_, typography_->smallFont(), tabNames[t], tr.x + 16, tr.y + 8,
+            typography_->renderText(renderer_, typography_->smallFont(), tabNames[t], tr.x + 14, tr.y + 8,
                                    active ? pal.accent : pal.fg);
         }
 
         // Tab Content
         if (aaTab_ == 0) {
             // Font Size
-            typography_->renderText(renderer_, typography_->uiFont(), "Font Size", mx + 36, my + 130, pal.fg);
-            typography_->drawBox(renderer_, {mx + 200, my + 124, 44, 38}, pal.bg, pal.cardBorder);
-            typography_->renderText(renderer_, typography_->uiFont(), "-", mx + 216, my + 128, pal.fg);
+            typography_->renderText(renderer_, typography_->uiFont(), "Yazı Boyutu", mx + 36, my + 120, pal.fg);
+            typography_->drawBox(renderer_, {mx + 190, my + 115, 48, 38}, pal.bg, pal.cardBorder);
+            typography_->renderText(renderer_, typography_->uiFont(), "-", mx + 208, my + 118, pal.fg);
 
             char szStr[16];
             std::snprintf(szStr, sizeof(szStr), "%d pt", currentFontSize_);
-            typography_->renderText(renderer_, typography_->uiFont(), szStr, mx + 270, my + 130, pal.fg);
+            typography_->renderText(renderer_, typography_->uiFont(), szStr, mx + 265, my + 120, pal.fg);
 
-            typography_->drawBox(renderer_, {mx + 350, my + 124, 44, 38}, pal.bg, pal.cardBorder);
-            typography_->renderText(renderer_, typography_->uiFont(), "+", mx + 365, my + 128, pal.fg);
+            typography_->drawBox(renderer_, {mx + 345, my + 115, 48, 38}, pal.bg, pal.cardBorder);
+            typography_->renderText(renderer_, typography_->uiFont(), "+", mx + 361, my + 118, pal.fg);
+
+            // Font Family
+            typography_->renderText(renderer_, typography_->uiFont(), "Yazı Tipi", mx + 36, my + 190, pal.fg);
+            SDL_Rect fontToggle{mx + 190, my + 185, 203, 38};
+            typography_->drawBox(renderer_, fontToggle, pal.bg, pal.accent);
+            std::string fontName = (currentFontFamily_ == 0) ? "Serif (Noto Serif)" : "Sans (Noto Sans)";
+            typography_->renderText(renderer_, typography_->smallFont(), fontName, fontToggle.x + 16, fontToggle.y + 10, pal.fg);
+        } else if (aaTab_ == 1) {
+            // Satır Aralığı
+            typography_->renderText(renderer_, typography_->smallFont(), "Satır Aralığı", mx + 36, my + 115, pal.fg);
+            int lhVals[] = {120, 140, 160};
+            for (int i = 0; i < 3; ++i) {
+                bool sel = (currentLineHeight_ == lhVals[i]);
+                SDL_Rect r{mx + 180 + i * 70, my + 110, 60, 32};
+                typography_->drawBox(renderer_, r, sel ? pal.accent : pal.bg, pal.cardBorder);
+                typography_->renderText(renderer_, typography_->smallFont(), std::to_string(lhVals[i]) + "%", r.x + 8, r.y + 6, sel ? pal.bg : pal.fg);
+            }
+
+            // Kenar Boşluğu
+            typography_->renderText(renderer_, typography_->smallFont(), "Kenar Boşluğu", mx + 36, my + 175, pal.fg);
+            int mgVals[] = {20, 40, 60};
+            for (int i = 0; i < 3; ++i) {
+                bool sel = (currentMargin_ == mgVals[i]);
+                SDL_Rect r{mx + 180 + i * 70, my + 170, 60, 32};
+                typography_->drawBox(renderer_, r, sel ? pal.accent : pal.bg, pal.cardBorder);
+                typography_->renderText(renderer_, typography_->smallFont(), std::to_string(mgVals[i]) + "px", r.x + 8, r.y + 6, sel ? pal.bg : pal.fg);
+            }
+
+            // Hizalama
+            typography_->renderText(renderer_, typography_->smallFont(), "Hizalama", mx + 36, my + 235, pal.fg);
+            const char *alNames[] = {"Sola", "İki Yana"};
+            for (int i = 0; i < 2; ++i) {
+                bool sel = (currentTextAlign_ == i);
+                SDL_Rect r{mx + 180 + i * 105, my + 230, 95, 32};
+                typography_->drawBox(renderer_, r, sel ? pal.accent : pal.bg, pal.cardBorder);
+                typography_->renderText(renderer_, typography_->smallFont(), alNames[i], r.x + 16, r.y + 6, sel ? pal.bg : pal.fg);
+            }
         } else if (aaTab_ == 2) {
-            // Themes
-            typography_->renderText(renderer_, typography_->uiFont(), "Select Theme", mx + 36, my + 105, pal.fg);
+            typography_->renderText(renderer_, typography_->uiFont(), "Tema Seçimi", mx + 36, my + 100, pal.fg);
             for (int i = 0; i < g_paletteCount; ++i) {
                 int sx = mx + 36 + (i % 3) * 180;
-                int sy = my + 140 + (i / 3) * 120;
+                int sy = my + 130 + (i / 3) * 95;
                 const auto &p = g_palettes[i];
 
                 bool cur = (currentTheme_ == i);
-                typography_->drawBox(renderer_, {sx, sy, 140, 80}, p.bg, cur ? pal.accent : pal.cardBorder);
+                typography_->drawBox(renderer_, {sx, sy, 160, 80}, p.bg, cur ? pal.accent : pal.cardBorder);
                 typography_->renderText(renderer_, typography_->smallFont(), p.name, sx + 14, sy + 14, p.fg);
             }
         } else if (aaTab_ == 3) {
-            // Controls summary
-            typography_->renderText(renderer_, typography_->smallFont(), "Left 22% Screen: Previous Page", mx + 36, my + 120, pal.fg);
-            typography_->renderText(renderer_, typography_->smallFont(), "Right 22% Screen: Next Page", mx + 36, my + 155, pal.fg);
-            typography_->renderText(renderer_, typography_->smallFont(), "Center 56% Screen: Menu / Toolbar", mx + 36, my + 190, pal.fg);
-            typography_->renderText(renderer_, typography_->smallFont(), "L / R Joy-Con: Page Turn", mx + 36, my + 225, pal.fg);
-            typography_->renderText(renderer_, typography_->smallFont(), "+ Button: Aa Menu   X: TOC   Y: Bookmark", mx + 36, my + 260, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "Sol %22 Ekran: Önceki Sayfa", mx + 36, my + 115, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "Sağ %22 Ekran: Sonraki Sayfa", mx + 36, my + 150, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "Orta %56 Ekran: Araç Çubuğu / Menü", mx + 36, my + 185, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "D-Pad Sol/Sağ veya L/R: Sayfa Çevirme", mx + 36, my + 220, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "+ Tuşu: Aa Ayarları   X: İçindekiler   Y: Yer İmi", mx + 36, my + 255, pal.fg);
+            typography_->renderText(renderer_, typography_->smallFont(), "B Tuşu: Geri / Kitaplık   A Tuşu: Seçim Onayla", mx + 36, my + 290, pal.fg);
         }
     }
 
@@ -1177,10 +1467,11 @@ private:
         int mx = (w - modalW) / 2, my = (h - modalH) / 2;
 
         typography_->drawBox(renderer_, {mx, my, modalW, modalH}, pal.card, pal.accent);
-        typography_->renderText(renderer_, typography_->titleFont(), "Table of Contents", mx + 24, my + 16, pal.fg);
+        typography_->renderText(renderer_, typography_->titleFont(), "İçindekiler", mx + 24, my + 16, pal.fg);
+        typography_->renderText(renderer_, typography_->titleFont(), "X", mx + modalW - 36, my + 16, pal.muted);
 
         if (tocEntries_.empty()) {
-            typography_->renderText(renderer_, typography_->smallFont(), "No table of contents in this document.", mx + 24, my + 80, pal.muted);
+            typography_->renderText(renderer_, typography_->smallFont(), "Bu belgede içindekiler tablosu bulunamadı.", mx + 24, my + 80, pal.muted);
             return;
         }
 
@@ -1193,7 +1484,11 @@ private:
 
             int indent = std::min(40, tocEntries_[i].level * 16);
             typography_->renderText(renderer_, typography_->smallFont(), tocEntries_[i].title,
-                                   mx + 28 + indent, y + 8, sel ? pal.bg : pal.fg, modalW - 100 - indent);
+                                   mx + 28 + indent, y + 8, sel ? pal.bg : pal.fg, modalW - 120 - indent);
+
+            std::string pageNum = std::to_string(tocEntries_[i].page + 1);
+            typography_->renderText(renderer_, typography_->smallFont(), pageNum,
+                                   mx + modalW - 55, y + 8, sel ? pal.bg : pal.muted);
         }
     }
 
@@ -1202,11 +1497,14 @@ private:
         int mx = (w - modalW) / 2, my = (h - modalH) / 2;
 
         typography_->drawBox(renderer_, {mx, my, modalW, modalH}, pal.card, pal.accent);
-        typography_->renderText(renderer_, typography_->titleFont(), "Bookmarks", mx + 24, my + 16, pal.fg);
+        typography_->renderText(renderer_, typography_->titleFont(), "Yer İmleri", mx + 24, my + 16, pal.fg);
+        typography_->renderText(renderer_, typography_->titleFont(), "X", mx + modalW - 36, my + 16, pal.muted);
 
         auto p = progressStore_.get(currentBookId_);
         if (p.bookmarks.empty()) {
-            typography_->renderText(renderer_, typography_->smallFont(), "No bookmarks yet. Press Y while reading to add one.", mx + 24, my + 80, pal.muted);
+            typography_->renderText(renderer_, typography_->smallFont(),
+                                   "Henüz yer imi eklenmedi. Okurken Y tuşuna basarak ekleyebilirsiniz.",
+                                   mx + 24, my + 80, pal.muted);
             return;
         }
 
