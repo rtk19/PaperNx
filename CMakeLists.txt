@@ -60,4 +60,20 @@ if(PAPERNX_NATIVE)
     if(UNIX AND NOT APPLE)
         target_link_libraries(PaperNX PRIVATE m pthread dl)
     endif()
+
+    # Native MuPDF rendering integration tests
+    add_executable(mupdf_render_tests
+        tests/mupdf_render_tests.c
+        src/mupdf_bridge.c
+    )
+    target_include_directories(mupdf_render_tests PRIVATE ${MUPDF_INCLUDE_DIR} include)
+    target_link_libraries(mupdf_render_tests PRIVATE ${MUPDF_LIBRARY})
+    if(MUPDF_THIRD_LIBRARY)
+        target_link_libraries(mupdf_render_tests PRIVATE ${MUPDF_THIRD_LIBRARY})
+    endif()
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(mupdf_render_tests PRIVATE m pthread dl)
+    endif()
+    add_test(NAME mupdf_render_tests COMMAND mupdf_render_tests)
 endif()
+

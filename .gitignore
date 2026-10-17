@@ -12,4 +12,6 @@ __pycache__/
 *.zip
 *.sha256
 *.log
+*.ppm
 .DS_Store
+
