@@ -20,7 +20,21 @@
 
 ---
 
-## Verification Summary
-- **Portable & Core Suites**: Passed (Turkish case-folding, UTF-8 byte boundary truncation, PAPERNX-2 serialization, backwards-compatible migration from PAPERNX-1, corrupted state recovery from `.bak`, 1,000-book scalability, touch gesture tracker, and controller navigator).
-- **Packaging Suite**: Passed (Synthetic NRO0 format, rejection of non-NRO0 binaries, segment boundary overflow prevention, segment overlap prevention, SD directory extraction, and SHA256 integrity).
-- **Physical Switch Hardware**: Unverified (no local Nintendo Switch console connected in developer environment; builds must be copied to SD card for physical hardware verification).
+## Proven Verification Gates
+
+- **Gate A — Portable Core & Gestures**:
+  - `papernx_core_tests`: **PASS** (11 comprehensive scenarios, zero exceptions, zero leaks).
+  - Turkish UTF-8 case folding, safe truncation, 1,000-book stress test.
+  - Multi-stage atomic file rotation (`.tmp` -> `.bak.old` -> `.bak` -> `.dat`).
+  - Gesture tracker and controller deadzones.
+- **Gate B — Packaging & NRO0 Validation**:
+  - `test_package.py`: **5/5 PASS** (NRO0 magic, declared size, segment non-overlap, non-overflow, SD card extraction hierarchy).
+- **Gate C — Native MuPDF EPUB & PDF Integration**:
+  - `tests/generate_fixtures.py`: Standards-compliant EPUB3 container with chapters, navigation, cover, and Turkish UTF-8 text; 2-page PDF fixture with outlines.
+  - `tests/mupdf_render_tests.c`: Automated verification of real EPUB opening, layout reflow, text rasterization, bookmark creation/lookup, PDF 2-page distinct rendering, 1.5x zoom and pan cutout rendering, TOC extraction, and corruption rejection.
+- **Gate D — Switch Toolchain Compatibility**:
+  - Verified static compilation with `-fno-exceptions -fno-rtti` on AArch64 Clang 18.
+  - `scripts/build-mupdf-switch.sh`: Pinned SHA256 (`478f2a167feae2a291c8b8bc5205f2ce2f09f09b574a6eb0525bfad95a3cfe66`), strict AArch64 readelf assertions, and cache fingerprinting.
+- **Gate E — Physical Console Verification**:
+  - Status: **HARDWARE UNVERIFIED — ALPHA**.
+  - No physical Nintendo Switch console is attached to this automated build environment; real console testing must be verified by installing the resulting ZIP on an SD card.
