@@ -19,6 +19,7 @@ struct RenderKey {
     int lineHeight{140};
     int margin{40};
     int textAlign{0};
+    int fontFamily{0};
 
     std::string toString() const;
 };
@@ -35,15 +36,17 @@ class PageCache {
 public:
     explicit PageCache(std::size_t maxBytes = 48 * 1024 * 1024);
     ~PageCache();
+    PageCache(const PageCache &) = delete;
+    PageCache &operator=(const PageCache &) = delete;
 
     static std::string makeKey(const RenderKey &k);
     static std::string makeEpubKey(const std::string &docId, int page, int fontSize, int theme,
-                                   int lineHeight, int margin, int textAlign, int viewW, int viewH);
+                                   int lineHeight, int margin, int textAlign, int viewW, int viewH, int fontFamily = 0);
     static std::string makePdfKey(const std::string &docId, int page, float zoom, int panX, int panY,
                                   int viewW, int viewH);
 
     SDL_Texture *get(const std::string &key, int *outW = nullptr, int *outH = nullptr);
-    void put(const std::string &key, SDL_Texture *texture, int w, int h);
+    bool put(const std::string &key, SDL_Texture *texture, int w, int h);
     void evictDocument(const std::string &docId);
     void clear();
 

@@ -1,6 +1,7 @@
 #include "papernx/page_cache.hpp"
 #include <sstream>
 #include <cmath>
+#include <algorithm>
 
 namespace papernx {
 
@@ -16,7 +17,7 @@ std::string RenderKey::toString() const {
        << "_t" << theme
        << "_lh" << lineHeight
        << "_m" << margin
-       << "_ta" << textAlign;
+       << "_ta" << textAlign << "_ff" << fontFamily;
     return ss.str();
 }
 
@@ -25,7 +26,7 @@ std::string PageCache::makeKey(const RenderKey &k) {
 }
 
 std::string PageCache::makeEpubKey(const std::string &docId, int page, int fontSize, int theme,
-                                   int lineHeight, int margin, int textAlign, int viewW, int viewH) {
+                                   int lineHeight, int margin, int textAlign, int viewW, int viewH, int fontFamily) {
     RenderKey k;
     k.docId = docId;
     k.page = page;
@@ -39,6 +40,7 @@ std::string PageCache::makeEpubKey(const std::string &docId, int page, int fontS
     k.lineHeight = lineHeight;
     k.margin = margin;
     k.textAlign = textAlign;
+    k.fontFamily = fontFamily;
     return k.toString();
 }
 
@@ -73,40 +75,31 @@ SDL_Texture *PageCache::get(const std::string &key, int *outW, int *outH) {
     return it->second->texture;
 }
 
-void PageCache::put(const std::string &key, SDL_Texture *texture, int w, int h) {
-    if (!texture || w <= 0 || h <= 0) return;
-
-    // If key already exists, update and move to front
+bool PageCache::put(const std::string &key, SDL_Texture *texture, int w, int h) {
+    if (!texture) return false;
+    Uint32 format = 0;
+    int actualW = 0, actualH = 0;
+    if (SDL_QueryTexture(texture, &format, nullptr, &actualW, &actualH) != 0 ||
+        actualW != w || actualH != h || w <= 0 || h <= 0) {
+        SDL_DestroyTexture(texture);
+        return false;
+    }
+    // Conservative four-byte accounting includes RGB24 backend expansion.
+    const std::size_t bytes = static_cast<std::size_t>(w) * static_cast<std::size_t>(h) *
+        std::max(4u, SDL_BYTESPERPIXEL(format));
+    if (bytes > maxBytes_) { SDL_DestroyTexture(texture); return false; }
     auto it = items_.find(key);
     if (it != items_.end()) {
         currentBytes_ -= it->second->bytes;
-        if (it->second->texture != texture) {
-            SDL_DestroyTexture(it->second->texture);
-        }
-        it->second->texture = texture;
-        it->second->width = w;
-        it->second->height = h;
-        it->second->bytes = static_cast<std::size_t>(w * h * 4);
-        currentBytes_ += it->second->bytes;
-        order_.splice(order_.begin(), order_, it->second);
-        return;
+        if (it->second->texture != texture) SDL_DestroyTexture(it->second->texture);
+        order_.erase(it->second);
+        items_.erase(it);
     }
-
-    std::size_t bytes = static_cast<std::size_t>(w * h * 4);
-    while (currentBytes_ + bytes > maxBytes_ && !order_.empty()) {
-        evictOldest();
-    }
-
-    CachedTexture entry;
-    entry.key = key;
-    entry.texture = texture;
-    entry.width = w;
-    entry.height = h;
-    entry.bytes = bytes;
-
-    order_.push_front(entry);
+    while (currentBytes_ > maxBytes_ - bytes && !order_.empty()) evictOldest();
+    order_.push_front({key, texture, w, h, bytes});
     items_[key] = order_.begin();
     currentBytes_ += bytes;
+    return true;
 }
 
 void PageCache::evictOldest() {

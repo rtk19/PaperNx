@@ -10,7 +10,15 @@ struct PxDocument {
     fz_document *doc;
     int pages;
     int epub;
+    char *path;
+    char *css;
+    fz_buffer *cover;
+    int nav_count;
+    PxTocEntry nav[256];
+    char nav_uri[256][2048];
 };
+
+static void load_epub_extras(PxDocument *d);
 
 static void report(char *dst, int cap, const char *msg) {
     if (dst && cap > 0) {
@@ -25,6 +33,9 @@ void px_document_close(PxDocument *d) {
                 fz_drop_document(d->ctx, d->doc);
                 d->doc = NULL;
             }
+            fz_drop_buffer(d->ctx, d->cover);
+            fz_free(d->ctx, d->path);
+            fz_free(d->ctx, d->css);
             fz_drop_context(d->ctx);
             d->ctx = NULL;
         }
@@ -53,6 +64,9 @@ PxDocument *px_document_open(const char *path, int w, int h, float em, const cha
 
     fz_try(d->ctx) {
         fz_register_document_handlers(d->ctx);
+        d->path = fz_strdup(d->ctx, path);
+        d->css = fz_strdup(d->ctx, css ? css : "");
+        fz_set_user_css(d->ctx, css ? css : "");
         d->doc = fz_open_document(d->ctx, path);
         if (!d->doc) {
             fz_throw(d->ctx, FZ_ERROR_GENERIC, "Failed to open document format");
@@ -62,7 +76,8 @@ PxDocument *px_document_open(const char *path, int w, int h, float em, const cha
         }
         d->epub = fz_is_document_reflowable(d->ctx, d->doc);
         if (d->epub) {
-            fz_style_document(d->ctx, d->doc, 1, css ? css : "");
+            fz_set_user_css(d->ctx, css ? css : "");
+        fz_set_use_document_css(d->ctx, 1);
             float layout_w = (w > 100) ? (float)w : 1180.0f;
             float layout_h = (h > 100) ? (float)h : 600.0f;
             float layout_em = (em > 8.0f) ? em : 22.0f;
@@ -76,11 +91,28 @@ PxDocument *px_document_open(const char *path, int w, int h, float em, const cha
         return NULL;
     }
 
+    if (d->epub) load_epub_extras(d);
     return d;
 }
 
 int px_document_pages(PxDocument *d) {
     return d ? d->pages : 0;
+}
+
+int px_document_page_size(PxDocument *d, int index, float *width, float *height) {
+    if (!d || !width || !height || index < 0 || index >= d->pages) return 0;
+    fz_page *page = NULL;
+    fz_var(page);
+    int ok = 0;
+    fz_try(d->ctx) {
+        page = fz_load_page(d->ctx, d->doc, index);
+        fz_rect bounds = fz_bound_page(d->ctx, page);
+        *width = bounds.x1 - bounds.x0; *height = bounds.y1 - bounds.y0;
+        ok = isfinite(*width) && isfinite(*height) && *width > 0 && *height > 0;
+    }
+    fz_always(d->ctx) { fz_drop_page(d->ctx, page); }
+    fz_catch(d->ctx) { ok = 0; }
+    return ok;
 }
 
 int px_document_is_epub(PxDocument *d) {
@@ -91,7 +123,20 @@ int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css,
     if (!d || !d->ctx || !d->doc || !d->epub) return 0;
     int ok = 1;
     fz_try(d->ctx) {
-        fz_style_document(d->ctx, d->doc, 1, css ? css : "");
+        if (strcmp(d->css, css ? css : "") != 0) {
+            // MuPDF caches parsed chapter CSS; reopening invalidates that cache.
+            fz_document *replacement = NULL;
+            char *new_css = fz_strdup(d->ctx, css ? css : "");
+            fz_set_user_css(d->ctx, new_css);
+            fz_try(d->ctx) { replacement = fz_open_document(d->ctx, d->path); }
+            fz_catch(d->ctx) { fz_free(d->ctx, new_css); fz_rethrow(d->ctx); }
+            fz_drop_document(d->ctx, d->doc);
+            d->doc = replacement;
+            fz_free(d->ctx, d->css);
+            d->css = new_css;
+        }
+        fz_set_user_css(d->ctx, css ? css : "");
+        fz_set_use_document_css(d->ctx, 1);
         float layout_w = (w > 100) ? (float)w : 1180.0f;
         float layout_h = (h > 100) ? (float)h : 600.0f;
         float layout_em = (em > 8.0f) ? em : 22.0f;
@@ -166,7 +211,7 @@ static int copy_pixmap_to_image(fz_context *ctx, fz_pixmap *pix, PxImage *out, c
 }
 
 int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *out, char *err, int cap) {
-    if (!d || !d->ctx || !d->doc || !out || index < 0 || index >= d->pages || max_w <= 0 || max_h <= 0) {
+    if (!d || !d->ctx || !d->doc || !out || index < 0 || index >= d->pages || max_w <= 0 || max_h <= 0 || max_w > 4096 || max_h > 4096) {
         report(err, cap, "Invalid render arguments");
         return 0;
     }
@@ -211,17 +256,19 @@ int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *
 int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x, int view_y,
                             int view_w, int view_h, PxImage *out, char *err, int cap) {
     if (!d || !d->ctx || !d->doc || !out || page_idx < 0 || page_idx >= d->pages ||
-        view_w <= 0 || view_h <= 0 || zoom <= 0.05f || zoom > 10.0f) {
+        view_w <= 0 || view_h <= 0 || view_w > 4096 || view_h > 4096 || !isfinite(zoom) || zoom < 1.0f || zoom > 5.0f) {
         report(err, cap, "Invalid view render arguments");
         return 0;
     }
     memset(out, 0, sizeof(*out));
     fz_page *page = NULL;
     fz_pixmap *pix = NULL;
+    fz_device *device = NULL;
     int ok = 1;
 
     fz_var(page);
     fz_var(pix);
+    fz_var(device);
 
     fz_try(d->ctx) {
         page = fz_load_page(d->ctx, d->doc, page_idx);
@@ -236,10 +283,17 @@ int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x,
         float final_scale = base_scale * zoom;
 
         // Apply scale, then translate viewport
-        fz_matrix ctm = fz_concat(fz_scale(final_scale, final_scale), fz_translate((float)-view_x, (float)-view_y));
+        view_x = (int)fmaxf(0, fminf((float)view_x, ceilf(w * final_scale) - view_w));
+        view_y = (int)fmaxf(0, fminf((float)view_y, ceilf(h * final_scale) - view_h));
+        fz_matrix ctm = fz_make_matrix(final_scale, 0, 0, final_scale,
+            -bounds.x0 * final_scale - view_x, -bounds.y0 * final_scale - view_y);
         fz_irect irect = fz_make_irect(0, 0, view_w, view_h);
 
-        pix = fz_new_pixmap_from_page_with_cut(d->ctx, page, ctm, fz_device_rgb(d->ctx), 0, irect);
+        pix = fz_new_pixmap_with_bbox(d->ctx, fz_device_rgb(d->ctx), irect, NULL, 0);
+        fz_clear_pixmap_with_value(d->ctx, pix, 255);
+        device = fz_new_draw_device(d->ctx, fz_identity, pix);
+        fz_run_page(d->ctx, page, device, ctm, NULL);
+        fz_close_device(d->ctx, device);
         if (!copy_pixmap_to_image(d->ctx, pix, out, err, cap)) {
             ok = 0;
         }
@@ -250,14 +304,46 @@ int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x,
         ok = 0;
     }
 
+    if (device) fz_drop_device(d->ctx, device);
     if (pix) fz_drop_pixmap(d->ctx, pix);
     if (page) fz_drop_page(d->ctx, page);
     return ok;
 }
 
-int px_document_render_thumbnail(PxDocument *d, int max_w, int max_h, PxImage *image, char *err, int cap) {
-    if (!d || d->pages <= 0) return 0;
-    return px_document_render(d, 0, max_w, max_h, image, err, cap);
+int px_document_render_thumbnail(PxDocument *d, int max_w, int max_h, PxImage *out, char *err, int cap) {
+    if (!d || !out || max_w <= 0 || max_h <= 0 || max_w > 1024 || max_h > 1024) return 0;
+    memset(out, 0, sizeof(*out));
+    if (d->cover) {
+        fz_image *image = NULL;
+        fz_pixmap *pix = NULL;
+        fz_pixmap *rgb = NULL;
+        fz_var(image); fz_var(pix); fz_var(rgb);
+        int ok = 0;
+        fz_try(d->ctx) {
+            image = fz_new_image_from_buffer(d->ctx, d->cover);
+            if (image->w <= 0 || image->h <= 0 || (int64_t)image->w * image->h > 16000000)
+                fz_throw(d->ctx, FZ_ERROR_GENERIC, "Cover dimensions exceed budget");
+            float scale = fminf((float)max_w / image->w, (float)max_h / image->h);
+            int w = (int)fmaxf(1, floorf(image->w * scale));
+            int h = (int)fmaxf(1, floorf(image->h * scale));
+            pix = fz_new_pixmap(d->ctx, fz_device_rgb(d->ctx), w, h, NULL, 0);
+            fz_clear_pixmap_with_value(d->ctx, pix, 255);
+            fz_device *device = fz_new_draw_device(d->ctx, fz_identity, pix);
+            fz_try(d->ctx) {
+                fz_fill_image(d->ctx, device, image, fz_scale(w, h), 1, fz_default_color_params);
+                fz_close_device(d->ctx, device);
+            }
+            fz_always(d->ctx) { fz_drop_device(d->ctx, device); }
+            fz_catch(d->ctx) { fz_rethrow(d->ctx); }
+            ok = copy_pixmap_to_image(d->ctx, pix, out, err, cap);
+        }
+        fz_always(d->ctx) {
+            fz_drop_pixmap(d->ctx, rgb); fz_drop_pixmap(d->ctx, pix); fz_drop_image(d->ctx, image);
+        }
+        fz_catch(d->ctx) { px_image_free(out); ok = 0; }
+        if (ok) return 1;
+    }
+    return px_document_render(d, 0, max_w, max_h, out, err, cap);
 }
 
 void px_image_free(PxImage *i) {
@@ -271,29 +357,33 @@ void px_image_free(PxImage *i) {
 }
 
 int64_t px_document_make_bookmark(PxDocument *d, int page_idx) {
-    if (!d || !d->ctx || !d->doc || page_idx < 0 || page_idx >= d->pages) return -1;
+    if (!d || page_idx < 0 || page_idx >= d->pages) return -1;
     int64_t mark = -1;
     fz_try(d->ctx) {
         fz_location loc = fz_location_from_page_number(d->ctx, d->doc, page_idx);
-        mark = (int64_t)fz_make_bookmark(d->ctx, d->doc, loc);
+        int count = fz_count_chapter_pages(d->ctx, d->doc, loc.chapter);
+        uint32_t fraction = count > 1 ? (uint32_t)llround((double)loc.page * 1000000 / (count - 1)) : 0;
+        mark = INT64_C(0x4000000000000000) | ((int64_t)loc.chapter << 32) | fraction;
     }
-    fz_catch(d->ctx) {
-        mark = -1;
-    }
+    fz_catch(d->ctx) { mark = -1; }
     return mark;
 }
 
 int px_document_lookup_bookmark(PxDocument *d, int64_t bookmark) {
-    if (!d || !d->ctx || !d->doc || bookmark == -1) return -1;
+    // Older persisted fz_bookmark values are process-local and must be ignored.
+    if (!d || bookmark < INT64_C(0x4000000000000000)) return -1;
     int page = -1;
     fz_try(d->ctx) {
-        fz_location loc = fz_lookup_bookmark(d->ctx, d->doc, (fz_bookmark)bookmark);
-        page = fz_page_number_from_location(d->ctx, d->doc, loc);
+        int chapter = (int)((bookmark >> 32) & 0x3fffffff);
+        uint32_t fraction = (uint32_t)bookmark;
+        if (chapter < fz_count_chapters(d->ctx, d->doc) && fraction <= 1000000) {
+            int count = fz_count_chapter_pages(d->ctx, d->doc, chapter);
+            fz_location loc = fz_make_location(chapter, (int)llround((double)fraction * (count - 1) / 1000000));
+            page = fz_page_number_from_location(d->ctx, d->doc, loc);
+        }
     }
-    fz_catch(d->ctx) {
-        page = -1;
-    }
-    return page;
+    fz_catch(d->ctx) { page = -1; }
+    return page >= 0 && page < d->pages ? page : -1;
 }
 
 int px_document_get_location(PxDocument *d, int page_idx, int *chapter, int *p) {
@@ -329,27 +419,17 @@ int px_document_from_location(PxDocument *d, int chapter, int p) {
 }
 
 static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *node) {
-    if (!ctx || !doc || !node) return 0;
-    if (node->uri && node->uri[0]) {
-        fz_try(ctx) {
-            float x = 0.0f, y = 0.0f;
-            fz_location loc = fz_resolve_link(ctx, doc, node->uri, &x, &y);
-            int page = fz_page_number_from_location(ctx, doc, loc);
-            if (page >= 0) return page;
-        }
-        fz_catch(ctx) {
-            // URI resolution failed, continue to fallback
-        }
-    }
+    int result = -1;
     fz_try(ctx) {
         fz_location loc = node->page;
-        int page = fz_page_number_from_location(ctx, doc, loc);
-        if (page >= 0) return page;
+        if (node->uri && node->uri[0]) {
+            float x = 0, y = 0;
+            loc = fz_resolve_link(ctx, doc, node->uri, &x, &y);
+        }
+        result = fz_page_number_from_location(ctx, doc, loc);
     }
-    fz_catch(ctx) {
-        // Fallback failed
-    }
-    return 0;
+    fz_catch(ctx) { result = -1; }
+    return result;
 }
 
 static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *node,
@@ -365,7 +445,7 @@ static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *no
         entry->page = resolve_outline_page(ctx, doc, node);
         (*count)++;
 
-        if (node->down) {
+        if (node->down && level < 32) {
             fill_toc_recursive(ctx, doc, node->down, entries, max_entries, level + 1, count);
         }
         node = node->next;
@@ -374,6 +454,19 @@ static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *no
 
 int px_document_toc(PxDocument *d, PxTocEntry *entries, int max_entries) {
     if (!d || !d->ctx || !d->doc || !entries || max_entries <= 0) return 0;
+    if (d->epub && d->nav_count) {
+        int n = d->nav_count < max_entries ? d->nav_count : max_entries;
+        for (int i = 0; i < n; ++i) {
+            entries[i] = d->nav[i];
+            fz_try(d->ctx) {
+                float x = 0, y = 0;
+                fz_location loc = fz_resolve_link(d->ctx, d->doc, d->nav_uri[i], &x, &y);
+                entries[i].page = fz_page_number_from_location(d->ctx, d->doc, loc);
+            }
+            fz_catch(d->ctx) { entries[i].page = -1; }
+        }
+        return n;
+    }
     int count = 0;
     fz_outline *outline = NULL;
     fz_var(outline);
@@ -392,4 +485,155 @@ int px_document_toc(PxDocument *d, PxTocEntry *entries, int max_entries) {
         fz_drop_outline(d->ctx, outline);
     }
     return count;
+}
+/* EPUB3 navigation and cover metadata are not exposed by MuPDF 1.23's
+ * generic document interface. Read the container through its public ZIP/XML API. */
+static int xml_tag(fz_xml *node, const char *name) {
+    const char *tag = fz_xml_tag(node);
+    if (!tag) return 0;
+    const char *colon = strrchr(tag, ':');
+    return strcmp(colon ? colon + 1 : tag, name) == 0;
+}
+
+static fz_xml *xml_child(fz_xml *node, const char *name) {
+    for (fz_xml *p = fz_xml_down(node); p; p = fz_xml_next(p))
+        if (xml_tag(p, name)) return p;
+    return NULL;
+}
+
+static int has_word(const char *words, const char *word) {
+    if (!words) return 0;
+    size_t n = strlen(word);
+    for (const char *p = words; *p;) {
+        while (*p == ' ' || *p == '\t' || *p == '\n') ++p;
+        const char *end = p;
+        while (*end && *end != ' ' && *end != '\t' && *end != '\n') ++end;
+        if ((size_t)(end - p) == n && !strncmp(p, word, n)) return 1;
+        p = end;
+    }
+    return 0;
+}
+
+static int archive_path(char *out, size_t cap, const char *base, const char *href) {
+    if (!href || !*href || strlen(base) + strlen(href) + 2 >= cap ||
+        strchr(href, ':') || href[0] == '/' || strchr(href, '\\')) return 0;
+    snprintf(out, cap, "%s%s", base, href);
+    fz_urldecode(out);
+    fz_cleanname(out);
+    return strncmp(out, "../", 3) && out[0] != '/';
+}
+
+static void archive_base(char *out, size_t cap, const char *path) {
+    snprintf(out, cap, "%s", path);
+    char *slash = strrchr(out, '/');
+    if (slash) slash[1] = 0; else out[0] = 0;
+}
+
+static fz_buffer *read_bounded(fz_context *ctx, fz_archive *archive, const char *path, size_t limit) {
+    fz_stream *stream = NULL;
+    fz_buffer *buffer = NULL;
+    fz_var(stream); fz_var(buffer);
+    fz_try(ctx) {
+        stream = fz_open_archive_entry(ctx, archive, path);
+        buffer = fz_new_buffer(ctx, 4096);
+        unsigned char chunk[4096];
+        size_t count, total = 0;
+        while ((count = fz_read(ctx, stream, chunk, sizeof chunk)) != 0) {
+            if (count > limit - total) fz_throw(ctx, FZ_ERROR_GENERIC, "EPUB asset exceeds budget");
+            fz_append_data(ctx, buffer, chunk, count);
+            total += count;
+        }
+    }
+    fz_always(ctx) { fz_drop_stream(ctx, stream); }
+    fz_catch(ctx) { fz_drop_buffer(ctx, buffer); fz_rethrow(ctx); }
+    return buffer;
+}
+
+static fz_xml *read_xml_bounded(fz_context *ctx, fz_archive *archive, const char *path) {
+    fz_buffer *buffer = read_bounded(ctx, archive, path, 2 * 1024 * 1024);
+    fz_xml *xml = NULL;
+    fz_try(ctx) { xml = fz_parse_xml(ctx, buffer, 0); }
+    fz_always(ctx) { fz_drop_buffer(ctx, buffer); }
+    fz_catch(ctx) { fz_rethrow(ctx); }
+    return xml;
+}
+
+static void xml_text(fz_xml *node, char *out, size_t cap, int depth) {
+    if (depth > 32) return;
+    for (fz_xml *p = fz_xml_down(node); p; p = fz_xml_next(p)) {
+        const char *text = fz_xml_text(p);
+        if (text) fz_strlcat(out, text, cap);
+        else xml_text(p, out, cap, depth + 1);
+    }
+}
+
+static void read_nav(PxDocument *d, fz_xml *node, const char *base, int level) {
+    if (!node || level > 32 || d->nav_count >= 256) return;
+    for (fz_xml *p = fz_xml_down(node); p && d->nav_count < 256; p = fz_xml_next(p)) {
+        if (xml_tag(p, "a")) {
+            int i = d->nav_count;
+            if (archive_path(d->nav_uri[i], sizeof d->nav_uri[i], base, fz_xml_att(p, "href"))) {
+                xml_text(p, d->nav[i].title, sizeof d->nav[i].title, 0);
+                d->nav[i].level = level;
+                d->nav[i].page = -1;
+                ++d->nav_count;
+            }
+        } else read_nav(d, p, base, level + (xml_tag(p, "ol") ? 1 : 0));
+    }
+}
+
+static fz_xml *find_toc_nav(fz_xml *node, int depth) {
+    if (!node || depth > 32) return NULL;
+    if (xml_tag(node, "nav") && has_word(fz_xml_att(node, "epub:type"), "toc")) return node;
+    for (fz_xml *p = fz_xml_down(node); p; p = fz_xml_next(p)) {
+        fz_xml *found = find_toc_nav(p, depth + 1);
+        if (found) return found;
+    }
+    return NULL;
+}
+
+static void load_epub_extras(PxDocument *d) {
+    fz_archive *archive = NULL;
+    fz_xml *container = NULL, *opf = NULL, *nav = NULL;
+    fz_var(archive); fz_var(container); fz_var(opf); fz_var(nav);
+    fz_try(d->ctx) {
+        archive = fz_open_archive(d->ctx, d->path);
+        container = read_xml_bounded(d->ctx, archive, "META-INF/container.xml");
+        fz_xml *files = xml_child(fz_xml_root(container), "rootfiles");
+        fz_xml *file = xml_child(files, "rootfile");
+        const char *opf_name = fz_xml_att(file, "full-path");
+        char path[2048], base[2048], nav_path[2048] = "", cover_path[2048] = "";
+        if (!archive_path(path, sizeof path, "", opf_name)) fz_throw(d->ctx, FZ_ERROR_GENERIC, "Invalid OPF path");
+        opf = read_xml_bounded(d->ctx, archive, path);
+        archive_base(base, sizeof base, path);
+        fz_xml *package = fz_xml_root(opf);
+        fz_xml *manifest = xml_child(package, "manifest");
+        fz_xml *metadata = xml_child(package, "metadata");
+        const char *cover_id = NULL;
+        for (fz_xml *p = fz_xml_down(metadata); p; p = fz_xml_next(p))
+            if (xml_tag(p, "meta") && fz_xml_att_eq(p, "name", "cover")) cover_id = fz_xml_att(p, "content");
+        for (fz_xml *p = fz_xml_down(manifest); p; p = fz_xml_next(p)) {
+            if (!xml_tag(p, "item")) continue;
+            const char *properties = fz_xml_att(p, "properties");
+            const char *id = fz_xml_att(p, "id");
+            if (has_word(properties, "nav")) archive_path(nav_path, sizeof nav_path, base, fz_xml_att(p, "href"));
+            if (has_word(properties, "cover-image") || (cover_id && id && !strcmp(cover_id, id)))
+                archive_path(cover_path, sizeof cover_path, base, fz_xml_att(p, "href"));
+        }
+        // Cover failure must not prevent navigation or document reading.
+        if (cover_path[0]) {
+            fz_try(d->ctx) { d->cover = read_bounded(d->ctx, archive, cover_path, 8 * 1024 * 1024); }
+            fz_catch(d->ctx) { d->cover = NULL; }
+        }
+        if (nav_path[0]) {
+            nav = read_xml_bounded(d->ctx, archive, nav_path);
+            archive_base(base, sizeof base, nav_path);
+            read_nav(d, find_toc_nav(fz_xml_root(nav), 0), base, -1);
+        }
+    }
+    fz_always(d->ctx) {
+        fz_drop_xml(d->ctx, nav); fz_drop_xml(d->ctx, opf);
+        fz_drop_xml(d->ctx, container); fz_drop_archive(d->ctx, archive);
+    }
+    fz_catch(d->ctx) { /* Optional extras; native outline/page-zero remain available. */ }
 }

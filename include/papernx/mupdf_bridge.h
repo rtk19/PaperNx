@@ -23,6 +23,7 @@ typedef struct PxTocEntry {
 // Lifecycle
 PxDocument *px_document_open(const char *path, int width, int height, float em, const char *css, char *error, int capacity);
 int px_document_pages(PxDocument *doc);
+int px_document_page_size(PxDocument *doc, int page, float *width, float *height);
 int px_document_is_epub(PxDocument *doc);
 int px_document_relayout(PxDocument *doc, int width, int height, float em, const char *css, char *error, int capacity);
 int px_document_metadata(PxDocument *doc, const char *key, char *out, int capacity);
