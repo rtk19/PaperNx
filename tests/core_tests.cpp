@@ -1,6 +1,7 @@
 #include "papernx/core.hpp"
 #include "papernx/gestures.hpp"
 #include <cassert>
+#include <cerrno>
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -332,6 +333,73 @@ int main() {
         assert(search(trBooks, "çağlar").size() == 1);
     }
 
+
+    // Storage fault injection exercises the Switch non-replacing rename path on Linux.
+    {
+        for (const auto &op : {"create_directories", "temporary_write", "write", "fflush", "fclose", "fsync", "verify", "backup_old", "backup_copy", "remove_primary", "rename"}) {
+            const auto path = root / "data" / (std::string("fault-") + op);
+            ProgressStore store(path);
+            Progress first; first.page = 10; first.pageCount = 100; first.favorite = true;
+            first.bookmarks.push_back({4, "Turkish İıŞşĞğÜüÖöÇç", 1, -1});
+            store.put("0123456789abcdef", first); assert(store.save()); assert(store.save());
+            Progress second = first; second.page = 20;
+            store.put("0123456789abcdef", second);
+            ProgressStore::SaveOptions fault;
+            fault.noReplaceRename = true;
+            fault.fault = [op](const char *operation) { return std::string(operation) == op ? EACCES : 0; };
+            assert(!store.save(fault));
+            assert(store.saveDiagnostic().find("operation=") != std::string::npos);
+            assert(store.saveDiagnostic().find("retry_possible=1") != std::string::npos);
+            ProgressStore recovery(path); assert(recovery.load());
+            assert(recovery.get("0123456789abcdef").page == 10);
+            assert(recovery.get("0123456789abcdef").favorite);
+            fault.fault = {}; assert(store.save(fault));
+            ProgressStore restart(path); assert(restart.load());
+            assert(restart.get("0123456789abcdef").page == 20);
+        }
+        const auto path = root / "data" / "only-temp";
+        ProgressStore store(path); Progress p; p.page = 7; p.pageCount = 40;
+        store.put("0123456789abcdef", p); assert(store.save());
+        fs::rename(path, path.string() + ".tmp");
+        ProgressStore recovered(path); assert(recovered.load());
+        ProgressStore::SaveOptions fault;
+        fault.fault = [](const char *op) { return std::string(op) == "temporary_write" ? ENOSPC : 0; };
+        assert(!recovered.save(fault));
+        fs::remove(path.string() + ".tmp");
+        ProgressStore backup(path); assert(backup.load() && backup.get("0123456789abcdef").page == 7);
+        assert(recovered.save());
+        fault.fault = [](const char *op) { return std::string(op) == "fsync" ? ENOSYS : 0; };
+        assert(!recovered.save(fault)); // Unsupported flush is NEVER reported as success.
+        assert(recovered.saveDiagnostic().find("operation=fsync") != std::string::npos);
+        std::ofstream(root / "not-a-directory") << "keep";
+        ProgressStore invalid(root / "not-a-directory" / "save"); assert(!invalid.save());
+        assert(invalid.saveDiagnostic().find("create_directories") != std::string::npos);
+#ifndef _WIN32
+        ProgressStore readonly("/sys/papernx-progress"); assert(!readonly.save());
+        assert(readonly.saveDiagnostic().find("operation=open") != std::string::npos);
+#endif
+    }
+    // V4 saves preserve independent per-book settings and the explicit global-default record.
+    {
+        ProgressStore store(root / "data" / "styles");
+        Progress a; a.fontFamily = 2; a.textColor = 0x123456; a.backgroundColor = 0xeeddbb;
+        a.paragraphSpacing = 160; a.indentation = 0; a.touchZone = 40; a.publisherStyles = 1;
+        a.pdfColorMode = 2; a.pdfViewMode = 1;
+        store.put("0123456789abcdef", a); store.put("PAPERNX_DEFAULTS", a);
+        Progress b; b.page = 11; b.theme = 5;
+        store.put("fedcba9876543210", b); assert(store.save());
+        ProgressStore restart(root / "data" / "styles"); assert(restart.load());
+        const auto style = restart.get("0123456789abcdef");
+        assert(style.textColor == a.textColor && style.backgroundColor == a.backgroundColor);
+        assert(style.fontFamily == 2 && style.paragraphSpacing == 160 && style.indentation == 0);
+        assert(style.touchZone == 40 && style.publisherStyles == 1 && style.pdfColorMode == 2 && style.pdfViewMode == 1);
+        assert(restart.get("PAPERNX_DEFAULTS").textColor == a.textColor);
+        assert(restart.get("fedcba9876543210").page == 11 && restart.get("fedcba9876543210").theme == 5);
+    }
+    tracker.onFingerDown(.25f, .5f, 1);
+    assert(tracker.onFingerUp(.27f, .51f, 1).type == GestureType::TapLeft);
+    tracker.onFingerDown(.75f, .5f, 2);
+    assert(tracker.onFingerUp(.74f, .51f, 2).type == GestureType::TapRight);
     fs::remove_all(root);
     std::cout << "[PASS] All PaperNX core, Turkish unicode, and gesture tests succeeded without error.\n";
     return 0;
