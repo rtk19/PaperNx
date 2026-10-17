@@ -99,7 +99,7 @@ bool parseSafeDouble(const std::string &s, double &out) {
 
 std::string payloadV3(const std::map<std::string, Progress> &records) {
     std::ostringstream out;
-    out << "PAPERNX-4\n";
+    out << "PAPERNX-5\n";
     for (const auto &[id, p] : records) {
         if (id.size() > 128 || id.find_first_of("\t\r\n") != std::string::npos) continue;
         out << id << '\t'
@@ -124,7 +124,9 @@ std::string payloadV3(const std::map<std::string, Progress> &records) {
         out << '\t' << escapeString(p.bookPath) << '\t' << escapeString(p.bookTitle) << '\t' << escapeString(p.bookAuthor)
             << '\t' << p.textColor << '\t' << p.backgroundColor << '\t' << p.paragraphSpacing
             << '\t' << p.indentation << '\t' << p.touchZone << '\t' << p.publisherStyles
-            << '\t' << p.pdfColorMode << '\t' << p.pdfViewMode << '\n';
+            << '\t' << p.pdfColorMode << '\t' << p.pdfViewMode << '\t' << p.readingMode << '\t' << p.modeOverride
+            << '\t' << p.scrollSensitivity << '\t' << p.scrollInertia
+            << '\t' << p.anchorChapter << '\t' << p.anchorCharacter << '\t' << p.anchorOffset << '\n';
     }
     return out.str();
 }
@@ -374,6 +376,10 @@ void ProgressStore::put(const std::string &id, Progress p) {
     p.page = std::max(0, p.page);
     p.pageCount = std::max(0, p.pageCount);
     p.fraction = std::isfinite(p.fraction) ? std::clamp(p.fraction, 0.0, 1.0) : 0.0;
+    p.readingMode=std::clamp(p.readingMode,0,1);
+    p.modeOverride=std::clamp(p.modeOverride,0,1);
+    p.scrollSensitivity=std::clamp(p.scrollSensitivity,50,200);
+    p.scrollInertia=std::clamp(p.scrollInertia,0,1);
     p.fontSize = std::clamp(p.fontSize, 12, 48);
     p.theme = std::clamp(p.theme, 0, 5);
     p.lineHeight = std::clamp(p.lineHeight, 100, 220);
@@ -428,7 +434,7 @@ bool ProgressStore::load() {
 
         std::map<std::string, Progress> restored;
 
-        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3" || versionLine == "PAPERNX-4") {
+        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3" || versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") {
             std::string line;
             while (std::getline(rows, line)) {
                 if (line.empty()) continue;
@@ -461,11 +467,11 @@ bool ProgressStore::load() {
                              parseSafeInt(tokens[14], bmCount);
 
                 if (!valid || bmCount < 0 || bmCount > 1024 ||
-                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + (versionLine == "PAPERNX-4" ? 11 : versionLine == "PAPERNX-3" ? 3 : 0) ||
+                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") ? (versionLine == "PAPERNX-5" ? 18 : 11) : versionLine == "PAPERNX-3" ? 3 : 0) ||
                     p.page < 0 || p.pageCount < 0 || p.fraction < 0 || p.fraction > 1 ||
                     p.fontSize < 12 || p.fontSize > 48 || p.theme < 0 || p.theme > 5 || fav < 0 || fav > 1 ||
                     p.lineHeight < 100 || p.lineHeight > 220 || p.margin < 10 || p.margin > 120 ||
-                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > (versionLine == "PAPERNX-4" ? 2 : 1)) continue;
+                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") ? 2 : 1)) continue;
                 p.favorite = (fav != 0);
 
                 std::size_t cursor = 15;
@@ -483,13 +489,13 @@ bool ProgressStore::load() {
                     p.bookmarks.push_back(std::move(bm));
                 }
 
-                if ((versionLine == "PAPERNX-3" || versionLine == "PAPERNX-4") && bookmarksValid) {
+                if ((versionLine == "PAPERNX-3" || (versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5")) && bookmarksValid) {
                     p.bookPath = unescapeString(tokens[cursor++]);
                     p.bookTitle = unescapeString(tokens[cursor++]);
                     p.bookAuthor = unescapeString(tokens[cursor++]);
                     if (p.bookPath.size() > 4096 || p.bookTitle.size() > 1024 || p.bookAuthor.size() > 1024) continue;
                 }
-                if (versionLine == "PAPERNX-4" && bookmarksValid) {
+                if ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") && bookmarksValid) {
                     if (!parseSafeInt(tokens[cursor++], p.textColor) || !parseSafeInt(tokens[cursor++], p.backgroundColor) ||
                         !parseSafeInt(tokens[cursor++], p.paragraphSpacing) || !parseSafeInt(tokens[cursor++], p.indentation) ||
                         !parseSafeInt(tokens[cursor++], p.touchZone) || !parseSafeInt(tokens[cursor++], p.publisherStyles) ||
@@ -498,6 +504,15 @@ bool ProgressStore::load() {
                         p.paragraphSpacing < 0 || p.paragraphSpacing > 200 || p.indentation < 0 || p.indentation > 200 ||
                         p.touchZone < 20 || p.touchZone > 40 || p.publisherStyles < 0 || p.publisherStyles > 1 ||
                         p.pdfColorMode < 0 || p.pdfColorMode > 3 || p.pdfViewMode < 0 || p.pdfViewMode > 2) continue;
+                }
+                if (versionLine == "PAPERNX-5" && bookmarksValid) {
+                    if (!parseSafeInt(tokens[cursor++], p.readingMode) || !parseSafeInt(tokens[cursor++], p.modeOverride) ||
+                        !parseSafeInt(tokens[cursor++], p.scrollSensitivity) || !parseSafeInt(tokens[cursor++], p.scrollInertia) ||
+                        !parseSafeInt(tokens[cursor++], p.anchorChapter) || !parseSafeInt(tokens[cursor++], p.anchorCharacter) ||
+                        !parseSafeDouble(tokens[cursor++], p.anchorOffset) || p.readingMode < 0 || p.readingMode > 1 ||
+                        p.modeOverride < 0 || p.modeOverride > 1 || p.scrollSensitivity < 50 || p.scrollSensitivity > 200 ||
+                        p.scrollInertia < 0 || p.scrollInertia > 1 || p.anchorChapter < -1 || p.anchorCharacter < -1 ||
+                        !std::isfinite(p.anchorOffset) || p.anchorOffset < -4 || p.anchorOffset > 4) continue;
                 }
                 if (bookmarksValid && id.size() == 16 && p.page >= 0 && std::isfinite(p.fraction)) {
                     restored[id] = p;

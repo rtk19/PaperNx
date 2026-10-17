@@ -84,3 +84,5 @@ The four user-provided assets are preserved under `assets/branding/`. The NRO us
 ## License
 
 PaperNX and MuPDF are licensed under **AGPL-3.0**; Noto fonts use the **SIL Open Font License**. See [LICENSE](LICENSE) and the [license guide](docs/LICENSES.md) for source-distribution obligations and dependency notices.
+
+EPUB continuous scrolling is available in the v0.3 development candidate. See [controls, implementation and validation](docs/EPUB_CONTINUOUS_SCROLL.md).

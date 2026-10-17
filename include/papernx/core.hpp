@@ -31,6 +31,10 @@ struct Bookmark {
 };
 
 struct ReaderPreferences {
+    int readingMode{0}; // 0 paginated, 1 continuous
+    int modeOverride{0}; // inherit global unless explicitly selected for this book
+    int scrollSensitivity{100};
+    int scrollInertia{1};
     int fontSize{22};
     int theme{0};
     int lineHeight{140};
@@ -48,6 +52,9 @@ struct ReaderPreferences {
 };
 
 struct Progress : ReaderPreferences {
+    int anchorChapter{-1};
+    int anchorCharacter{-1};
+    double anchorOffset{0};
     int page{0};
     int pageCount{0};
     double fraction{0.0};

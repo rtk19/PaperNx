@@ -103,6 +103,8 @@ int main() {
     // 6. Persistence Store (PAPERNX-2) Save & Load
     const fs::path storePath = root / "data" / "progress.txt";
     ProgressStore store(storePath);
+    p.readingMode=1; p.modeOverride=1; p.scrollSensitivity=150; p.scrollInertia=0;
+    p.anchorChapter=1; p.anchorCharacter=1234; p.anchorOffset=.375;
     store.put("0123456789abcdef", p);
     assert(store.count() == 1);
     assert(store.save());
@@ -111,6 +113,9 @@ int main() {
     assert(loaded.load());
     assert(loaded.count() == 1);
     auto lp = loaded.get("0123456789abcdef");
+    assert(lp.readingMode==1 && lp.modeOverride==1 && lp.scrollSensitivity==150 && lp.scrollInertia==0);
+    assert(lp.anchorChapter==1 && lp.anchorCharacter==1234 && lp.anchorOffset==.375);
+    assert(ReaderPreferences{}.readingMode==0 && ReaderPreferences{}.modeOverride==0);
     assert(lp.page == 49);
     assert(lp.bookPath == p.bookPath && lp.bookTitle == p.bookTitle && lp.bookAuthor == p.bookAuthor);
     assert(lp.pageCount == 100);
@@ -139,6 +144,17 @@ int main() {
     assert(backupStore.load()); // Must recover from backup
     assert(backupStore.get("0123456789abcdef").page == 49);
     assert(backupStore.get("0123456789abcdef").bookmarks.size() == 2);
+
+    // v4 migration retains old preferences and opts existing readers into pagination.
+    {
+        const auto legacy = root / "legacy-v4.txt";
+        const std::string row="0123456789abcdef\t3\t20\t0.15\t22\t0\t0\t-1\t0\t140\t40\t0\t0\t0\t0\tbook.epub\tTitle\tAuthor\t-1\t-1\t80\t120\t30\t0\t0\t0\n";
+        writeChecked(legacy,"PAPERNX-4\n"+row);
+        ProgressStore old(legacy); assert(old.load()); assert(old.count()==1);
+        auto migrated=old.get("0123456789abcdef");
+        assert(migrated.page==3 && migrated.readingMode==0 && migrated.modeOverride==0);
+        assert(old.save()); ProgressStore again(legacy); assert(again.load() && again.count()==1);
+    }
 
     // 8. Backward-Compatible Migration from PAPERNX-1
     {

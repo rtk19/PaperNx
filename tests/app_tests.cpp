@@ -40,6 +40,85 @@ struct AppTest {
         assert(SDL_SaveBMP(surface, (std::string("verification/screenshots/") + name + ".bmp").c_str()) == 0);
         SDL_FreeSurface(surface);
     }
+    static void continuousReading(const fs::path &root) {
+        PaperNxApp app(root); assert(app.init());
+        tap(app, .22f, .03f); assert(app.globalSettings_ && app.screen_==ScreenState::AaModal);
+        modalTap(app,200,130); assert(app.extraStyle_.readingMode==1);
+        modalTap(app,575,20); assert(app.screen_==ScreenState::Library);
+        auto epub=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Epub;});
+        app.openBook(epub); assert(app.continuous());
+        assert(app.segmentHeight(0)>720);
+        app.extraStyle_.scrollInertia=0;
+        finger(app,SDL_FINGERDOWN,.5f,.7f);
+        finger(app,SDL_FINGERMOTION,.5f,.4f);
+        assert(app.scrollY_>200 && !app.toolbarVisible_); // Moves before release.
+        finger(app,SDL_FINGERUP,.5f,.4f); assert(app.scrollVelocity_==0 && !app.toolbarVisible_);
+        // Optional momentum advances and decays; a new touch stops it.
+        app.extraStyle_.scrollInertia=1; app.scrollVelocity_=500;
+        app.physicsTick_=SDL_GetTicks()-16; float before=app.scrollY_; app.tickScroll();
+        assert(app.scrollY_>before && app.scrollVelocity_>0 && app.scrollVelocity_<500);
+        finger(app,SDL_FINGERDOWN,.5f,.5f); assert(app.scrollVelocity_==0);
+        finger(app,SDL_FINGERUP,.5f,.5f); app.toolbarVisible_=false;
+        app.extraStyle_.scrollInertia=0;
+        float y=app.scrollY_; int page=app.currentPage_;
+        finger(app,SDL_FINGERDOWN,.8f,.5f); finger(app,SDL_FINGERMOTION,.2f,.5f); finger(app,SDL_FINGERUP,.2f,.5f);
+        assert(app.currentPage_==page && app.scrollY_==y && !app.toolbarVisible_);
+        app.reflowEpub(app.currentFontSize_,2); assert(std::abs(app.scrollY_-y)<1);
+        app.reflowEpub(30);
+        int ch=-1,character=-1; double offset=0;
+        assert(px_document_anchor(app.doc_,app.currentPage_,app.scrollY_,&ch,&character,&offset));
+        app.extraStyle_.readingMode=0; app.extraStyle_.modeOverride=1; app.reflowEpub(30);
+        assert(!app.continuous());
+        app.extraStyle_.readingMode=1; app.reflowEpub(30);
+        int ch2=-1,c2=-1; double o2=0;
+        assert(px_document_anchor(app.doc_,app.currentPage_,app.scrollY_,&ch2,&c2,&o2));
+        assert(ch==ch2 && character==c2 && std::abs(offset-o2)<.01);
+        // Chapter boundaries are contiguous and reversible, including a partial viewport.
+        app.currentPage_=0; app.scrollY_=app.segmentHeight(0)-100;
+        app.render(); snapshot(app,"epub-scroll-chapter-boundary");
+        app.scrollBy(150); assert(app.currentPage_==1 && std::abs(app.scrollY_-50)<1);
+        app.scrollBy(-150); assert(app.currentPage_==0 && std::abs(app.scrollY_-(app.segmentHeight(0)-100))<1);
+        app.scrollBy(-app.segmentHeight(0)); assert(app.currentPage_==0 && app.scrollY_==0);
+        // Traverse enough strips to force eviction; memory must plateau.
+        for(int chapter=0;chapter<app.pageCount_;++chapter) {
+            const float height=app.segmentHeight(chapter);
+            for(float strip=0;strip<height;strip+=1024) {
+                app.currentPage_=chapter; app.scrollY_=strip; app.render();
+                assert(app.pageCache_.currentBytes()<=64*1024*1024);
+            }
+        }
+        app.currentPage_=0; app.scrollY_=0;
+        // Geometry fallback supports image-only chapters without text anchors.
+        int geometryPage=-1; float geometryY=0;
+        assert(px_document_restore_anchor(app.doc_,0,-1,.25,&geometryPage,&geometryY));
+        assert(geometryPage==0 && std::abs(geometryY-app.segmentHeight(0)*.25)<1);
+        app.scrollBy(333.25f); app.saveCurrentPosition(); assert(app.flushProgress());
+        y=app.scrollY_; app.closeBook(); app.openBook(epub);
+        assert(app.continuous() && std::abs(app.scrollY_-y)<1);
+        // Measure actual event-to-render CPU wall time on the dummy desktop backend.
+        std::vector<double> samples;
+        finger(app,SDL_FINGERDOWN,.5f,.8f);
+        for(int i=0;i<180;++i) {
+            auto start=std::chrono::steady_clock::now();
+            finger(app,SDL_FINGERMOTION,.5f,.8f-(i+1)*.003f); app.render();
+            samples.push_back(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count());
+            assert(app.pageCache_.currentBytes()<=64*1024*1024);
+        }
+        finger(app,SDL_FINGERUP,.5f,.26f);
+        std::sort(samples.begin(),samples.end());
+        std::cout<<"[SCROLL DESKTOP dummy] motion+render ms p50="<<samples[90]<<" p95="<<samples[171]<<" max="<<samples.back()<<" cache_bytes="<<app.pageCache_.currentBytes()<<"\n";
+        assert(samples[171]<100); // Broad desktop regression ceiling; never a Switch claim.
+        // Independent book override and global default survive a new application instance.
+        app.saveCurrentPosition(); assert(app.flushProgress());
+        y=app.scrollY_; page=app.currentPage_;
+        app.closeBook();
+        {
+            PaperNxApp reopened(root); assert(reopened.init()); reopened.openBook(epub);
+            assert(reopened.continuous() && reopened.extraStyle_.modeOverride==1);
+            assert(reopened.currentPage_==page && std::abs(reopened.scrollY_-y)<1);
+        }
+        Progress defaults; app.progressStore_.put("PAPERNX_DEFAULTS",defaults); app.flushProgress();
+    }
     static void touchOnly(const fs::path &root) {
         const auto start = std::chrono::steady_clock::now();
         std::string epubId, pdfId;
@@ -430,6 +509,11 @@ int main() {
     assert(papernx_timegm(&epoch) == 0);
     epoch.tm_year = 100; epoch.tm_mon = 1; epoch.tm_mday = 29;
     assert(papernx_timegm(&epoch) == 951782400);
+    fs::remove_all(root);
+    fs::create_directories(root / "books");
+    fs::create_directory_symlink(fs::absolute("fonts"),root / "fonts");
+    fs::copy("tests/fixtures/sample_book.epub",root / "books" / "scroll.epub");
+    AppTest::continuousReading(root);
     fs::remove_all(root);
     TTF_Quit(); SDL_Quit();
     std::cout << "[PASS] SDL input, worker reload, EPUB themes/cover/reopen, PDF controls, texture budget and UTC regressions\n";

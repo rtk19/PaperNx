@@ -47,6 +47,10 @@ int px_document_from_location(PxDocument *doc, int chapter, int p);
 // Table of Contents (Outline)
 int px_document_toc(PxDocument *doc, PxTocEntry *entries, int max_entries);
 
+// Unpaginated chapter strips and persistent logical positions.
+int px_document_render_tile(PxDocument *, int page, int y, int width, int height, PxImage *, char *, int);
+int px_document_anchor(PxDocument *, int page, float y, int *chapter, int *character, double *offset);
+int px_document_restore_anchor(PxDocument *, int chapter, int character, double offset, int *page, float *y);
 #ifdef __cplusplus
 }
 #endif
