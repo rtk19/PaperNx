@@ -1,0 +1,117 @@
+#pragma once
+#include <string>
+#include <utility>
+
+namespace papernx {
+// UI labels only. Never pass document text, metadata, chapter titles or user notes.
+// 0 = Turkish, 1 = English. Other values conservatively preserve the source.
+inline std::string localizeUiText(const std::string &text, int language) {
+    if (language != 1) return text;
+    using Label = std::pair<const char *, const char *>;
+    static constexpr Label labels[] = {
+        {"Kitaplığa dön","Back to library"}, {"Kitaplık","Library"},
+        {"Okuma ayarları · Aa","Reading settings · Aa"}, {"Okuma ayarları","Reading settings"},
+        {"İçindekiler","Contents"}, {"Yer imleri","Bookmarks"}, {"İlerleme / sayfaya git","Progress / go to page"},
+        {"Önceki konuma dön","Return to previous location"}, {"Önceki bölüm","Previous chapter"}, {"Sonraki bölüm","Next chapter"},
+        {"Kitap bilgisi / yardım","Book information / help"}, {"Üst klasör","Parent folder"},
+        {"Görünümü yenile","Refresh view"}, {"Yardım","Help"}, {"PaperNX’ten çık","Exit PaperNX"},
+        {"Başlık","Title"}, {"Yazar","Author"}, {"Dosya adı","Filename"}, {"Değiştirilme","Modified"}, {"Son okunan","Recently read"},
+        {"Uygulama görünümü","Application appearance"}, {"SD’ye gözat / kitap aç","Browse SD / open book"}, {"Kitaplıkta ara","Search library"},
+        {"Liste görünümüne geç","Switch to list view"}, {"Kapak ızgarasına geç","Switch to cover grid"},
+        {"Kitaplığı yenile","Refresh library"}, {"Yardım / dokunma rehberi","Help / touch guide"},
+        {"DOKUNMA REHBERİ · Kapatmak için dokun","TOUCH GUIDE · Tap to close"}, {"HIZLI İŞLEMLER","QUICK ACTIONS"},
+        {"+ tüm işlemleri açar.","+ opens all actions."}, {"Kitaplarınızı dokunarak açın.","Tap a book to open it."},
+        {"Listeleri parmağınızla sürükleyin.","Drag lists with your finger."},
+        {"Sayfalı: Kenarlara dokun / yatay kaydır.","Paginated: tap edges / swipe sideways."},
+        {"Sürekli: Yukarı / aşağı sürükle.","Continuous: drag up / down."},
+        {"PDF: İki parmakla yakınlaştır, sürükle.","PDF: pinch to zoom, drag to pan."},
+        {"Okuma ayarları tüm kitaplarda ortaktır.","Reading settings apply to all books."},
+        {"Bu kitap seçeneği özel ayar oluşturur.","This book enables a custom override."},
+        {"Kitaplarınız ve kayıtlarınız cihazda kalır.","Your books and records stay on device."},
+        {"KİTAPLIĞINIZ","YOUR LIBRARY"}, {"Tüm kitaplar","All books"}, {"Devam et","Continue"},
+        {"Favoriler","Favorites"}, {"Okunmamış","Unread"}, {"Tamamlanan","Completed"},
+        {"SD kitap klasörü kullanılamıyor. SD kartı kontrol edin.","SD book folder unavailable. Check the SD card."},
+        {"Aramanızla eşleşen kitap bulunamadı.","No books match your search."},
+        {"Kitaplığınızda henüz kitap bulunmuyor.","Your library has no books yet."},
+        {"Henüz tamamladığınız bir kitap yok.","No completed books yet."}, {"Henüz favori kitabınız yok.","No favorite books yet."},
+        {"Devam ettiğiniz bir kitap yok.","No books in progress."}, {"Henüz kitap açmadınız.","No recently opened books."},
+        {"Okunmamış kitabınız yok.","No unread books."}, {"Bu kategoride kitap bulunamadı.","No books in this category."},
+        {"EPUB ve PDF kitaplarınıza SD’den gözatın.","Browse the SD card for EPUB and PDF books."},
+        {"Başka bir kategori seçin veya aramanızı temizleyin.","Choose another category or clear your search."},
+        {"Ortaya dokun: Araçlar ve Aa ayarları","Tap center: toolbar and Aa settings"},
+        {"Bu klasörde EPUB veya PDF bulunamadı.","No EPUB or PDF files in this folder."},
+        {"Okuma ve görünüm","Reading and appearance"}, {"Kapat","Close"}, {"Okuma","Reading"},
+        {"Sayfa düzeni","Page layout"}, {"Düzen","Layout"}, {"Görünüm","Appearance"}, {"Navigasyon","Navigation"}, {"Uygulama","Application"},
+        {"Genel ayarlar · Tüm kitaplara uygulanır","Global settings · Applied to all books"},
+        {"Yalnızca bu kitap · Genel ayarlara dön","This book only · Return to global"},
+        {"Genel ayarlar · Bu kitabı özelleştir","Global settings · Customize this book"},
+        {"Yayıncı","Publisher"}, {"Yayıncı stilleri: Açık","Publisher styles: On"}, {"Yayıncı stilleri: Kapalı","Publisher styles: Off"},
+        {"Paragraf girintisi: Açık","Paragraph indentation: On"}, {"Paragraf girintisi: Kapalı","Paragraph indentation: Off"},
+        {"Hizalama: Sola yaslı","Alignment: Left"}, {"Hizalama: İki yana yaslı","Alignment: Justified"},
+        {"Metin rengi · HEX gir","Text color · Enter HEX"}, {"Arka plan · HEX gir","Background · Enter HEX"},
+        {"Tema renklerine sıfırla","Reset theme colors"},
+        {"Sayfalı Mod · Yatay gezinme","Paginated Mode · Horizontal navigation"},
+        {"Sürekli Kaydırma · Yukarı / aşağı","Continuous Scroll · Up / down"},
+        {"Kaydırma momentumu: Açık","Scroll momentum: On"}, {"Kaydırma momentumu: Kapalı","Scroll momentum: Off"},
+        {"Dikey sürükleme menüyü açmaz. + her zaman erişilebilir.","Vertical drag does not open menus. + stays available."},
+        {"Sayfaya sığdır","Fit page"}, {"Genişliğe sığdır","Fit width"}, {"Gerçek boyut · 100%","Actual size · 100%"},
+        {"Orijinal","Original"}, {"Koyu","Dark"}, {"Sepya","Sepia"}, {"Ters renkler","Invert colors"},
+        {"Kitaplık: Kapak ızgarası","Library: Cover grid"}, {"Kitaplık: Ayrıntılı liste","Library: Detailed list"},
+        {"Okuma araçları: Sürekli görünür","Reader toolbar: Always visible"}, {"Okuma araçları: Dokunarak göster","Reader toolbar: Show on tap"},
+        {"Geçerli klasörü başlangıç olarak kaydet","Use current folder as start folder"},
+        {"Dil: Türkçe","Language: Turkish"}, {"Dil: English","Language: English"},
+        {"Dil: İngilizce","Language: English"}, {"Dil: Türkçe / English","Language: Turkish / English"},
+        {"CANLI ÖNİZLEME","LIVE PREVIEW"}, {"Düşük kontrast","Low contrast"},
+        {"Kaydet ve kapat","Save and close"}, {"Ayarları sıfırla","Reset settings"}, {"Düzen hazırlanıyor…","Preparing layout…"},
+        {"Bu kitapta içindekiler tablosu bulunmuyor.","This book has no table of contents."},
+        {"Bu konuma yer imi ekle / kaldır","Add / remove bookmark here"},
+        {"Henüz yer imi yok. Alttaki düğmeyle bu konumu kaydedin.","No bookmarks yet. Use the button below to save this location."},
+        {"Sil","Delete"}, {"Ara","Search"}, {"Temizle","Clear"}, {"İptal","Cancel"},
+        {"Renk · RGB HEX","Color · RGB HEX"}, {"Vazgeç","Cancel"}, {"Kaydet","Save"},
+        {"PDF kitap","PDF book"}, {"EPUB kitap","EPUB book"},
+        {"Açık","On"}, {"Kapalı","Off"}, {"Favori","Favorite"}, {"Favorilerden kaldır","Remove favorite"},
+        {"Favorilere ekle","Add favorite"}, {"Geri","Back"}, {"İleri","Next"},
+        {"Uygulama ayarları kaydedilemedi; SD kartı kontrol edin.","Could not save application settings; check the SD card."},
+        {"Kaydedilemedi. SD kartı kontrol edin; kayıt yeniden denenecek.","Could not save. Check the SD card; saving will retry."},
+        {"Renk için 6 HEX karakter girin.","Enter 6 HEX characters for the color."},
+        {"RGB HEX: 6 karakter, örnek ECE0C6","RGB HEX: 6 characters, e.g. ECE0C6"},
+        {"Kitap, yazar veya dosya adı ara","Search book, author or filename"}
+    };
+    for (const auto &label : labels) if (text == label.first) return label.second;
+    // Some bundled font paths lack U+2212; support the ASCII control variant.
+    if (text.compare(0, 5, "-    ") == 0) {
+        auto translated = localizeUiText(std::string("−    ") + text.substr(5), language);
+        if (translated.compare(0, 7, "−    ") == 0) return std::string("-    ") + translated.substr(7);
+    }
+    // Only explicitly known UI prefixes are translated. Dynamic user tails such
+    // as filenames/errors remain byte-identical; selectable UI values may recurse.
+    static constexpr Label values[] = {
+        {"Sırala: ","Sort: "}, {"Sıralama: ","Sort: "}, {"Yazı tipi: ","Font: "},
+        {"PDF filtresi: ","PDF filter: "}, {"Uygulama teması: ","App theme: "}
+    };
+    for (const auto &p : values) {
+        const std::string prefix = p.first;
+        if (text.compare(0, prefix.size(), prefix) == 0)
+            return std::string(p.second) + localizeUiText(text.substr(prefix.size()), language);
+    }
+    static constexpr Label prefixes[] = {
+        {"−    Yazı boyutu: ","−    Font size: "}, {"−    Satır aralığı: %","−    Line height: %"},
+        {"−    Paragraf aralığı: %","−    Paragraph spacing: %"}, {"−    Kenar boşluğu: ","−    Margins: "},
+        {"−    Kaydırma hassasiyeti: %","−    Scroll sensitivity: %"}, {"−    Sayfa dokunma alanı: %","−    Page touch zone: %"},
+        {"−    Yakınlaştırma: %","−    Zoom: %"}, {"Bölüm ","Chapter "},
+        {"Klasör   ","Folder   "}, {"Kitap    ","Book    "},
+        {"Kitap açılamadı: ","Could not open book: "}, {"Düzen hazırlanamadı: ","Could not prepare layout: "},
+        {"Yeniden boyutlandırma hatası: ","Resize error: "}
+    };
+    for (const auto &p : prefixes) {
+        const std::string prefix = p.first;
+        if (text.compare(0, prefix.size(), prefix) == 0) return std::string(p.second) + text.substr(prefix.size());
+    }
+    const std::string countSuffix = " kitap · EPUB ve PDF · Çevrimdışı";
+    if (text.size() > countSuffix.size() && text.compare(text.size()-countSuffix.size(), countSuffix.size(), countSuffix)==0) {
+        const auto count = text.substr(0, text.size()-countSuffix.size());
+        if (count.find_first_not_of("0123456789") == std::string::npos) return count + " books · EPUB and PDF · Offline";
+    }
+    return text;
+}
+} // namespace papernx

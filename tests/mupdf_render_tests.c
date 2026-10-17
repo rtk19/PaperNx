@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
         }
 
         assert(px_document_is_epub(epub) == 1);
+        assert(px_document_has_embedded_cover(epub) == 1);
         int page_count = px_document_pages(epub);
         printf("EPUB opened successfully. Page count: %d\n", page_count);
         assert(page_count >= 1);
@@ -139,6 +140,8 @@ int main(int argc, char **argv) {
         }
 
         assert(px_document_is_epub(pdf) == 0);
+        assert(px_document_has_embedded_cover(pdf) == 0);
+        assert(px_document_has_embedded_cover(NULL) == 0);
         int page_count = px_document_pages(pdf);
         printf("PDF opened successfully. Page count: %d\n", page_count);
         assert(page_count == 2);

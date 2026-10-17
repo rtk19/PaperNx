@@ -27,6 +27,8 @@ PxDocument *px_document_open_limited(const char *path, int width, int height, fl
 int px_document_pages(PxDocument *doc);
 int px_document_page_size(PxDocument *doc, int page, float *width, float *height);
 int px_document_is_epub(PxDocument *doc);
+// True only for an embedded EPUB cover; PDF thumbnails render page one instead.
+int px_document_has_embedded_cover(PxDocument *doc);
 int px_document_relayout(PxDocument *doc, int width, int height, float em, const char *css, char *error, int capacity);
 int px_document_metadata(PxDocument *doc, const char *key, char *out, int capacity);
 void px_document_close(PxDocument *doc);
@@ -41,6 +43,10 @@ void px_image_free(PxImage *image);
 // Versioned chapter/fraction locations; approximate after layout changes.
 int64_t px_document_make_bookmark(PxDocument *doc, int page);
 int px_document_lookup_bookmark(PxDocument *doc, int64_t bookmark);
+// Persistent character + within-line position. Legacy page marks resolve with y=0.
+// Geometry fallback is quantized to 1/8191 of a chapter; text to 1/1023 of a line.
+int64_t px_document_make_position_bookmark(PxDocument *doc, int page, float y);
+int px_document_lookup_position_bookmark(PxDocument *doc, int64_t bookmark, int *page, float *y);
 int px_document_get_location(PxDocument *doc, int page, int *chapter, int *p);
 int px_document_from_location(PxDocument *doc, int chapter, int p);
 

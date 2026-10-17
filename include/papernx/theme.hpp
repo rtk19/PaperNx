@@ -109,9 +109,13 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
         bg.r, bg.g, bg.b, fg.r, fg.g, fg.b);
     std::string result = css;
     if (style.publisherStyles) return result;
+    // MuPDF 1.23 gives inline styles higher specificity than user !important.
+    // Tell the bridge to use semantic HTML and reader CSS for controlled typography.
+    result += "/*papernx-reader-controlled*/ ";
     std::snprintf(css, sizeof css,
         "body { font-size: %dpx !important; line-height: %.2f !important; margin: 0 !important; padding: 0; } "
         "p, li, blockquote, div, span, em, strong, td, th, a { color: #%02x%02x%02x !important; line-height: %.2f !important; text-align: %s !important; } "
+        "div,span,li,blockquote,td,th,a,em,strong { font-size: 1em !important; } "
         "p { font-size: 1em !important; margin-top: 0; margin-bottom: %.2fem !important; text-indent: %.2fem !important; } "
         "h1,h2,h3,h4,h5,h6 { color: #%02x%02x%02x !important; } "
         "img,svg { max-width: 100%%; height: auto; } ",

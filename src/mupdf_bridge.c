@@ -101,6 +101,12 @@ PxDocument *px_document_open(const char *path, int w, int h, float em, const cha
     return px_document_open_limited(path, w, h, em, css, err, cap, 96u * 1024u * 1024u);
 }
 
+static void set_css_policy(PxDocument *d,const char *css) {
+    const char *value=css?css:"";
+    fz_set_user_css(d->ctx,value);
+    fz_set_use_document_css(d->ctx,strstr(value,"/*papernx-reader-controlled*/")==NULL);
+}
+
 PxDocument *px_document_open_limited(const char *path, int w, int h, float em, const char *css, char *err, int cap, size_t memory_limit) {
     if (!path || !path[0]) {
         report(err, cap, "Invalid document path");
@@ -127,7 +133,7 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
         fz_register_document_handlers(d->ctx);
         d->path = fz_strdup(d->ctx, path);
         d->css = fz_strdup(d->ctx, css ? css : "");
-        fz_set_user_css(d->ctx, css ? css : "");
+        set_css_policy(d,css);
         d->doc = fz_open_document(d->ctx, path);
         if (!d->doc) {
             fz_throw(d->ctx, FZ_ERROR_GENERIC, "Failed to open document format");
@@ -137,8 +143,7 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
         }
         d->epub = fz_is_document_reflowable(d->ctx, d->doc);
         if (d->epub) {
-            fz_set_user_css(d->ctx, css ? css : "");
-        fz_set_use_document_css(d->ctx, 1);
+            set_css_policy(d,css);
             float layout_w = (w > 100) ? (float)w : 1180.0f;
             float layout_h = h == 0 ? 0 : (h > 100 ? (float)h : 600.0f);
             float layout_em = (em > 8.0f) ? em : 22.0f;
@@ -180,6 +185,10 @@ int px_document_is_epub(PxDocument *d) {
     return d ? d->epub : 0;
 }
 
+int px_document_has_embedded_cover(PxDocument *d) {
+    return d && d->cover != NULL;
+}
+
 int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css, char *err, int cap) {
     if (!d || !d->ctx || !d->doc || !d->epub || w <= 0 || h < 0 || w > 4096 || h > 4096 || !isfinite(em) || em < 8 || em > 96) { report(err, cap, "Invalid relayout arguments"); return 0; }
     fz_document *replacement = NULL;
@@ -188,8 +197,7 @@ int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css,
     fz_var(replacement); fz_var(new_css); fz_var(pages); fz_var(ok);
     fz_try(d->ctx) {
         new_css = fz_strdup(d->ctx, css ? css : "");
-        fz_set_user_css(d->ctx, new_css);
-        fz_set_use_document_css(d->ctx, 1);
+        set_css_policy(d,new_css);
         replacement = fz_open_document(d->ctx, d->path);
         fz_layout_document(d->ctx, replacement, w > 100 ? w : 1180, h == 0 ? 0 : (h > 100 ? h : 600), em > 8 ? em : 22);
         pages = fz_count_pages(d->ctx, replacement);
@@ -203,7 +211,7 @@ int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css,
         d->pages = pages; set_background(d, css);
     } else {
         fz_drop_document(d->ctx, replacement); fz_free(d->ctx, new_css);
-        fz_set_user_css(d->ctx, d->css);
+        set_css_policy(d,d->css);
     }
     return ok;
 }
@@ -450,6 +458,11 @@ int64_t px_document_make_bookmark(PxDocument *d, int page_idx) {
 int px_document_lookup_bookmark(PxDocument *d, int64_t bookmark) {
     // Older persisted fz_bookmark values are process-local and must be ignored.
     if (!d || bookmark < INT64_C(0x4000000000000000)) return -1;
+    if (((uint64_t)bookmark & UINT64_C(0xe000000000000000)) == UINT64_C(0x6000000000000000)) {
+        int resolved=-1; float y=0;
+        return px_document_lookup_position_bookmark(d,bookmark,&resolved,&y) ? resolved : -1;
+    }
+    if (((uint64_t)bookmark & UINT64_C(0xe000000000000000)) != UINT64_C(0x4000000000000000)) return -1;
     int page = -1;
     fz_try(d->ctx) {
         int chapter = (int)((bookmark >> 32) & 0x3fffffff);
@@ -769,9 +782,15 @@ static int text_anchor(PxDocument *d, int chapter, int target_page, float target
                         if(c->c<=32) continue;
                         float top=l->bbox.y0, height=fmaxf(1,l->bbox.y1-top);
                         if ((restore && count>=*ordinal) || (!restore && n==target_page && l->bbox.y1>=target_y)) {
-                            if(restore) { *out_page=n; *out_y=fmaxf(0,top+(float)*offset*height); }
-                            else { *ordinal=count; *offset=fmax(-4,fmin(4,(target_y-top)/height)); }
-                            found=1; break;
+                            if(restore) { *out_page=n; *out_y=fmaxf(0,top+(float)*offset*height); found=1; }
+                            else {
+                                double residual=(target_y-top)/height;
+                                // Inside a long illustration, the following text line is
+                                // not a useful anchor. Fall back to chapter geometry.
+                                if(residual< -4 || residual>4) found=-1;
+                                else { *ordinal=count; *offset=residual; found=1; }
+                            }
+                            break;
                         }
                         ++count;
                     }
@@ -780,7 +799,7 @@ static int text_anchor(PxDocument *d, int chapter, int target_page, float target
     }
     fz_always(d->ctx) { fz_drop_stext_page(d->ctx,text); fz_drop_page(d->ctx,page); }
     fz_catch(d->ctx) { found=0; }
-    return found;
+    return found>0;
 }
 /* Image-only/end-of-chapter fallback: normalized chapter geometry. */
 static int geometry_anchor(PxDocument *d,int chapter,int *page,float *y,double *fraction,int restore) {
@@ -821,4 +840,46 @@ int px_document_restore_anchor(PxDocument *d,int ch,int character,double offset,
     if(!d || ch<0 || character< -1 || !isfinite(offset)) return 0;
     if(character==-1) return geometry_anchor(d,ch,page,y,&offset,1);
     return text_anchor(d,ch,0,0,&character,&offset,page,y,1);
+}
+
+/* Marker 6 fits the existing signed-int64 bookmark field without a save migration.
+ * Tag: bits 61..63; chapter: 20 bits; character: 28 bits; offset: 13 bits.
+ * All-ones character means chapter geometry, using the full offset resolution. */
+int64_t px_document_make_position_bookmark(PxDocument *d,int page,float y) {
+    int chapter=-1, character=-1; double offset=0;
+    if(!d || !isfinite(y) || y<0 || !px_document_anchor(d,page,y,&chapter,&character,&offset) ||
+       chapter<0 || chapter>0xfffff || character< -1 || character>=0x0fffffff ||
+       !isfinite(offset) || offset< -4 || offset>4)
+        return px_document_make_bookmark(d,page);
+    uint64_t encoded_character=character<0 ? UINT64_C(0x0fffffff) : (uint64_t)character;
+    uint64_t encoded_offset;
+    if(character<0) {
+        if(offset<0 || offset>1) return px_document_make_bookmark(d,page);
+        encoded_offset=(uint64_t)llround(offset*8191);
+    } else encoded_offset=(uint64_t)llround((offset+4)*1023);
+    return (int64_t)(UINT64_C(0x6000000000000000) | ((uint64_t)chapter<<41) |
+                     (encoded_character<<13) | encoded_offset);
+}
+
+int px_document_lookup_position_bookmark(PxDocument *d,int64_t bookmark,int *page,float *y) {
+    if(!d || !page || !y || bookmark<0) return 0;
+    const uint64_t encoded=(uint64_t)bookmark;
+    if((encoded & UINT64_C(0xe000000000000000)) == UINT64_C(0x6000000000000000)) {
+        int chapter=(int)((encoded>>41)&UINT64_C(0xfffff));
+        int character=(int)((encoded>>13)&UINT64_C(0x0fffffff));
+        unsigned residual=(unsigned)(encoded&UINT64_C(0x1fff));
+        double offset;
+        if(character==0x0fffffff) { character=-1; offset=residual/8191.0; }
+        else {
+            if(residual>8184) return 0;
+            offset=residual/1023.0-4;
+        }
+        int resolved=-1; float resolved_y=0;
+        if(!px_document_restore_anchor(d,chapter,character,offset,&resolved,&resolved_y) ||
+           resolved<0 || resolved>=d->pages || !isfinite(resolved_y)) return 0;
+        *page=resolved; *y=resolved_y; return 1;
+    }
+    const int resolved=px_document_lookup_bookmark(d,bookmark);
+    if(resolved<0) return 0;
+    *page=resolved; *y=0; return 1;
 }

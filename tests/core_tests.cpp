@@ -1,4 +1,5 @@
 #include "papernx/core.hpp"
+#include "papernx/app_settings.hpp"
 #include "papernx/gestures.hpp"
 #include <cassert>
 #include <cerrno>
@@ -185,10 +186,38 @@ int main() {
     assert(v2CheckStore.get("fedcba9876543210").page == 12);
 
     // 9. Categories and Advanced Search Filtering
-    Book b1; b1.id = "b1"; b1.title = "Kürk Mantolu Madonna"; b1.author = "Sabahattin Ali";
+    Book b1; b1.id = "b1"; b1.title = "Kürk Mantolu Madonna"; b1.author = "Sabahattin Ali"; b1.format = Format::Epub;
     Book b2; b2.id = "b2"; b2.title = "İnce Memed"; b2.author = "Yaşar Kemal";
     Book b3; b3.id = "b3"; b3.title = "Tutunamayanlar"; b3.author = "Oğuz Atay";
     std::vector<Book> testBooks = {b1, b2, b3};
+
+    // A continuous chapter is a layout segment, not a completed page. Even a
+    // single-chapter book must remain in Continue Reading halfway through it.
+    {
+        ProgressStore scrollStore(root / "data" / "scroll-categories");
+        Progress scrolling; scrolling.page = 1; scrolling.pageCount = 2;
+        scrolling.fraction = .5; scrolling.readingMode = 1; scrolling.lastRead = 1700000000;
+        scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).empty());
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).size() == 1);
+        scrolling.fraction = .99; scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).size() == 1);
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).empty());
+        // PDF may carry a global EPUB navigation field but remains fixed-layout.
+        Book pdfBook = b1; pdfBook.format = Format::Pdf;
+        scrolling.readingMode = 1; scrolling.pageCount = 1; scrolling.page = 0; scrolling.fraction = 0;
+        scrollStore.put(pdfBook.id, scrolling);
+        assert(filterByCategory({pdfBook}, scrollStore, Category::Completed).size() == 1);
+        assert(filterByCategory({pdfBook}, scrollStore, Category::ContinueReading).empty());
+        scrolling.page = 0; scrolling.pageCount = 1; scrolling.fraction = .5;
+        scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).empty());
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).size() == 1);
+        scrolling.readingMode = 0; scrolling.pageCount = 2; scrolling.page = 1;
+        scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).size() == 1);
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).empty());
+    }
 
     Progress pb1; pb1.page = 50; pb1.pageCount = 150; pb1.fraction = 0.33; pb1.lastRead = 200; pb1.favorite = true;
     Progress pb2; pb2.page = 0; pb2.pageCount = 300; pb2.fraction = 0.0; pb2.lastRead = 0; pb2.favorite = false;
@@ -411,6 +440,88 @@ int main() {
         assert(style.touchZone == 40 && style.publisherStyles == 1 && style.pdfColorMode == 2 && style.pdfViewMode == 1);
         assert(restart.get("PAPERNX_DEFAULTS").textColor == a.textColor);
         assert(restart.get("fedcba9876543210").page == 11 && restart.get("fedcba9876543210").theme == 5);
+    }
+    // Migration preserves exact legacy bytes, user data and independent PDF state.
+    for (int version = 1; version <= 5; ++version) {
+        const auto path = root / ("migration-v" + std::to_string(version));
+        const std::string base = "0123456789abcdef\t12\t50\t0.24\t20\t1\t1";
+        std::string row = base;
+        if (version >= 2) row += "\t12345\t2\t150\t50\t1\t1\t1700000000\t1\t9\t1700000100\t23456\tİşaret";
+        if (version >= 3) row += "\tsdmc:/books/Çiçek.epub\tÇiçek\tYazar";
+        if (version >= 4) row += "\t1193046\t15654331\t90\t110\t35\t1\t2\t1";
+        if (version >= 5) row += "\t1\t1\t150\t0\t2\t345\t0.375";
+        writeChecked(path, "PAPERNX-" + std::to_string(version) + "\n" + row + "\n");
+        auto bytes = [](const fs::path &p) { std::ifstream in(p, std::ios::binary); return std::string((std::istreambuf_iterator<char>(in)), {}); };
+        const auto original = bytes(path);
+        ProgressStore legacy(path); assert(legacy.load());
+        auto book = legacy.get("0123456789abcdef");
+        assert(book.page == 12 && book.pageCount == 50 && book.favorite && book.styleOverride == 0);
+        Progress global; global.theme = 2; global.fontSize = 26; global.fontFamily = 0;
+        auto effective = resolveReadingPreferences(global, book);
+        assert(effective.theme == 2 && effective.fontSize == 26 && effective.fontFamily == 0);
+        if (version >= 2) assert(book.lastRead == 1700000000 && book.bookmarks.size() == 1 && book.bookmarks[0].title == "İşaret");
+        if (version >= 3) assert(book.bookPath == "sdmc:/books/Çiçek.epub" && book.bookTitle == "Çiçek");
+        if (version >= 4) assert(effective.pdfViewMode == 1 && effective.pdfColorMode == 2 && book.textColor == 1193046);
+        if (version >= 5) assert(effective.readingMode == 1 && effective.scrollSensitivity == 150 && !effective.scrollInertia && book.anchorCharacter == 345);
+        // A failed immutable backup must leave the original primary untouched.
+        ProgressStore::SaveOptions noSpace;
+        noSpace.fault = [](const char *operation) { return std::string(operation) == "migration_backup" ? ENOSPC : 0; };
+        assert(!legacy.save(noSpace)); assert(bytes(path) == original);
+        assert(legacy.save());
+        const auto backup = path.string() + ".pre-v6-v" + std::to_string(version) + ".bak";
+        assert(bytes(backup) == original);
+        book.page = 13; legacy.put("0123456789abcdef", book); assert(legacy.save());
+        assert(bytes(backup) == original); // Rotating .bak must not replace the migration original.
+        ProgressStore restart(path); assert(restart.load());
+        const auto restored = restart.get("0123456789abcdef");
+        assert(restored.page == 13 && restored.favorite && restored.styleOverride == 0);
+        assert(restored.pdfColorMode == book.pdfColorMode && restored.pdfViewMode == book.pdfViewMode);
+        assert(restored.bookmarks.size() == book.bookmarks.size());
+        if (version == 5) {
+            fs::remove(path); fs::remove(path.string() + ".bak"); fs::remove(path.string() + ".bak.old");
+            ProgressStore recovery(path); assert(recovery.load());
+            assert(recovery.get("0123456789abcdef").page == 12);
+        }
+    }
+    // Previously read books inherit global appearance; custom mode is explicit and reversible.
+    {
+        const auto path = root / "global-preferences";
+        ProgressStore preferences(path);
+        Progress global; global.theme = 2; global.fontSize = 26; global.readingMode = 1;
+        global.fontFamily = 1; global.margin = 60; global.textColor = 0x443322;
+        Progress a = p, b = p; a.theme = 0; b.theme = 5; b.pdfColorMode = 3;
+        preferences.put("PAPERNX_DEFAULTS", global);
+        preferences.put("0123456789abcdef", a); preferences.put("fedcba9876543210", b);
+        assert(resolveReadingPreferences(global, a).theme == 2);
+        auto inherited = resolveReadingPreferences(global, b);
+        assert(inherited.theme == 2 && inherited.fontSize == 26 && inherited.textColor == 0x443322 && inherited.margin == 60);
+        b.styleOverride = 1; b.theme = 4; b.fontSize = 32; b.modeOverride = 0;
+        preferences.put("fedcba9876543210", b); assert(preferences.save());
+        ProgressStore restart(path); assert(restart.load());
+        auto custom = resolveReadingPreferences(restart.get("PAPERNX_DEFAULTS"), restart.get("fedcba9876543210"));
+        assert(custom.styleOverride == 1 && custom.theme == 4 && custom.fontSize == 32 && custom.readingMode == 1);
+        assert(restart.get("0123456789abcdef").page == a.page && restart.get("PAPERNX_DEFAULTS").theme == 2);
+        b.styleOverride = 0; preferences.put("fedcba9876543210", b); assert(preferences.save());
+        assert(restart.load());
+        assert(resolveReadingPreferences(restart.get("PAPERNX_DEFAULTS"), restart.get("fedcba9876543210")).theme == 2);
+        b.modeOverride = 1; b.readingMode = 0;
+        assert(resolveReadingPreferences(global, b).readingMode == 0);
+        assert(resolveReadingPreferences(global, b).pdfColorMode == 3);
+    }
+    // Independent application settings retain checksum/backup recovery and normalize inputs.
+    {
+        const auto path = root / "app-settings";
+        AppSettingsStore settings(path); assert(!settings.load());
+        AppPreferences app; app.uiTheme = 2; app.language = 1; app.libraryLayout = 1;
+        app.sort = 4; app.toolbar = 1; app.defaultBrowserPath = "sdmc:/Kitaplar/Çiçek";
+        settings.put(app); assert(settings.save()); assert(settings.save());
+        AppSettingsStore restart(path); assert(restart.load());
+        assert(restart.get().uiTheme == 2 && restart.get().language == 1 && restart.get().libraryLayout == 1);
+        assert(restart.get().sort == 4 && restart.get().toolbar == 1 && restart.get().defaultBrowserPath == app.defaultBrowserPath);
+        std::ofstream(path, std::ios::trunc) << "corrupt cache must recover settings";
+        assert(restart.load() && restart.get().sort == 4);
+        app.uiTheme = -100; app.language = 99; app.sort = 999;
+        settings.put(app); assert(settings.get().uiTheme == 0 && settings.get().language == 1 && settings.get().sort == 4);
     }
     tracker.onFingerDown(.25f, .5f, 1);
     assert(tracker.onFingerUp(.27f, .51f, 1).type == GestureType::TapLeft);
