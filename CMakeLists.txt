@@ -81,6 +81,7 @@ if(PAPERNX_NATIVE)
         tests/mupdf_render_tests.c
         src/mupdf_bridge.c
     )
+    set_target_properties(mupdf_render_tests PROPERTIES LINKER_LANGUAGE CXX)
     target_compile_options(mupdf_render_tests PRIVATE -UNDEBUG)
     target_include_directories(mupdf_render_tests PRIVATE ${MUPDF_INCLUDE_DIR} include)
     target_link_libraries(mupdf_render_tests PRIVATE ${MUPDF_LIBRARY})
@@ -93,5 +94,14 @@ if(PAPERNX_NATIVE)
     target_link_libraries(mupdf_render_tests PRIVATE ${MUPDF_TRANSITIVE} Threads::Threads)
     add_test(NAME mupdf_render_tests COMMAND mupdf_render_tests)
     set_tests_properties(mupdf_render_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+    if(BUILD_TESTING)
+        add_executable(papernx_app_tests tests/app_tests.cpp src/mupdf_bridge.c src/page_cache.cpp src/typography.cpp)
+        target_include_directories(papernx_app_tests PRIVATE include ${MUPDF_INCLUDE_DIR})
+        target_compile_options(papernx_app_tests PRIVATE -UNDEBUG)
+        target_link_libraries(papernx_app_tests PRIVATE papernx_core PkgConfig::SDL2 PkgConfig::SDL2_TTF ${MUPDF_LIBRARY} ${MUPDF_THIRD_LIBRARY} ${MUPDF_TRANSITIVE} Threads::Threads m)
+        add_test(NAME papernx_app_tests COMMAND papernx_app_tests)
+        set_tests_properties(papernx_app_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+    endif()
 endif()
 

@@ -13,22 +13,25 @@ from pathlib import Path
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
-def generate_minimal_jpeg() -> bytes:
-    """Generate a minimal valid 2x2 JPEG image binary."""
-    # SOI (FF D8), APP0 (FF E0), DQT (FF DB), SOF0 (FF C0), DHT (FF C4), SOS (FF DA), EOI (FF D9)
-    # 2x2 pure white JPEG
-    return bytes.fromhex(
-        "ffd8ffe000104a46494600010101004800480000ffdb00430008060607060508070707"
-        "0909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c28"
-        "37292c30313434341f27393d38323c2e333432ffc0000b080002000201011100ffc400"
-        "1f0000010501010101010100000000000000000102030405060708090a0bffda000801"
-        "0100003f007fb2c0ffd9"
-    )
+def generate_cover_png() -> bytes:
+    """Real RGB PNG with recognizable colors, no optional Python dependencies."""
+    import struct
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+    width, height = 96, 144
+    pixels = b"".join(b"\0" + bytes((24, 80 + y % 80, 180)) * width for y in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(pixels)) + chunk(b"IEND", b""))
+
+def write_entry(archive, name, data, compress_type=zipfile.ZIP_STORED):
+    info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+    info.compress_type = compress_type
+    archive.writestr(info, data)
 
 def create_valid_epub(output_path: Path):
     """Create a fully compliant EPUB3 container with 2 chapters, TOC, cover, and Turkish text."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    cover_jpeg = generate_minimal_jpeg()
+    cover_png = generate_cover_png()
 
     container_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -48,7 +51,7 @@ def create_valid_epub(output_path: Path):
   </metadata>
   <manifest>
     <item id="toc" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-    <item id="cover-img" href="cover.jpg" media-type="image/jpeg" properties="cover-image"/>
+    <item id="cover-img" href="cover.png" media-type="image/png" properties="cover-image"/>
     <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
     <item id="ch2" href="ch2.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
@@ -111,21 +114,24 @@ def create_valid_epub(output_path: Path):
 </body>
 </html>"""
 
+    paragraph = "<p>? ? I i ? ? ? ? ? ? ? ? ? ?. Bo?azi?i k?y?s?nda okuma, an?lar ve ya?mur. " + ("Kitap sayfalar?nda ?stanbul'un ?????. " * 15) + "</p>"
+    ch1_xhtml = ch1_xhtml.replace("</body>", '<img src="cover.png" alt="Kitap kapa??" width="96" height="144"/>' + paragraph * 20 + "</body>")
+    ch2_xhtml = ch2_xhtml.replace("</body>", paragraph * 16 + "</body>")
     with zipfile.ZipFile(output_path, "w") as z:
         # EPUB spec requirement: mimetype must be the first uncompressed entry
-        z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
-        z.writestr("META-INF/container.xml", container_xml, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/content.opf", content_opf, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/toc.xhtml", toc_xhtml, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/cover.jpg", cover_jpeg, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/ch1.xhtml", ch1_xhtml, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/ch2.xhtml", ch2_xhtml, compress_type=zipfile.ZIP_DEFLATED)
+        write_entry(z, "mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+        write_entry(z, "META-INF/container.xml", container_xml, compress_type=zipfile.ZIP_DEFLATED)
+        write_entry(z, "OEBPS/content.opf", content_opf, compress_type=zipfile.ZIP_DEFLATED)
+        write_entry(z, "OEBPS/toc.xhtml", toc_xhtml, compress_type=zipfile.ZIP_DEFLATED)
+        write_entry(z, "OEBPS/cover.png", cover_png, compress_type=zipfile.ZIP_DEFLATED)
+        write_entry(z, "OEBPS/ch1.xhtml", ch1_xhtml, compress_type=zipfile.ZIP_DEFLATED)
+        write_entry(z, "OEBPS/ch2.xhtml", ch2_xhtml, compress_type=zipfile.ZIP_DEFLATED)
 
 def create_valid_pdf(output_path: Path):
     """Create a fully compliant multi-page PDF with outlines and Turkish text."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    stream1 = b"BT /F1 24 Tf 50 750 Td (PaperNX PDF Test - Sayfa 1) Tj 0 -36 Td /F1 14 Tf (Turkce Karakter Testi: Agac, Isik, Uzum, Omur, Cicek, Istanbul) Tj ET"
+    stream1 = b"q 96 0 0 144 50 400 cm /Im1 Do Q BT /F1 24 Tf 50 750 Td (PaperNX PDF Test - Sayfa 1) Tj 0 -36 Td /F1 14 Tf (Turkce Karakter Testi: Agac, Isik, Uzum, Omur, Cicek, Istanbul) Tj ET"
     stream2 = b"BT /F1 24 Tf 50 750 Td (PaperNX PDF Test - Sayfa 2) Tj 0 -36 Td /F1 14 Tf (Ikinci sayfa icerigi ve farkli koordinat duzeni.) Tj ET"
 
     objects = []
@@ -135,9 +141,9 @@ def create_valid_pdf(output_path: Path):
     # 2: Pages
     objects.append(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>\nendobj\n")
     # 3: Page 1
-    objects.append(b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 7 0 R /Resources << /Font << /F1 6 0 R >> >> >>\nendobj\n")
+    objects.append(b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 7 0 R /Resources << /Font << /F1 6 0 R >> /XObject << /Im1 11 0 R >> >> >>\nendobj\n")
     # 4: Page 2
-    objects.append(b"4 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 6 0 R >> >> >>\nendobj\n")
+    objects.append(b"4 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 6 0 R >> /XObject << /Im1 11 0 R >> >> >>\nendobj\n")
     # 5: Outlines
     objects.append(b"5 0 obj\n<< /Type /Outlines /First 9 0 R /Last 10 0 R /Count 2 >>\nendobj\n")
     # 6: Font (Helvetica standard)
@@ -150,6 +156,10 @@ def create_valid_pdf(output_path: Path):
     objects.append(b"9 0 obj\n<< /Title (Sayfa 1 - Giris) /Parent 5 0 R /Next 10 0 R /Dest [3 0 R /XYZ null null null] >>\nendobj\n")
     # 10: Outline item 2
     objects.append(b"10 0 obj\n<< /Title (Sayfa 2 - Gelisme) /Parent 5 0 R /Prev 9 0 R /Dest [4 0 R /XYZ null null null] >>\nendobj\n")
+
+    pixels = bytes((24, 80, 180)) * (96 * 144)
+    compressed = zlib.compress(pixels)
+    objects.append(f"11 0 obj\n<< /Type /XObject /Subtype /Image /Width 96 /Height 144 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {len(compressed)} >>\nstream\n".encode("ascii") + compressed + b"\nendstream\nendobj\n")
 
     header = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"
     body = b""

@@ -16,6 +16,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
+#include <cmath>
 #include <ctime>
 #include <deque>
 #include <filesystem>
@@ -140,6 +141,7 @@ public:
         }
 
         renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        if (!renderer_) renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_SOFTWARE);
         if (!renderer_) {
             logMessage("Failed to create SDL renderer");
             return false;
@@ -184,12 +186,23 @@ public:
                 }
             }
 
+            if (controller_) {
+                for (int axis = SDL_CONTROLLER_AXIS_LEFTX; axis <= SDL_CONTROLLER_AXIS_LEFTY; ++axis) {
+                    int dx = 0, dy = 0;
+                    if (controllerNav_.processAxis(axis, SDL_GameControllerGetAxis(controller_, static_cast<SDL_GameControllerAxis>(axis)), dx, dy))
+                        handleDirectional(dx, dy);
+                }
+            }
             // Periodic auto-save if progress changed
             if (progressDirty_) {
                 auto now = std::chrono::steady_clock::now();
                 if (now - lastProgressSave_ > std::chrono::seconds(3)) {
-                    progressStore_.save();
-                    progressDirty_ = false;
+                    if (progressStore_.save()) progressDirty_ = false;
+                    else {
+                        currentErrorMessage_ = "Okuma konumu kaydedilemedi; tekrar denenecek.";
+                        logMessage(currentErrorMessage_);
+                        dirty_ = true;
+                    }
                     lastProgressSave_ = now;
                 }
             }
@@ -207,6 +220,7 @@ public:
     }
 
 private:
+    friend struct AppTest;
     fs::path root_;
     ProgressStore progressStore_;
     PageCache pageCache_;
@@ -244,6 +258,10 @@ private:
     int pdfPanX_{0};
     int pdfPanY_{0};
     bool toolbarVisible_{false};
+    bool pdfDragging_{false};
+    bool pdfMoved_{false};
+    SDL_FingerID pdfFinger_{0};
+    float pdfTouchX_{0}, pdfTouchY_{0};
     std::string currentErrorMessage_;
 
     // Table of contents and bookmarks
@@ -277,10 +295,17 @@ private:
     std::condition_variable queueCv_;
     std::deque<Book> thumbQueue_;
     std::set<std::string> queuedThumbIds_;
-    std::set<std::string> failedThumbIds_;
+    std::map<std::string, std::chrono::steady_clock::time_point> failedThumbIds_;
 
     std::mutex completedMutex_;
     std::vector<LoadedThumb> completedThumbs_;
+
+    // Caller holds queueMutex_. Pending IDs include queued, processing and upload-ready work.
+    void failThumbnail(const std::string &id) {
+        queuedThumbIds_.erase(id);
+        if (failedThumbIds_.size() >= 512) failedThumbIds_.erase(failedThumbIds_.begin());
+        failedThumbIds_[id] = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    }
 
     void thumbWorkerLoop() {
         while (workerRunning_) {
@@ -299,7 +324,7 @@ private:
             PxDocument *thumbDoc = px_document_open(b.path.c_str(), 160, 220, 16.0f, "", err, sizeof(err));
             if (!thumbDoc) {
                 std::lock_guard<std::mutex> lock(queueMutex_);
-                failedThumbIds_.insert(b.id);
+                failThumbnail(b.id);
                 continue;
             }
 
@@ -319,8 +344,9 @@ private:
                 }
             } else {
                 std::lock_guard<std::mutex> lock(queueMutex_);
-                failedThumbIds_.insert(b.id);
+                failThumbnail(b.id);
             }
+            px_image_free(&img);
             px_document_close(thumbDoc);
         }
     }
@@ -333,11 +359,16 @@ private:
             toUpload.swap(completedThumbs_);
         }
         for (const auto &lt : toUpload) {
+            {
+                std::lock_guard<std::mutex> lock(queueMutex_);
+                queuedThumbIds_.erase(lt.id);
+            }
             std::string key = "thumb_" + lt.id;
             SDL_Texture *tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, lt.w, lt.h);
             if (tex) {
-                SDL_UpdateTexture(tex, nullptr, lt.rgb.data(), lt.stride);
-                thumbCache_.put(key, tex, lt.w, lt.h);
+                if (SDL_UpdateTexture(tex, nullptr, lt.rgb.data(), lt.stride) == 0)
+                    thumbCache_.put(key, tex, lt.w, lt.h);
+                else SDL_DestroyTexture(tex);
                 dirty_ = true;
             }
         }
@@ -357,6 +388,28 @@ private:
                                currentLineHeight_, currentMargin_, currentTextAlign_);
     }
 
+    void toggleSearch() {
+#ifdef __SWITCH__
+        SwkbdConfig config;
+        if (R_SUCCEEDED(swkbdCreate(&config, 0))) {
+            swkbdConfigMakePresetDefault(&config);
+            swkbdConfigSetGuideText(&config, "Kitap, yazar veya dosya ad? ara");
+            swkbdConfigSetInitialText(&config, searchQuery_.c_str());
+            swkbdConfigSetStringLenMax(&config, 256);
+            char text[1024] = {};
+            Result result = swkbdShow(&config, text, sizeof text);
+            swkbdClose(&config);
+            if (R_SUCCEEDED(result)) searchQuery_ = utf8SafeTruncate(text, 256);
+            updateVisibleBooks();
+        }
+#else
+        searchActive_ = !searchActive_;
+        if (searchActive_) SDL_StartTextInput();
+        else { SDL_StopTextInput(); searchQuery_.clear(); updateVisibleBooks(); }
+#endif
+        dirty_ = true;
+    }
+
     void updateVisibleBooks() {
         visibleBooks_ = searchEx(books_, progressStore_, searchQuery_, sort_, category_);
         if (selectedBookIdx_ >= static_cast<int>(visibleBooks_.size())) {
@@ -366,7 +419,7 @@ private:
         dirty_ = true;
     }
 
-    void openBook(const Book &b) {
+    void openBook(Book b) {
         closeBook();
         int w = 1280, h = 720;
         getWindowSize(w, h);
@@ -389,6 +442,7 @@ private:
                                 buildEpubCss().c_str(), err, sizeof(err));
 
         if (!doc_) {
+            currentBookId_.clear();
             currentErrorMessage_ = std::string("Kitap açılamadı: ") + err;
             logMessage(currentErrorMessage_);
             screen_ = ScreenState::Library;
@@ -413,9 +467,9 @@ private:
 
         // Restore position: prioritize MuPDF bookmark if valid, fallback to restorePage
         int restored = -1;
-        if (p.muBookmark != -1) {
+        // Only bridge-versioned chapter/fraction marks survive document reopen.
+        if (p.muBookmark >= INT64_C(0x4000000000000000))
             restored = px_document_lookup_bookmark(doc_, p.muBookmark);
-        }
         if (restored < 0 || restored >= pageCount_) {
             restored = restorePage(p, pageCount_);
         }
@@ -430,12 +484,14 @@ private:
     }
 
     void closeBook() {
+        pageCache_.clear();
         if (doc_) {
             saveCurrentPosition();
             px_document_close(doc_);
             doc_ = nullptr;
         }
         tocEntries_.clear();
+        updateVisibleBooks();
         screen_ = ScreenState::Library;
         toolbarVisible_ = false;
         dirty_ = true;
@@ -478,11 +534,37 @@ private:
         progressDirty_ = true;
     }
 
+    void clampPdfPan() {
+        if (!doc_ || px_document_is_epub(doc_)) return;
+        float pw = 0, ph = 0;
+        if (!px_document_page_size(doc_, currentPage_, &pw, &ph)) return;
+        int w, h; getWindowSize(w, h);
+        const int vw = std::max(1, w - 80), vh = std::max(1, h - 80);
+        const float scale = std::min(vw / pw, vh / ph) * pdfZoom_;
+        pdfPanX_ = std::clamp(pdfPanX_, 0, std::max(0, static_cast<int>(std::ceil(pw * scale)) - vw));
+        pdfPanY_ = std::clamp(pdfPanY_, 0, std::max(0, static_cast<int>(std::ceil(ph * scale)) - vh));
+    }
+
+    void zoomPdf(float zoom) {
+        if (!doc_ || px_document_is_epub(doc_)) return;
+        pdfZoom_ = std::round(std::clamp(zoom, 1.0f, 5.0f) * 100) / 100;
+        clampPdfPan();
+        pageCache_.clear();
+        dirty_ = true;
+    }
+
+    int resolveBookmark(const Bookmark &bm) {
+        int resolved = px_document_lookup_bookmark(doc_, bm.muBookmark);
+        return std::clamp(resolved >= 0 ? resolved : bm.page, 0, std::max(0, pageCount_ - 1));
+    }
+
     void turnPage(int delta) {
         if (!doc_ || pageCount_ <= 0) return;
         int target = std::clamp(currentPage_ + delta, 0, pageCount_ - 1);
         if (target != currentPage_) {
             currentPage_ = target;
+            pdfPanX_ = pdfPanY_ = 0;
+            clampPdfPan();
             saveCurrentPosition();
             dirty_ = true;
         }
@@ -502,6 +584,8 @@ private:
         if (px_document_relayout(doc_, w - (currentMargin_ * 2), h - 100,
                                  static_cast<float>(currentFontSize_),
                                  buildEpubCss().c_str(), err, sizeof(err))) {
+            pageCache_.clear();
+            loadToc();
             pageCount_ = px_document_pages(doc_);
             int restored = px_document_lookup_bookmark(doc_, bookmark);
             if (restored < 0 || restored >= pageCount_) {
@@ -526,7 +610,7 @@ private:
         std::string key;
         if (px_document_is_epub(doc_)) {
             key = PageCache::makeEpubKey(currentBookId_, pageIdx, currentFontSize_, currentTheme_,
-                                         currentLineHeight_, currentMargin_, currentTextAlign_, w, h);
+                                         currentLineHeight_, currentMargin_, currentTextAlign_, w, h, currentFontFamily_);
         } else {
             key = PageCache::makePdfKey(currentBookId_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_, w, h);
         }
@@ -553,8 +637,9 @@ private:
         if (ok && img.rgb) {
             tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, img.width, img.height);
             if (tex) {
-                SDL_UpdateTexture(tex, nullptr, img.rgb, img.stride);
-                pageCache_.put(key, tex, img.width, img.height);
+                if (SDL_UpdateTexture(tex, nullptr, img.rgb, img.stride) != 0) {
+                    SDL_DestroyTexture(tex); tex = nullptr;
+                } else if (!pageCache_.put(key, tex, img.width, img.height)) tex = nullptr;
             }
             px_image_free(&img);
         }
@@ -568,7 +653,10 @@ private:
 
         // If not already in cache and not failed, enqueue for asynchronous background loading
         std::lock_guard<std::mutex> lock(queueMutex_);
-        if (failedThumbIds_.find(b.id) == failedThumbIds_.end() &&
+        auto failed = failedThumbIds_.find(b.id);
+        if (failed != failedThumbIds_.end() && failed->second <= std::chrono::steady_clock::now())
+            failedThumbIds_.erase(failed);
+        if (failedThumbIds_.find(b.id) == failedThumbIds_.end() && queuedThumbIds_.size() < 32 &&
             queuedThumbIds_.find(b.id) == queuedThumbIds_.end()) {
             queuedThumbIds_.insert(b.id);
             thumbQueue_.push_back(b);
@@ -626,7 +714,9 @@ private:
             b.format = detectFormat(b.path);
             b.id = documentId(b.path, entry.size);
             b.title = entry.path.stem().string();
-            b.size = entry.size;
+            b.bytes = entry.size;
+            auto found = std::find_if(books_.begin(), books_.end(), [&](const Book &book) { return book.id == b.id; });
+            if (found == books_.end()) books_.push_back(b);
             openBook(b);
         }
     }
@@ -637,17 +727,62 @@ private:
             running = false;
             return;
         }
+        if (e.type == SDL_TEXTINPUT && searchActive_) {
+            if (searchQuery_.size() + std::char_traits<char>::length(e.text.text) <= 256)
+                searchQuery_ += e.text.text;
+            updateVisibleBooks();
+            return;
+        }
 
         // Touch Input
+        if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            pageCache_.clear();
+            if (doc_ && px_document_is_epub(doc_)) reflowEpub(currentFontSize_);
+            else clampPdfPan();
+            dirty_ = true;
+        }
+        if (e.type == SDL_APP_WILLENTERBACKGROUND) {
+            saveCurrentPosition();
+            if (progressStore_.save()) progressDirty_ = false;
+        }
+        if (e.type == SDL_APP_DIDENTERFOREGROUND) { pageCache_.clear(); dirty_ = true; }
+        if (e.type == SDL_MULTIGESTURE && screen_ == ScreenState::Reader && e.mgesture.numFingers >= 2) {
+            zoomPdf(pdfZoom_ * (1.0f + e.mgesture.dDist * 4));
+            pdfMoved_ = true;
+            gestureTracker_.reset();
+            return;
+        }
         if (e.type == SDL_FINGERDOWN) {
+            if (screen_ == ScreenState::Reader && !px_document_is_epub(doc_) && pdfZoom_ > 1.0f && !toolbarVisible_) {
+                if (!pdfDragging_) {
+                    pdfDragging_ = true; pdfMoved_ = false; pdfFinger_ = e.tfinger.fingerId;
+                    pdfTouchX_ = e.tfinger.x; pdfTouchY_ = e.tfinger.y;
+                }
+                return;
+            }
             gestureTracker_.onFingerDown(e.tfinger.x, e.tfinger.y, e.tfinger.fingerId);
             return;
         }
         if (e.type == SDL_FINGERMOTION) {
+            if (pdfDragging_ && e.tfinger.fingerId == pdfFinger_) {
+                int w, h; getWindowSize(w, h);
+                pdfPanX_ -= static_cast<int>((e.tfinger.x - pdfTouchX_) * w);
+                pdfPanY_ -= static_cast<int>((e.tfinger.y - pdfTouchY_) * h);
+                pdfTouchX_ = e.tfinger.x; pdfTouchY_ = e.tfinger.y;
+                pdfMoved_ = true; clampPdfPan(); dirty_ = true;
+                return;
+            }
             gestureTracker_.onFingerMotion(e.tfinger.x, e.tfinger.y, e.tfinger.fingerId);
             return;
         }
         if (e.type == SDL_FINGERUP) {
+            if (pdfDragging_) {
+                if (e.tfinger.fingerId == pdfFinger_) {
+                    pdfDragging_ = false;
+                    if (!pdfMoved_) handleTap(e.tfinger.x, e.tfinger.y);
+                }
+                return;
+            }
             auto res = gestureTracker_.onFingerUp(e.tfinger.x, e.tfinger.y, e.tfinger.fingerId);
             handleGesture(res);
             return;
@@ -673,7 +808,7 @@ private:
             return;
         }
         if (e.type == SDL_CONTROLLERDEVICEREMOVED) {
-            if (controller_) {
+            if (controller_ && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller_)) == e.cdevice.which) {
                 SDL_GameControllerClose(controller_);
                 controller_ = nullptr;
                 logMessage("Controller detached dynamically");
@@ -692,6 +827,10 @@ private:
 
         // Controller Axis Navigation
         if (e.type == SDL_CONTROLLERAXISMOTION) {
+            if (screen_ == ScreenState::Reader && !px_document_is_epub(doc_)) {
+                if (e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT && e.caxis.value > 24000) { zoomPdf(pdfZoom_ - 0.25f); return; }
+                if (e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT && e.caxis.value > 24000) { zoomPdf(pdfZoom_ + 0.25f); return; }
+            }
             int dx = 0, dy = 0;
             if (controllerNav_.processAxis(e.caxis.axis, e.caxis.value, dx, dy)) {
                 handleDirectional(dx, dy);
@@ -716,8 +855,10 @@ private:
             } else if (res.type == GestureType::TapLeft || res.type == GestureType::TapRight || res.type == GestureType::TapCenter) {
                 handleTap(res.tapX, res.tapY);
             }
-        } else {
+        } else if (res.type == GestureType::TapLeft || res.type == GestureType::TapRight || res.type == GestureType::TapCenter) {
             handleTap(res.tapX, res.tapY);
+        } else if (res.type == GestureType::SwipeUp || res.type == GestureType::SwipeDown) {
+            handleDirectional(0, res.type == GestureType::SwipeUp ? 1 : -1);
         }
     }
 
@@ -746,7 +887,7 @@ private:
                 // Footer scrubber
                 if (py > h - 65) {
                     if (pageCount_ > 1) {
-                        float frac = std::clamp(static_cast<float>(px - 60) / (w - 120), 0.0f, 1.0f);
+                        float frac = std::clamp(static_cast<float>(px - 180) / std::max(1, w - 300), 0.0f, 1.0f);
                         currentPage_ = static_cast<int>(frac * (pageCount_ - 1));
                         saveCurrentPosition();
                         dirty_ = true;
@@ -771,10 +912,10 @@ private:
         } else if (screen_ == ScreenState::Library) {
             // Header category buttons
             if (py >= 55 && py <= 90) {
-                int catW = 110;
-                int startX = 48;
+                int catW = 115;
+                int startX = 36;
                 for (int c = 0; c <= 5; ++c) {
-                    if (px >= startX + c * catW && px < startX + (c + 1) * catW) {
+                    if (px >= startX + c * catW && px < startX + c * catW + 105) {
                         category_ = static_cast<Category>(c);
                         updateVisibleBooks();
                         return;
@@ -786,9 +927,7 @@ private:
                 if (px > w - 100) { openBrowser(); return; }
                 if (px > w - 190) { viewMode_ = (viewMode_ == ViewMode::Grid) ? ViewMode::List : ViewMode::Grid; dirty_ = true; return; }
                 if (px > w - 280) {
-                    searchActive_ = !searchActive_;
-                    if (searchActive_) SDL_StartTextInput();
-                    else { SDL_StopTextInput(); searchQuery_.clear(); updateVisibleBooks(); }
+                    toggleSearch();
                     return;
                 }
             }
@@ -881,7 +1020,7 @@ private:
             int idx = bmOffset_ + clickedRow;
             if (idx >= 0 && idx < static_cast<int>(p.bookmarks.size())) {
                 bmSelected_ = idx;
-                currentPage_ = std::clamp(p.bookmarks[idx].page, 0, std::max(0, pageCount_ - 1));
+                currentPage_ = resolveBookmark(p.bookmarks[idx]);
                 screen_ = ScreenState::Reader;
                 toolbarVisible_ = false;
                 saveCurrentPosition();
@@ -961,8 +1100,9 @@ private:
         if (screen_ == ScreenState::Reader) {
             if (!px_document_is_epub(doc_) && pdfZoom_ > 1.05f) {
                 // PDF Pan
-                pdfPanX_ = std::clamp(pdfPanX_ + dx * 40, -1000, 1000);
-                pdfPanY_ = std::clamp(pdfPanY_ + dy * 40, -1000, 1000);
+                pdfPanX_ += dx * 40;
+                pdfPanY_ += dy * 40;
+                clampPdfPan();
                 dirty_ = true;
             } else {
                 if (dx > 0) turnPage(1);
@@ -1042,6 +1182,15 @@ private:
         bool pad = (e.type == SDL_CONTROLLERBUTTONDOWN);
         int key = pad ? e.cbutton.button : e.key.keysym.sym;
         auto match = [&](int k, int p) { return pad ? (key == p) : (key == k); };
+        if (!pad && searchActive_ && key != SDLK_ESCAPE) {
+            if (key == SDLK_BACKSPACE && !searchQuery_.empty()) {
+                std::size_t pos = searchQuery_.size() - 1;
+                while (pos > 0 && (static_cast<unsigned char>(searchQuery_[pos]) & 0xc0) == 0x80) --pos;
+                searchQuery_.resize(pos);
+                updateVisibleBooks();
+            }
+            return;
+        }
 
         if (match(SDLK_ESCAPE, SDL_CONTROLLER_BUTTON_B)) {
             if (screen_ == ScreenState::AaModal || screen_ == ScreenState::TocModal || screen_ == ScreenState::BookmarksModal) {
@@ -1076,7 +1225,7 @@ private:
             } else if (screen_ == ScreenState::BookmarksModal) {
                 auto p = progressStore_.get(currentBookId_);
                 if (!p.bookmarks.empty() && bmSelected_ >= 0 && bmSelected_ < static_cast<int>(p.bookmarks.size())) {
-                    currentPage_ = std::clamp(p.bookmarks[bmSelected_].page, 0, std::max(0, pageCount_ - 1));
+                    currentPage_ = resolveBookmark(p.bookmarks[bmSelected_]);
                     screen_ = ScreenState::Reader;
                     toolbarVisible_ = false;
                     saveCurrentPosition();
@@ -1100,6 +1249,16 @@ private:
             return;
         }
 
+        if (screen_ == ScreenState::Reader) {
+            if (match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) { turnPage(1); return; }
+            if (match(SDLK_PAGEUP, SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) { turnPage(-1); return; }
+            if (!px_document_is_epub(doc_)) {
+                if (!pad && (key == SDLK_EQUALS || key == SDLK_PLUS)) { zoomPdf(pdfZoom_ + 0.25f); return; }
+                if (!pad && key == SDLK_MINUS) { zoomPdf(pdfZoom_ - 0.25f); return; }
+                if (match(SDLK_0, SDL_CONTROLLER_BUTTON_RIGHTSTICK)) { zoomPdf(1.0f); return; }
+            }
+            if (match(SDLK_b, SDL_CONTROLLER_BUTTON_BACK)) { screen_ = ScreenState::BookmarksModal; dirty_ = true; return; }
+        }
         // Page turns
         if (match(SDLK_RIGHT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) {
             handleDirectional(1, 0);
@@ -1135,10 +1294,20 @@ private:
             if (match(SDLK_EQUALS, -1)) reflowEpub(currentFontSize_ + 2);
             if (match(SDLK_MINUS, -1)) reflowEpub(currentFontSize_ - 2);
         } else if (screen_ == ScreenState::Library) {
+            if (match(SDLK_f, SDL_CONTROLLER_BUTTON_LEFTSTICK) && !visibleBooks_.empty()) {
+                auto p = progressStore_.get(visibleBooks_[selectedBookIdx_].id);
+                p.favorite = !p.favorite;
+                progressStore_.put(visibleBooks_[selectedBookIdx_].id, p);
+                progressDirty_ = true; updateVisibleBooks();
+            }
+            if (match(SDLK_PAGEUP, SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) {
+                category_ = static_cast<Category>((static_cast<int>(category_) + 5) % 6); updateVisibleBooks();
+            }
+            if (match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) {
+                category_ = static_cast<Category>((static_cast<int>(category_) + 1) % 6); updateVisibleBooks();
+            }
             if (match(SDLK_x, SDL_CONTROLLER_BUTTON_X)) {
-                searchActive_ = !searchActive_;
-                if (searchActive_) SDL_StartTextInput();
-                else { SDL_StopTextInput(); searchQuery_.clear(); updateVisibleBooks(); }
+                toggleSearch();
             }
             if (match(SDLK_y, SDL_CONTROLLER_BUTTON_Y)) openBrowser();
             if (match(SDLK_t, -1)) { currentTheme_ = (currentTheme_ + 1) % g_paletteCount; dirty_ = true; }
@@ -1149,7 +1318,9 @@ private:
         }
 
         if (!pad && key == SDLK_BACKSPACE && searchActive_ && !searchQuery_.empty()) {
-            searchQuery_.pop_back();
+            std::size_t pos = searchQuery_.size() - 1;
+            while (pos > 0 && (static_cast<unsigned char>(searchQuery_[pos]) & 0xc0) == 0x80) --pos;
+            searchQuery_.resize(pos);
             updateVisibleBooks();
         }
     }
@@ -1201,6 +1372,7 @@ private:
         typography_->renderText(renderer_, typography_->smallFont(), modeText, w - 190, 16, pal.muted);
         typography_->renderText(renderer_, typography_->smallFont(), "[SD Gözat]", w - 105, 16, pal.accent);
 
+        typography_->renderText(renderer_, typography_->smallFont(), "[Ara]", w - 275, 16, pal.accent);
         if (searchActive_) {
             typography_->renderText(renderer_, typography_->uiFont(), "Ara: " + searchQuery_ + "_", 200, 12, pal.accent, 400);
         }
