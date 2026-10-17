@@ -1,5 +1,8 @@
 #pragma once
 #include <SDL.h>
+#include "papernx/core.hpp"
+#include <cmath>
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -83,6 +86,42 @@ inline std::string generateEpubCss(int themeIdx, int fontFamily, int fontSize, i
         p.accent.r, p.accent.g, p.accent.b
     );
     return std::string(buffer);
+}
+
+inline SDL_Color readingColor(int rgb, SDL_Color fallback) {
+    return rgb < 0 ? fallback : SDL_Color{Uint8(rgb >> 16), Uint8(rgb >> 8), Uint8(rgb), 255};
+}
+inline double readingContrast(SDL_Color a, SDL_Color b) {
+    auto luminance = [](SDL_Color c) {
+        auto linear = [](int x) { double v = x / 255.0; return v <= .04045 ? v / 12.92 : std::pow((v + .055) / 1.055, 2.4); };
+        return .2126 * linear(c.r) + .7152 * linear(c.g) + .0722 * linear(c.b);
+    };
+    double x = luminance(a), y = luminance(b);
+    return (std::max(x, y) + .05) / (std::min(x, y) + .05);
+}
+inline std::string generateEpubCss(const ReaderPreferences &style) {
+    const auto &pal = g_palettes[std::clamp(style.theme, 0, 5)];
+    auto bg = readingColor(style.backgroundColor, pal.bg), fg = readingColor(style.textColor, pal.fg);
+    char css[2048];
+    // Publisher mode keeps document typography; selected page colors remain independent.
+    std::snprintf(css, sizeof css,
+        "html, body { background-color: #%02x%02x%02x !important; color: #%02x%02x%02x !important; } ",
+        bg.r, bg.g, bg.b, fg.r, fg.g, fg.b);
+    std::string result = css;
+    if (style.publisherStyles) return result;
+    std::snprintf(css, sizeof css,
+        "body { font-size: %dpx !important; line-height: %.2f !important; margin: 0 !important; padding: 0; } "
+        "p, li, blockquote, div, span, em, strong, td, th, a { color: #%02x%02x%02x !important; line-height: %.2f !important; text-align: %s !important; } "
+        "p { font-size: 1em !important; margin-top: 0; margin-bottom: %.2fem !important; text-indent: %.2fem !important; } "
+        "h1,h2,h3,h4,h5,h6 { color: #%02x%02x%02x !important; } "
+        "img,svg { max-width: 100%%; height: auto; } ",
+        style.fontSize, style.lineHeight / 100.0, fg.r, fg.g, fg.b, style.lineHeight / 100.0,
+        style.textAlign ? "left" : "justify", style.paragraphSpacing / 100.0, style.indentation / 100.0,
+        fg.r, fg.g, fg.b);
+    result += css;
+    if (style.fontFamily != 2) result += std::string("body, p, li, blockquote, span, em, strong, td, th { font-family: ") +
+        (style.fontFamily == 1 ? "sans-serif" : "serif") + " !important; }";
+    return result;
 }
 
 } // namespace papernx

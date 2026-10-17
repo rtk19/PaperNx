@@ -1,0 +1,2 @@
+[papernx-desktop:latest] sha256:f9d2cb515b99fa975d25385b0077c1f5999bdb716100f70b71d0f876dd8092ad
+[papernx-switch:latest] sha256:458dc0efcc04d3df89a3eaf28a0a6dee6d64b15b7cf1b17599abf02e103ca1b0

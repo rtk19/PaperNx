@@ -24,7 +24,7 @@ void TouchGestureTracker::reset() {
 }
 
 void TouchGestureTracker::onFingerDown(float x, float y, std::int64_t fingerId) {
-    if (!active_) {
+    if (!active_ || trackingFinger_ == fingerId) {
         active_ = true;
         trackingFinger_ = fingerId;
         startX_ = x;
@@ -50,8 +50,7 @@ GestureResult TouchGestureTracker::onFingerUp(float x, float y, std::int64_t fin
 
     currentX_ = x;
     currentY_ = y;
-    auto now = std::chrono::steady_clock::now();
-    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime_).count();
+
 
     float dx = currentX_ - startX_;
     float dy = currentY_ - startY_;
@@ -62,18 +61,18 @@ GestureResult TouchGestureTracker::onFingerUp(float x, float y, std::int64_t fin
     result.deltaX = dx;
     result.deltaY = dy;
 
-    // A swipe must have sufficient distance, horizontal dominance, and reasonably swift duration
-    if (dist > 0.08f && elapsedMs < 800) {
+    // A swipe must have sufficient distance, horizontal dominance, and no speed requirement
+    if (dist > 0.06f) {
         if (std::abs(dx) > std::abs(dy) * 1.3f) {
             result.type = (dx < 0.0f) ? GestureType::SwipeLeft : GestureType::SwipeRight;
         } else if (std::abs(dy) > std::abs(dx) * 1.3f) {
             result.type = (dy < 0.0f) ? GestureType::SwipeUp : GestureType::SwipeDown;
         }
-    } else if (dist < 0.04f && elapsedMs < 500) {
+    } else if (dist < 0.05f) {
         // Tap gesture: classify by reading touch zones
-        if (x < 0.22f) {
+        if (x < 0.30f) {
             result.type = GestureType::TapLeft;
-        } else if (x > 0.78f) {
+        } else if (x > 0.70f) {
             result.type = GestureType::TapRight;
         } else {
             result.type = GestureType::TapCenter;

@@ -1,248 +1,88 @@
+<p align="center"><img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX" width="160"></p>
+
+| **English** | [Türkçe](README.tr.md) |
+|:---:|:---:|
+
 # PaperNX
 
-### Kitaplığın Switch’inde, okuma keyfin yanında.
+A **native, fully offline EPUB/PDF reader for Nintendo Switch**, with a Turkish user interface. Built with C++17, SDL2 and MuPDF. Books and reading records stay on your microSD card; no account, server or browser engine is required.
 
-**PaperNX**, Nintendo Switch için geliştirilen, Türkçe arayüzlü ve çevrimdışı bir **EPUB/PDF okuyucu**. Kitaplarını microSD kartına ekle, kitaplığından seç ve okumaya başla. Yazı boyutunu, sayfa düzenini ve temayı kendine göre ayarla; yer imleriyle sevdiğin bölümlere dön, kaldığın yerden devam et.
+**v0.2.0-rc1 — candidate for device acceptance testing.** An earlier version was tested on a physical Switch, where save and touch issues were reported. Docker and package results for this branch are in the [test report](docs/TEST_RESULTS.md); physical Switch acceptance of this new build is **UNVERIFIED**. This is not a stable release.
 
-Kindle benzeri sade bir okuma deneyimini hedefleyen PaperNX, dokunmatik ekran ve Joy-Con/Pro Controller kontrolleri için tasarlanır. Okumak için hesap veya internet bağlantısı gerekmez.
+- EPUB: Serif/Sans/Publisher fonts, font size, line and paragraph spacing, margins, indentation and alignment; Paper, Ivory, Sepia, Slate, Dark and OLED Black presets.
+- Choose text and background colors independently using swatches or six-digit HEX values. Low-contrast combinations trigger a warning. Save a book's preferences as defaults for new books.
+- PDF: fit page, fit width, a 72 dpi reference 100% view, zoom and bounded touch panning. Original, Dark, Sepia and Invert are **whole-page filters; they also affect photographs**.
+- EPUB3 navigation, illustrations and covers; bookmarks, favorites, reading progress, per-book preferences, search and an SD file browser.
+- Six library categories, grid/list views, background cover loading, preserved cover proportions and multiline titles.
+- Existing PAPERNX-1/2/3 records remain readable; new saves use PAPERNX-4. Back up `data/` before upgrading and use that backup if reverting to an older version.
 
-> **v0.1.0-rc1 · Önizleme**
->
-> Gerçek ARM64 derlemesi ve NRO paketi üretildi; çekirdek ve masaüstü entegrasyon testleri geçti. Fiziksel Nintendo Switch testleri henüz yapılmadı: **HARDWARE: UNVERIFIED**. Bu sürüm stable v1.0 değildir. [Doğrulama durumu](docs/STATUS.md) · [Test sonuçları](docs/TEST_RESULTS.md)
+Desktop test screenshots captured from the actual application using SDL's dummy video driver (these are not Switch photographs):
 
-## PaperNX ile neler yapabilirsin?
+![EPUB appearance settings](verification/screenshots/epub-settings.png)
+![PDF settings](verification/screenshots/pdf-settings.png)
+![Library](verification/screenshots/library.png)
 
-| Özellik | Okuma deneyimi |
-|---|---|
-| **EPUB ve PDF** | Kitaplarını aynı uygulamadan aç. EPUB’da metni yeniden düzenle; PDF’de özgün sayfa görünümünü koru. |
-| **Kişisel okuma görünümü** | EPUB yazı boyutunu, Serif/Sans seçimini, satır aralığını, kenar boşluklarını ve hizalamayı değiştir. |
-| **Altı tema** | Açık kâğıt tonlarından koyu ve OLED Black görünüme geç. |
-| **Kapaklı kitaplık** | Izgara veya liste görünümünde gez; favorilerini ve son okuduklarını bul. |
-| **Türkçe arama** | Kitap adı, yazar veya dosya adıyla ara; Türkçe karakterleri kullan. |
-| **Kaldığın yerden devam** | Okuma ilerlemeni ve kitap ayarlarını sakla; birden fazla yer imi oluştur. |
-| **İçindekiler** | Belgenin sunduğu bölüm listesinden istediğin bölüme geç. |
-| **PDF yakınlaştırma** | Sayfayı ekrana sığdır, 1–5× yakınlaştır ve sayfa üzerinde gezin. |
-| **SD kart gezgini** | Ana kitap klasörünün dışındaki EPUB/PDF dosyalarını da seçerek aç. |
+## SD installation / upgrade
 
-EPUB içindeki resim ve çizimler görüntülenir. Kapak bilgisi varsa gerçek kapak çıkarılır; kapak bulunamazsa ilk sayfa veya yedek görünüm kullanılır.
-
-## Kurulum ve ilk kitap
-
-PaperNX, **homebrew çalıştırabilen bir Nintendo Switch ortamı** gerektirir.
-
-1. Önizleme ZIP paketini kullanıyorsan içeriğini microSD kartının köküne çıkar. Kaynaktan derliyorsan oluşturulan `PaperNX.nro` dosyasını aşağıdaki konuma kopyala.
-2. `.epub` ve `.pdf` kitaplarını `switch/PaperNX/books/` klasörüne koy. Alt klasörler de taranır.
-3. Homebrew Menu üzerinden **PaperNX** uygulamasını aç.
-4. Yön tuşlarıyla bir kitap seçip **A**’ya bas veya dokunmatik ekranda kapağına dokun.
-5. Kitabı açtıktan sonra **+ (Plus)** ile okuma görünümünü ayarla.
+1. Use a Switch capable of running homebrew. Merge the `switch/` folder from `dist/PaperNX-switch-v0.2.0-rc1.zip` into the root of your microSD card.
+2. Add books under `switch/PaperNX/books/`, or open another folder using **SD Gözat** (Browse SD).
+3. Launch PaperNX from Homebrew Menu and tap a book cover.
 
 ```text
-microSD/
-└── switch/
-    └── PaperNX/
-        ├── PaperNX.nro
-        ├── books/
-        │   ├── Roman.epub
-        │   └── Dergi.pdf
-        ├── data/
-        └── fonts/
-            ├── NotoSans-Regular.ttf
-            ├── NotoSerif-Regular.ttf
-            └── OFL.txt
+switch/PaperNX/
+  PaperNX.nro
+  books/
+  data/
+  fonts/  (NotoSans-Regular.ttf, NotoSerif-Regular.ttf, OFL.txt)
+  licenses/
 ```
 
-`data/` okuma kayıtlarını tutar; güncelleme yaparken bu klasörü koru. Gerekli klasörler açılışta oluşturulur. Noto fontları NRO’nun RomFS bölümüne de eklenir; dağıtım paketi font dosyalarını ve lisanslarını ayrıca içerir.
+Keep existing folders when upgrading. Preserve `books/`, `data/`, `logs/` and your personal fonts. The ZIP contains no books, reading records or logs; it updates only the required application, fonts and license files. SHA256 files are provided in `dist/`. Available memory is limited for large PDFs and in applet mode.
 
-Derleme çıktıları yerel `dist/` klasörüne yazılır. Henüz yayımlanmış bir binary indirme bağlantısı yoktur; kaynaktan üretmek için [Switch derleme rehberini](docs/BUILD_SWITCH.md) kullanabilirsin.
+## Touch and controller controls
 
-## Okuma görünümünü kişiselleştir
+The application currently uses Turkish interface labels; their English meanings are included below where useful.
 
-**Aradığın menü: kitap açıkken + (Plus) → Aa.** Dokunmatik kullanımda ekranın ortasına dokun, ardından üst sağdaki **Aa** düğmesine bas.
+| Action | Touch | Joy-Con / Pro Controller |
+|---|---|---|
+| Next/previous page | Tap the right/left 30% edge or swipe horizontally | L/R; right/left in the normal view |
+| Toolbar | Tap the center | A |
+| Settings | Tap the center → **Aa** at the top right | + |
+| Setting field / tab / value | Tap a button or tab | Y / left-right / up-down |
+| HEX color | Temalar (Themes) → Yazı HEX / Zemin HEX (Text / Background HEX) | Themes, Y to select a color field, up/down |
+| Add/open bookmark | Toolbar → Yer İmi (Bookmark) → bottom button / list entry | Y to add/remove; Minus to list |
+| Table of contents | Toolbar → İçindekiler (Contents) → chapter | X, directions, A |
+| PDF zoom / pan | −/+ in Aa; drag the zoomed page | ZL/ZR; left stick |
+| Return to library | Toolbar → Kitaplık (Library) | B |
+| Search / SD browser | Ara / SD Gözat at the top (Search / Browse SD) | X / Y |
+| Favorite | + / F at the bottom right of a book card | Left stick click |
+| Scroll a list | Swipe up/down | Directions / stick |
 
-EPUB için Aa menüsünde dört sekme bulunur: **Tipografi · Düzen · Temalar · Kontroller**.
+Choose 20%, 30% or 40% touch edges in Aa → Kontroller (Controls). Pinch zoom depends on SDL multitouch events and is **UNVERIFIED** on physical Switch hardware; −/+ buttons provide an alternative. On desktop, press Enter to apply a HEX value or Esc to cancel.
 
-| Aa menüsünde | Kontrol |
-|---|---|
-| Sekme değiştir | **← / →** |
-| Ayarlanacak alanı seç | **Y** |
-| Seçili değeri değiştir | **↑ / ↓** |
-| Menüyü kapat, okumaya dön | **B** veya **A** |
+## Local Docker verification
 
-Menünün altındaki **Alan** bilgisi, hangi ayarı değiştirdiğini gösterir. Dokunmatik ekranda sekmelere ve ayar düğmelerine doğrudan dokunabilirsin.
-
-### Arka plan ve yazı rengini değiştirme
-
-1. Kitap açıkken **+** tuşuna bas.
-2. **← / →** ile **Temalar** sekmesine geç.
-3. **↑ / ↓** ile istediğin temayı seç veya renk örneğine dokun.
-4. **B** ile okumaya dön.
-
-| Tema | Görünüm |
-|---|---|
-| **Paper** | Açık kâğıt tonu |
-| **Ivory** | Sıcak fildişi tonu |
-| **Sepia** | Sepya okuma görünümü |
-| **Slate** | Serin gri arka plan, koyu yazı |
-| **Dark** | Koyu arka plan, açık yazı |
-| **OLED Black** | Siyah arka plan, açık yazı |
-
-**Arka plan ve yazı rengi tema olarak birlikte değişir.** Ayrı ayrı serbest renk seçimi mevcut değildir. Karanlık bir görünüm istiyorsan **Dark** veya **OLED Black** seç.
-
-### Yazı boyutu ve font seçimi
-
-1. **+ → Tipografi** sekmesini aç.
-2. **Boyut** alanında **↑** ile yazıyı büyüt, **↓** ile küçült.
-3. **Y** ile **Yazı tipi** alanına geç.
-4. **↑ / ↓** ile **Serif** ve **Sans** arasında geçiş yap.
-
-Serif, kitap hissi veren tırnaklı yazı tipidir; Sans daha sade, tırnaksız bir görünüm sunar. Dokunmatik kullanımda boyut için **− / +**, yazı tipi için **Serif / Sans** düğmesini kullan.
-
-### Satır aralığı, kenar boşlukları ve hizalama
-
-**+ → Düzen** sekmesinde **Y** ile sırasıyla **Satır aralığı**, **Kenar boşluğu** ve **Hizalama** alanları arasında geç. Seçtiğin alanı **↑ / ↓** ile değiştir.
-
-Dokunmatik ekranda sunulan değerleri ve **İki Yana / Sola** hizalama seçeneklerini doğrudan seçebilirsin. EPUB yeni düzene göre yeniden sayfalanır; aynı bölümde önceki konumuna yaklaşık olarak dönülür. Toplam sayfa sayısının değişmesi normaldir.
-
-### PDF görünümü
-
-PDF’de **+**, ayrı bir **PDF Görünüm** menüsü açar:
-
-- **← / →:** yakınlaştırmayı azalt/artır.
-- **↑ / ↓:** arayüz temasını değiştir.
-- **Y:** sayfayı ekrana sığdır.
-- **B / A:** menüyü kapat.
-
-Okuma sırasında **ZL / ZR** ile de küçültüp büyütebilirsin. Yakınlaştırılmış sayfada **sol analog çubuk**, yön tuşları veya **dokunarak sürükleme** ile gezin. **Sağ analog çubuğa basmak** sayfayı ekrana sığdırır. Sayfa değişince yakınlaştırma korunur, kaydırma konumu başlangıca döner.
-
-**PDF’nin kendi fontu, yazı boyutu ve sayfa renkleri değiştirilmez.** EPUB ayarları PDF içeriğini yeniden biçimlendirmez. İki parmakla yakınlaştırma SDL çoklu dokunma olayı sağlandığında işlenir; Switch üzerinde cihaz doğrulaması bekler.
-
-## Kitaplığını kullan
-
-- **Izgara / liste:** kütüphanede **− (Minus)** tuşuna bas veya üstteki görünüm düğmesine dokun.
-- **Kategoriler:** **L / R** ile tüm kitaplar, favoriler, okumaya devam, son okunanlar, okunmamış ve biten kitaplar arasında geç. Ekrandaki kategoriye de dokunabilirsin.
-- **Favoriler:** kitabı seçip **sol analog çubuğa bas**; yeniden basarak favorilerden çıkar.
-- **Arama:** **X**’e bas; kitap adı, yazar veya dosya adı gir. Switch için yerel yazılım klavyesi entegredir. `İ ı I i Ş ş Ğ ğ Ü ü Ö ö Ç ç` gibi Türkçe karakterler desteklenir.
-- **SD gezgini:** **Y** ile dosya gezginini aç. Klasör veya kitap seçip **A**’ya bas; **B** ile üst klasöre dön.
-
-Başlık ve yazar bilgileri kitap açıldığında belge metadatasından güncellenir. SD gezgininden açılan kitaplar da yol ve metadata bilgileriyle kitaplık kaydına alınır.
-
-## Kontroller
-
-Aşağıdaki tablolar uygulamadaki Switch düğme eşlemesini anlatır. Fiziksel Joy-Con/Pro Controller ve dokunmatik davranışlarının cihaz üzerindeki testleri henüz tamamlanmamıştır.
-
-### Kütüphane
-
-| Tuş | İşlev |
-|---|---|
-| **Yön tuşları / sol analog** | Kitap seç |
-| **A** | Seçili kitabı aç |
-| **X** | Ara |
-| **Y** | SD kart gezginini aç |
-| **− (Minus)** | Izgara / liste görünümü |
-| **L / R** | Önceki / sonraki kategori |
-| **Sol analog çubuğa bas** | Favori ekle / kaldır |
-| **B** | Uygulamadan çık |
-
-### Okuyucu
-
-| Tuş | İşlev |
-|---|---|
-| **L / R** | Önceki / sonraki sayfa |
-| **← / → veya sol analog** | Sayfa değiştir; yakınlaştırılmış PDF’de kaydır |
-| **A** | Üst ve alt araç çubuklarını göster / gizle |
-| **+ (Plus)** | Aa / PDF görünüm ayarları |
-| **X** | İçindekiler |
-| **Y** | Geçerli konuma yer imi ekle / kaldır |
-| **− (Minus)** | Yer imleri listesi |
-| **ZL / ZR** | PDF’de küçült / büyüt |
-| **Sağ analog çubuğa bas** | PDF’yi sayfaya sığdır |
-| **B** | Kitaplığa dön |
-
-İçindekiler ve yer imleri listelerinde **↑ / ↓** ile seç, **A** ile git, **B** ile kapat. Menü kapatmak tek başına okuma konumunu değiştirmez.
-
-### Dokunmatik kullanım
-
-| Hareket | İşlev |
-|---|---|
-| Kitap kapağına veya liste satırına dokun | Kitabı aç |
-| Okuma ekranının sol / sağ kenarına dokun | Önceki / sonraki sayfa |
-| Ekranın ortasına dokun | Araç çubuğunu göster / gizle |
-| Üst çubuktaki **Aa** | Görünüm ayarlarını aç |
-| Üst çubuktaki **İçindekiler / Yer İmi** | İlgili listeyi aç |
-| Alt çubuktaki ilerleme çizgisine dokun | Kitapta farklı bir konuma git |
-| Yakınlaştırılmış PDF’yi sürükle | Sayfayı kaydır |
-
-Araç çubuğu açıkken orta alana dokunmak çubuğu kapatır. Sayfa çevirmek için kenar dokunuşunu çubuk kapalıyken kullan.
-
-### Masaüstü klavye kısayolları
-
-| Tuş | İşlev |
-|---|---|
-| **Enter / Esc** | A / B karşılığı |
-| **Yön tuşları** | Seçim, sayfa, menü ayarları veya PDF kaydırma |
-| **PageUp / PageDown** | Önceki / sonraki sayfa; kütüphanede kategori |
-| **X / Y** | İlgili ekrandaki X / Y işlevi |
-| **F** | Kütüphanede favori |
-| **−** | Kütüphanede ızgara / liste; PDF’de küçültme |
-| **+** | EPUB’da Aa menüsü; PDF okurken yakınlaştırma |
-| **B harfi** | Okuyucuda yer imleri listesi |
-| **0** | PDF’yi sayfaya sığdır |
-| **Backspace** | Aramada son karakteri sil |
-
-Buradaki **B harfi**, Switch’teki geri düğmesiyle aynı işlevde değildir; masaüstünde geri/kapat için **Esc** kullan. Klavyeden `+` üretmek düzenine göre **Shift** gerektirebilir. PDF görünüm menüsüne fare/dokunmatik ile üstteki **Aa** düğmesinden de ulaşabilirsin.
-
-## Kayıtlar ve bilinen sınırlar
-
-Okuma ilerlemesi, yer imleri ve kitap görünüm ayarları `data/` altında saklanır. Değişiklikler aralıklarla kaydedilir; yazma başarısız olursa uygulama hata bildirir ve yeniden dener. Kayıtlar checksum ile denetlenir, kesintiye uğramış yazmalarda yedeklerden kurtarma denenir. Güncelleme öncesi `data/` klasörünün yedeğini almak kayıtlarını korumana yardımcı olur.
-
-- EPUB konumu bölüm ve bölüm içindeki oranla saklanır. Font veya sayfa düzeni değişince aynı metne dönüş yaklaşık olabilir.
-- Kitap dosyasını taşımak veya yeniden adlandırmak mevcut ilerleme kaydıyla eşleşmesini değiştirebilir.
-- DRM ve parola korumalı belgeler desteklenmez. EPUB içindeki script, video ve etkileşimli içerikler çalıştırılmaz.
-- Uygulamadaki arama **kitaplık aramasıdır**; kitap içi tam metin araması veya OCR mevcut değildir.
-- Uyku/uyanma, handheld/docked, yazılım klavyesi ve fiziksel kontrolcü davranışları için [cihaz test matrisi](docs/DEVICE_TEST_PLAN.md) henüz tamamlanmamıştır.
-
-Diğer sınırlar: [bilinen sorunlar](docs/KNOWN_ISSUES.md).
-
-## Kısaca teknoloji
-
-PaperNX, **C++17** ile yazılmış yerel bir uygulamadır. **SDL2 / SDL2_ttf** arayüzü ve yazıları, **MuPDF 1.23.11 C API** EPUB/PDF içeriğini işler. Nintendo Switch hedefinde **devkitA64 ve libnx** kullanılır. Tarayıcı, WebView veya HTTP sunucusu çalıştırmaz; kitap okuma tamamen cihaz üzerinde gerçekleşir.
-
-Teknik ayrıntılar: [mimari](docs/ARCHITECTURE.md) · [Switch derlemesi](docs/BUILD_SWITCH.md) · [sürüm raporu](docs/RELEASE_REPORT.md).
-
-## Geliştirme ve doğrulama
-
-Yerel Docker ortamı çekirdek, SDL2/MuPDF masaüstü ve gerçek Switch çapraz derlemeleri için kullanılır:
-
-```bash
+```sh
 docker version
 docker info
 docker compose version
 docker compose build desktop switch
-docker compose run --rm desktop
-docker compose run --rm desktop bash scripts/verify-pinned-desktop.sh
-docker compose run --rm desktop bash scripts/verify-sanitizers.sh
-docker compose run --rm switch
+docker compose run --rm desktop bash scripts/verify-final.sh
+docker compose run --rm switch bash scripts/verify-switch.sh
 ```
 
-`desktop` çekirdek/paketleme testlerini ve tam masaüstü uygulamasını derler, üç CTest testini çalıştırır. Ek betikler sabitlenmiş MuPDF 1.23.11 ve ASan/UBSan doğrulamasını çalıştırır. `switch` ARM64 MuPDF ile uygulamayı derler; ELF, NRO, NACP, RomFS ve paket bütünlüğünü kontrol eder. Loglar `verification/`, paketler `dist/` altında kalır.
+The recorded verification used existing local `papernx-desktop` and `papernx-switch` images; the [verification report](docs/TEST_RESULTS.md) lists the exact commands executed. Checks cover the MuPDF 1.23.11 source SHA256, native tests, ASan/UBSan, genuine AArch64 ELF/NRO output, ASET/NACP/RomFS/fonts and embedded icon bytes. Build tools may require network access; the application operates offline.
 
-Docker dışında çekirdek testleri:
+If saving fails, `switch/PaperNX/logs/papernx.log` records the operation, path, errno, native Result and recovery-copy status. Identical errors are not repeatedly reported; retries use a 6–60 second backoff. Temporarily enable touch logging in Aa → Kontroller, or create `data/touch-debug.flag`. Disable it after testing.
 
-```bash
-cmake -S . -B build-core -G Ninja -DBUILD_TESTING=ON
-cmake --build build-core --parallel
-ctest --test-dir build-core --output-on-failure
-python3 tests/test_package.py
-```
+[Device test plan](docs/DEVICE_TEST_PLAN.md) · [Technical changes](docs/READER_V2.md) · [Switch build guide](docs/BUILD_SWITCH.md)
 
-Masaüstü derlemesini başlatmak için:
+## Branding and social preview
 
-```bash
-./build-desktop/PaperNX ./PaperNX-data
-```
+The four user-provided assets are preserved under `assets/branding/`. The NRO uses `PaperNX-icon-switch.jpg`; this README displays `PaperNX-icon-512.png`. The GitHub social graphic is ready, but the repository setting has not been changed (**UNVERIFIED**): open repository **Settings → General → Social preview → Edit → Upload an image**, select `assets/branding/PaperNX-github-social.png` and save.
 
-PR’larda ilgili kaynak değişiklikleri için çekirdek/paketleme ve masaüstü testleri çalışır. Switch işi aynı depodaki PR’a `switch-build` etiketi eklenmesiyle veya manuel `workflow_dispatch` ve `confirm=BUILD` ile istenir. Gerçekleştirilmiş testlerin sonuçları ve kapsamı [TEST_RESULTS](docs/TEST_RESULTS.md) dosyasındadır. Main’e birleştirme, fiziksel cihaz doğrulaması veya stable sürüm onayı yerine geçmez.
+## License
 
-## Lisans
+PaperNX and MuPDF are licensed under **AGPL-3.0**; Noto fonts use the **SIL Open Font License**. See [LICENSE](LICENSE) and the [license guide](docs/LICENSES.md) for source-distribution obligations and dependency notices.
 
-PaperNX ve MuPDF **AGPL-3.0**, Noto fontları **SIL Open Font License** kapsamındadır. Paket kaynak/lisans yükümlülükleri ve bağımlılık bildirimleri için [LICENSE](LICENSE) ve [lisans rehberine](docs/LICENSES.md) bak.
+EPUB continuous scrolling is available in the v0.3 development candidate. See [controls, implementation and validation](docs/EPUB_CONTINUOUS_SCROLL.md).

@@ -171,6 +171,26 @@ int main(int argc, char **argv) {
         assert(hash_pdf0 != hash_zoom);
         px_image_free(&pdf_zoom);
 
+        // Viewport allocation stays bounded even at maximum zoom/extreme pan.
+        PxImage bounded = {0};
+        assert(px_document_render_view(pdf, 0, 5, 1000000, 1000000, 640, 480, &bounded, err, sizeof err));
+        assert(bounded.width == 640 && bounded.height == 480 && bounded.stride == 640 * 3);
+        const uint64_t original = fnv1a_hash(bounded.rgb, (size_t)bounded.stride * bounded.height);
+        px_image_filter(&bounded, 0);
+        assert(original == fnv1a_hash(bounded.rgb, (size_t)bounded.stride * bounded.height));
+        px_image_filter(&bounded, 3); px_image_filter(&bounded, 3);
+        assert(original == fnv1a_hash(bounded.rgb, (size_t)bounded.stride * bounded.height));
+        px_image_free(&bounded);
+        uint64_t filters[3];
+        for (int mode = 0; mode < 3; ++mode) {
+            assert(px_document_render_view(pdf, 0, 1, 0, 0, 640, 480, &bounded, err, sizeof err));
+            px_image_filter(&bounded, mode);
+            filters[mode] = fnv1a_hash(bounded.rgb, (size_t)bounded.stride * bounded.height);
+            px_image_free(&bounded);
+        }
+        assert(filters[0] != filters[1] && filters[0] != filters[2] && filters[1] != filters[2]);
+        assert(px_document_render_view(pdf, 0, .5f, 0, 0, 640, 480, &bounded, err, sizeof err));
+        px_image_free(&bounded);
         // PDF TOC
         PxTocEntry pdf_toc[8];
         int pdf_toc_count = px_document_toc(pdf, pdf_toc, 8);

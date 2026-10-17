@@ -35,6 +35,7 @@ void px_document_close(PxDocument *doc);
 int px_document_render(PxDocument *doc, int page, int max_width, int max_height, PxImage *image, char *error, int capacity);
 int px_document_render_view(PxDocument *doc, int page, float zoom, int view_x, int view_y, int view_w, int view_h, PxImage *image, char *error, int capacity);
 int px_document_render_thumbnail(PxDocument *doc, int max_w, int max_h, PxImage *image, char *error, int capacity);
+void px_image_filter(PxImage *image, int mode);
 void px_image_free(PxImage *image);
 
 // Versioned chapter/fraction locations; approximate after layout changes.
@@ -46,6 +47,10 @@ int px_document_from_location(PxDocument *doc, int chapter, int p);
 // Table of Contents (Outline)
 int px_document_toc(PxDocument *doc, PxTocEntry *entries, int max_entries);
 
+// Unpaginated chapter strips and persistent logical positions.
+int px_document_render_tile(PxDocument *, int page, int y, int width, int height, PxImage *, char *, int);
+int px_document_anchor(PxDocument *, int page, float y, int *chapter, int *character, double *offset);
+int px_document_restore_anchor(PxDocument *, int chapter, int character, double offset, int *page, float *y);
 #ifdef __cplusplus
 }
 #endif

@@ -10,6 +10,9 @@
 #include <sstream>
 #include <system_error>
 #include <cstdio>
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 #ifndef _WIN32
 #include <unistd.h>
 #include <fcntl.h>
@@ -96,7 +99,7 @@ bool parseSafeDouble(const std::string &s, double &out) {
 
 std::string payloadV3(const std::map<std::string, Progress> &records) {
     std::ostringstream out;
-    out << "PAPERNX-3\n";
+    out << "PAPERNX-5\n";
     for (const auto &[id, p] : records) {
         if (id.size() > 128 || id.find_first_of("\t\r\n") != std::string::npos) continue;
         out << id << '\t'
@@ -118,7 +121,12 @@ std::string payloadV3(const std::map<std::string, Progress> &records) {
             out << '\t' << bm.page << '\t' << bm.timestamp << '\t'
                 << bm.muBookmark << '\t' << escapeString(bm.title);
         }
-        out << '\t' << escapeString(p.bookPath) << '\t' << escapeString(p.bookTitle) << '\t' << escapeString(p.bookAuthor) << '\n';
+        out << '\t' << escapeString(p.bookPath) << '\t' << escapeString(p.bookTitle) << '\t' << escapeString(p.bookAuthor)
+            << '\t' << p.textColor << '\t' << p.backgroundColor << '\t' << p.paragraphSpacing
+            << '\t' << p.indentation << '\t' << p.touchZone << '\t' << p.publisherStyles
+            << '\t' << p.pdfColorMode << '\t' << p.pdfViewMode << '\t' << p.readingMode << '\t' << p.modeOverride
+            << '\t' << p.scrollSensitivity << '\t' << p.scrollInertia
+            << '\t' << p.anchorChapter << '\t' << p.anchorCharacter << '\t' << p.anchorOffset << '\n';
     }
     return out.str();
 }
@@ -368,12 +376,24 @@ void ProgressStore::put(const std::string &id, Progress p) {
     p.page = std::max(0, p.page);
     p.pageCount = std::max(0, p.pageCount);
     p.fraction = std::isfinite(p.fraction) ? std::clamp(p.fraction, 0.0, 1.0) : 0.0;
+    p.readingMode=std::clamp(p.readingMode,0,1);
+    p.modeOverride=std::clamp(p.modeOverride,0,1);
+    p.scrollSensitivity=std::clamp(p.scrollSensitivity,50,200);
+    p.scrollInertia=std::clamp(p.scrollInertia,0,1);
     p.fontSize = std::clamp(p.fontSize, 12, 48);
     p.theme = std::clamp(p.theme, 0, 5);
     p.lineHeight = std::clamp(p.lineHeight, 100, 220);
     p.margin = std::clamp(p.margin, 10, 120);
     p.textAlign = std::clamp(p.textAlign, 0, 1);
-    p.fontFamily = std::clamp(p.fontFamily, 0, 1);
+    p.fontFamily = std::clamp(p.fontFamily, 0, 2);
+    p.textColor = std::clamp(p.textColor, -1, 0xffffff);
+    p.backgroundColor = std::clamp(p.backgroundColor, -1, 0xffffff);
+    p.paragraphSpacing = std::clamp(p.paragraphSpacing, 0, 200);
+    p.indentation = std::clamp(p.indentation, 0, 200);
+    p.touchZone = std::clamp(p.touchZone, 20, 40);
+    p.publisherStyles = std::clamp(p.publisherStyles, 0, 1);
+    p.pdfColorMode = std::clamp(p.pdfColorMode, 0, 3);
+    p.pdfViewMode = std::clamp(p.pdfViewMode, 0, 2);
     p.bookPath = utf8SafeTruncate(p.bookPath, 4096);
     p.bookTitle = utf8SafeTruncate(p.bookTitle, 1024);
     p.bookAuthor = utf8SafeTruncate(p.bookAuthor, 1024);
@@ -414,7 +434,7 @@ bool ProgressStore::load() {
 
         std::map<std::string, Progress> restored;
 
-        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3") {
+        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3" || versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") {
             std::string line;
             while (std::getline(rows, line)) {
                 if (line.empty()) continue;
@@ -447,11 +467,11 @@ bool ProgressStore::load() {
                              parseSafeInt(tokens[14], bmCount);
 
                 if (!valid || bmCount < 0 || bmCount > 1024 ||
-                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + (versionLine == "PAPERNX-3" ? 3 : 0) ||
+                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") ? (versionLine == "PAPERNX-5" ? 18 : 11) : versionLine == "PAPERNX-3" ? 3 : 0) ||
                     p.page < 0 || p.pageCount < 0 || p.fraction < 0 || p.fraction > 1 ||
                     p.fontSize < 12 || p.fontSize > 48 || p.theme < 0 || p.theme > 5 || fav < 0 || fav > 1 ||
                     p.lineHeight < 100 || p.lineHeight > 220 || p.margin < 10 || p.margin > 120 ||
-                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > 1) continue;
+                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") ? 2 : 1)) continue;
                 p.favorite = (fav != 0);
 
                 std::size_t cursor = 15;
@@ -469,11 +489,30 @@ bool ProgressStore::load() {
                     p.bookmarks.push_back(std::move(bm));
                 }
 
-                if (versionLine == "PAPERNX-3" && bookmarksValid) {
+                if ((versionLine == "PAPERNX-3" || (versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5")) && bookmarksValid) {
                     p.bookPath = unescapeString(tokens[cursor++]);
                     p.bookTitle = unescapeString(tokens[cursor++]);
                     p.bookAuthor = unescapeString(tokens[cursor++]);
                     if (p.bookPath.size() > 4096 || p.bookTitle.size() > 1024 || p.bookAuthor.size() > 1024) continue;
+                }
+                if ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") && bookmarksValid) {
+                    if (!parseSafeInt(tokens[cursor++], p.textColor) || !parseSafeInt(tokens[cursor++], p.backgroundColor) ||
+                        !parseSafeInt(tokens[cursor++], p.paragraphSpacing) || !parseSafeInt(tokens[cursor++], p.indentation) ||
+                        !parseSafeInt(tokens[cursor++], p.touchZone) || !parseSafeInt(tokens[cursor++], p.publisherStyles) ||
+                        !parseSafeInt(tokens[cursor++], p.pdfColorMode) || !parseSafeInt(tokens[cursor++], p.pdfViewMode) ||
+                        p.textColor < -1 || p.textColor > 0xffffff || p.backgroundColor < -1 || p.backgroundColor > 0xffffff ||
+                        p.paragraphSpacing < 0 || p.paragraphSpacing > 200 || p.indentation < 0 || p.indentation > 200 ||
+                        p.touchZone < 20 || p.touchZone > 40 || p.publisherStyles < 0 || p.publisherStyles > 1 ||
+                        p.pdfColorMode < 0 || p.pdfColorMode > 3 || p.pdfViewMode < 0 || p.pdfViewMode > 2) continue;
+                }
+                if (versionLine == "PAPERNX-5" && bookmarksValid) {
+                    if (!parseSafeInt(tokens[cursor++], p.readingMode) || !parseSafeInt(tokens[cursor++], p.modeOverride) ||
+                        !parseSafeInt(tokens[cursor++], p.scrollSensitivity) || !parseSafeInt(tokens[cursor++], p.scrollInertia) ||
+                        !parseSafeInt(tokens[cursor++], p.anchorChapter) || !parseSafeInt(tokens[cursor++], p.anchorCharacter) ||
+                        !parseSafeDouble(tokens[cursor++], p.anchorOffset) || p.readingMode < 0 || p.readingMode > 1 ||
+                        p.modeOverride < 0 || p.modeOverride > 1 || p.scrollSensitivity < 50 || p.scrollSensitivity > 200 ||
+                        p.scrollInertia < 0 || p.scrollInertia > 1 || p.anchorChapter < -1 || p.anchorCharacter < -1 ||
+                        !std::isfinite(p.anchorOffset) || p.anchorOffset < -4 || p.anchorOffset > 4) continue;
                 }
                 if (bookmarksValid && id.size() == 16 && p.page >= 0 && std::isfinite(p.fraction)) {
                     restored[id] = p;
@@ -524,60 +563,107 @@ bool ProgressStore::load() {
     return readFile(temp);
 }
 
-bool ProgressStore::save() const {
+bool ProgressStore::save() const { return save(SaveOptions{}); }
+
+bool ProgressStore::save(const SaveOptions &options) const {
+    saveDiagnostic_.clear();
     std::error_code ec;
+    const fs::path temp = path_.string() + ".tmp", backup = path_.string() + ".bak", old = path_.string() + ".bak.old";
+    auto read = [](const fs::path &p) {
+        std::error_code e;
+        const auto size = fs::file_size(p, e);
+        if (e || size > 8 * 1024 * 1024) return std::string{};
+        std::ifstream in(p, std::ios::binary);
+        return std::string((std::istreambuf_iterator<char>(in)), {});
+    };
+    auto valid = [&](const fs::path &p) {
+        const auto bytes = read(p);
+        const auto split = bytes.find('\n');
+        return split != std::string::npos && bytes.substr(0, split) == "CHECKSUM=" + hex(fnv1a(bytes.substr(split + 1)));
+    };
+    auto nativeError = []() -> unsigned {
+#ifdef __SWITCH__
+        return fsdevGetLastResult();
+#else
+        return 0;
+#endif
+    };
+    auto fail = [&](const char *op, const fs::path &p, int error, unsigned native = 0) {
+        const std::error_code code(error ? error : EIO, std::generic_category());
+        std::ostringstream msg;
+        msg << "save path=" << p.string() << " operation=" << op << " errno=" << error
+            << " error_code=" << code.value() << " message=" << code.message()
+            << " platform_result=0x" << std::hex << native << std::dec
+            << " primary_valid=" << valid(path_) << " backup_valid=" << valid(backup)
+            << " temp_valid=" << valid(temp) << " retry_possible=1";
+        saveDiagnostic_ = msg.str();
+        return false;
+    };
+    auto injected = [&](const char *op) { return options.fault ? options.fault(op) : 0; };
+    auto writeVerified = [&](const fs::path &p, const std::string &bytes, const char *operation) {
+        int err = injected(operation);
+        if (err) return fail(operation, p, err);
+        FILE *out = std::fopen(p.string().c_str(), "wb");
+        if (!out) return fail("open", p, errno, nativeError());
+        const char *failed = nullptr;
+        unsigned native = 0;
+        auto record = [&](const char *op) { if (!failed) { failed = op; err = errno; native = nativeError(); } };
+        if (int fault = injected("write")) { errno = fault; record("write"); }
+        else if (std::fwrite(bytes.data(), 1, bytes.size(), out) != bytes.size()) record("write");
+        if (std::fflush(out) != 0) record("fflush");
+        if (int fault = injected("fflush")) { errno = fault; record("fflush"); }
+        const int syncFault = injected("fsync");
+        if (syncFault) { errno = syncFault; record("fsync"); }
+#ifdef _WIN32
+        else if (_commit(_fileno(out)) != 0) record("fsync");
+#else
+        else if (fsync(fileno(out)) != 0) record("fsync");
+#endif
+        if (std::fclose(out) != 0) record("fclose");
+        if (int fault = injected("fclose")) { errno = fault; record("fclose"); }
+        // libnx fsync uses fsFileFlush. Unsupported flush is explicitly retryable, never success.
+        if (failed) return fail(failed, p, err, native);
+        if (injected("verify") || read(p) != bytes) return fail("verify", p, EIO);
+        return true;
+    };
+    if (int err = injected("create_directories")) return fail("create_directories", path_.parent_path(), err);
     if (!path_.parent_path().empty()) fs::create_directories(path_.parent_path(), ec);
-    if (ec) return false;
+    if (ec) return fail("create_directories", path_.parent_path(), ec.value(), nativeError());
+    // Preserve the only recovery copy before truncating a leftover temp file.
+    if (!valid(path_) && !valid(backup) && valid(temp)) {
+        if (!writeVerified(backup, read(temp), "recovery_copy")) return false;
+    }
     const auto data = payloadV3(records_);
     const auto encoded = "CHECKSUM=" + hex(fnv1a(data)) + "\n" + data;
-    if (encoded.size() > 8 * 1024 * 1024) return false;
-    fs::path temp = path_; temp += ".tmp";
-    FILE *out = std::fopen(temp.string().c_str(), "wb");
-    if (!out) return false;
-    bool ok = std::fwrite(encoded.data(), 1, encoded.size(), out) == encoded.size();
-    if (std::fflush(out) != 0) ok = false;
-#ifdef _WIN32
-    if (_commit(_fileno(out)) != 0) ok = false;
-#else
-    if (fsync(fileno(out)) != 0) ok = false;
-#endif
-    if (std::fclose(out) != 0) ok = false;
-    if (!ok) return false;
-    // Read back the exact bytes before modifying any recovery copy.
-    std::ifstream verify(temp, std::ios::binary);
-    const std::string actual((std::istreambuf_iterator<char>(verify)), {});
-    if (actual != encoded) return false;
-    verify.close();
-    fs::path backup = path_; backup += ".bak";
-    fs::path old = path_; old += ".bak.old";
-    auto validFile = [&](const fs::path &candidate) {
-        auto size = fs::file_size(candidate, ec);
-        if (ec || size > 8 * 1024 * 1024) { ec.clear(); return false; }
-        std::ifstream in(candidate, std::ios::binary);
-        std::string bytes((std::istreambuf_iterator<char>(in)), {});
-        const auto split = bytes.find('\n');
-        return split != std::string::npos && bytes.substr(0, split) ==
-            "CHECKSUM=" + hex(fnv1a(bytes.substr(split + 1)));
-    };
-    if (fs::exists(path_, ec) && validFile(path_)) {
-        if (fs::exists(backup, ec) && validFile(backup)) {
-            fs::copy_file(backup, old, fs::copy_options::overwrite_existing, ec);
-            if (ec) return false;
-        }
-        fs::copy_file(path_, backup, fs::copy_options::overwrite_existing, ec);
-        if (ec) return false; // Primary and .bak.old are still intact.
+    if (encoded.size() > 8 * 1024 * 1024) return fail("size_limit", path_, EFBIG);
+    if (!writeVerified(temp, encoded, "temporary_write")) return false;
+    if (valid(path_)) {
+        if (valid(backup) && !writeVerified(old, read(backup), "backup_old")) return false;
+        // A directory occupying a backup path must fail instead of being discarded.
+        if (!writeVerified(backup, read(path_), "backup_copy")) return false;
     }
-#ifdef _WIN32
-    // Windows cannot rename over an existing file; backup/temp survive this gap.
-    fs::remove(path_, ec);
-    if (ec) return false;
+    bool noReplace = options.noReplaceRename;
+#if defined(_WIN32) || defined(__SWITCH__)
+    // Horizon fsFsRenameFile does not replace an existing destination.
+    noReplace = true;
 #endif
+    if (noReplace && fs::exists(path_, ec)) {
+        if (valid(path_) && !valid(backup)) return fail("backup_verify", backup, EIO);
+        if (int err = injected("remove_primary")) return fail("remove_primary", path_, err);
+        fs::remove(path_, ec);
+        if (ec) return fail("remove_primary", path_, ec.value(), nativeError());
+    }
+    if (int err = injected("rename")) return fail("rename", temp, err);
     fs::rename(temp, path_, ec);
-    if (ec) return false;
-#ifndef _WIN32
+    if (ec) return fail("rename", path_, ec.value(), nativeError());
+    if (read(path_) != encoded) return fail("promoted_verify", path_, EIO);
+#if !defined(_WIN32) && !defined(__SWITCH__)
     const auto parent = path_.parent_path().empty() ? fs::path(".") : path_.parent_path();
     int dir = open(parent.string().c_str(), O_RDONLY);
-    if (dir >= 0) { fsync(dir); close(dir); }
+    if (dir < 0) return fail("directory_open", parent, errno);
+    const int result = fsync(dir), err = errno;
+    close(dir);
+    if (result != 0) return fail("directory_fsync", parent, err);
 #endif
     return true;
 }

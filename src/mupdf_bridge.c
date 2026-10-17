@@ -140,7 +140,7 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
             fz_set_user_css(d->ctx, css ? css : "");
         fz_set_use_document_css(d->ctx, 1);
             float layout_w = (w > 100) ? (float)w : 1180.0f;
-            float layout_h = (h > 100) ? (float)h : 600.0f;
+            float layout_h = h == 0 ? 0 : (h > 100 ? (float)h : 600.0f);
             float layout_em = (em > 8.0f) ? em : 22.0f;
             fz_layout_document(d->ctx, d->doc, layout_w, layout_h, layout_em);
         }
@@ -181,34 +181,30 @@ int px_document_is_epub(PxDocument *d) {
 }
 
 int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css, char *err, int cap) {
-    if (!d || !d->ctx || !d->doc || !d->epub) return 0;
-    int ok = 1;
+    if (!d || !d->ctx || !d->doc || !d->epub || w <= 0 || h < 0 || w > 4096 || h > 4096 || !isfinite(em) || em < 8 || em > 96) { report(err, cap, "Invalid relayout arguments"); return 0; }
+    fz_document *replacement = NULL;
+    char *new_css = NULL;
+    int pages = 0, ok = 0;
+    fz_var(replacement); fz_var(new_css); fz_var(pages); fz_var(ok);
     fz_try(d->ctx) {
-        if (strcmp(d->css, css ? css : "") != 0) {
-            // MuPDF caches parsed chapter CSS; reopening invalidates that cache.
-            fz_document *replacement = NULL;
-            char *new_css = fz_strdup(d->ctx, css ? css : "");
-            fz_set_user_css(d->ctx, new_css);
-            fz_try(d->ctx) { replacement = fz_open_document(d->ctx, d->path); }
-            fz_catch(d->ctx) { fz_free(d->ctx, new_css); fz_rethrow(d->ctx); }
-            fz_drop_document(d->ctx, d->doc);
-            d->doc = replacement;
-            fz_free(d->ctx, d->css);
-            d->css = new_css;
-        }
-        fz_set_user_css(d->ctx, css ? css : "");
+        new_css = fz_strdup(d->ctx, css ? css : "");
+        fz_set_user_css(d->ctx, new_css);
         fz_set_use_document_css(d->ctx, 1);
-        float layout_w = (w > 100) ? (float)w : 1180.0f;
-        float layout_h = (h > 100) ? (float)h : 600.0f;
-        float layout_em = (em > 8.0f) ? em : 22.0f;
-        fz_layout_document(d->ctx, d->doc, layout_w, layout_h, layout_em);
-        d->pages = fz_count_pages(d->ctx, d->doc);
+        replacement = fz_open_document(d->ctx, d->path);
+        fz_layout_document(d->ctx, replacement, w > 100 ? w : 1180, h == 0 ? 0 : (h > 100 ? h : 600), em > 8 ? em : 22);
+        pages = fz_count_pages(d->ctx, replacement);
+        if (pages <= 0) fz_throw(d->ctx, FZ_ERROR_GENERIC, "Empty relayout");
+        ok = 1;
     }
-    fz_catch(d->ctx) {
-        report(err, cap, fz_caught_message(d->ctx));
-        ok = 0;
+    fz_catch(d->ctx) { report(err, cap, fz_caught_message(d->ctx)); }
+    if (ok) {
+        fz_drop_document(d->ctx, d->doc); d->doc = replacement;
+        fz_free(d->ctx, d->css); d->css = new_css;
+        d->pages = pages; set_background(d, css);
+    } else {
+        fz_drop_document(d->ctx, replacement); fz_free(d->ctx, new_css);
+        fz_set_user_css(d->ctx, d->css);
     }
-    if (ok) set_background(d, css);
     return ok;
 }
 
@@ -337,7 +333,7 @@ int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *
 int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x, int view_y,
                             int view_w, int view_h, PxImage *out, char *err, int cap) {
     if (!d || !d->ctx || !d->doc || !out || page_idx < 0 || page_idx >= d->pages ||
-        view_w <= 0 || view_h <= 0 || view_w > 4096 || view_h > 4096 || !isfinite(zoom) || zoom < 1.0f || zoom > 5.0f) {
+        view_w <= 0 || view_h <= 0 || view_w > 4096 || view_h > 4096 || !isfinite(zoom) || zoom < 0.1f || zoom > 5.0f) {
         report(err, cap, "Invalid view render arguments");
         return 0;
     }
@@ -367,7 +363,8 @@ int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x,
         view_x = (int)fmaxf(0, fminf((float)view_x, ceilf(w * final_scale) - view_w));
         view_y = (int)fmaxf(0, fminf((float)view_y, ceilf(h * final_scale) - view_h));
         fz_matrix ctm = fz_make_matrix(final_scale, 0, 0, final_scale,
-            -bounds.x0 * final_scale - view_x, -bounds.y0 * final_scale - view_y);
+            -bounds.x0 * final_scale - view_x + fmaxf(0, (view_w - w * final_scale) / 2),
+            -bounds.y0 * final_scale - view_y + fmaxf(0, (view_h - h * final_scale) / 2));
         fz_irect irect = fz_make_irect(0, 0, view_w, view_h);
 
         pix = fz_new_pixmap_with_bbox(d->ctx, fz_device_rgb(d->ctx), irect, NULL, 0);
@@ -718,4 +715,110 @@ static void load_epub_extras(PxDocument *d) {
         fz_drop_xml(d->ctx, container); fz_drop_archive(d->ctx, archive);
     }
     fz_catch(d->ctx) { /* Optional extras; native outline/page-zero remain available. */ }
+}
+
+/* Explicitly whole-page, reversible filters; no claim of image-safe recoloring. */
+void px_image_filter(PxImage *image, int mode) {
+    if (!image || !image->rgb || mode < 1 || mode > 3) return;
+    for (int y = 0; y < image->height; ++y) for (int x = 0; x < image->width; ++x) {
+        unsigned char *p = image->rgb + (size_t)y * image->stride + x * 3;
+        int lum = (p[0] * 54 + p[1] * 183 + p[2] * 19) / 256;
+        if (mode == 3) { p[0] = 255-p[0]; p[1] = 255-p[1]; p[2] = 255-p[2]; }
+        else if (mode == 1) { p[0] = 230 - lum * 202 / 255; p[1] = 228 - lum * 198 / 255; p[2] = 222 - lum * 190 / 255; }
+        else { p[0] = 65 + lum * 171 / 255; p[1] = 50 + lum * 174 / 255; p[2] = 36 + lum * 162 / 255; }
+    }
+}
+
+/* Rasterize only a bounded strip; never allocate a chapter-sized bitmap. */
+int px_document_render_tile(PxDocument *d, int index, int y, int w, int h, PxImage *out, char *err, int cap) {
+    if (!d || !out || index < 0 || index >= d->pages || y < 0 || w < 1 || h < 1 || w > 4096 || h > 1024) return 0;
+    fz_page *page = NULL; fz_pixmap *pix = NULL; fz_device *dev = NULL; int ok = 0;
+    fz_var(page); fz_var(pix); fz_var(dev); fz_var(ok);
+    memset(out, 0, sizeof *out);
+    fz_try(d->ctx) {
+        page = fz_load_page(d->ctx, d->doc, index);
+        pix = fz_new_pixmap_with_bbox(d->ctx, fz_device_rgb(d->ctx), fz_make_irect(0,y,w,y+h), NULL, 0);
+        unsigned char *samples = fz_pixmap_samples(d->ctx, pix);
+        int stride = fz_pixmap_stride(d->ctx, pix);
+        for (int row=0; row<h; ++row) for (int x=0; x<w; ++x)
+            memcpy(samples + row*stride + x*3, d->background, 3);
+        dev = fz_new_draw_device(d->ctx, fz_identity, pix);
+        fz_run_page(d->ctx, page, dev, fz_identity, NULL); fz_close_device(d->ctx, dev);
+        ok = copy_pixmap_to_image(d->ctx, pix, out, err, cap);
+    }
+    fz_always(d->ctx) { fz_drop_device(d->ctx, dev); fz_drop_pixmap(d->ctx, pix); fz_drop_page(d->ctx, page); }
+    fz_catch(d->ctx) { report(err, cap, fz_caught_message(d->ctx)); }
+    return ok;
+}
+
+/* Chapter-relative non-whitespace character ordinal survives line/page wrapping.
+ * The residual within a line is normalized so theme-only changes are exact. */
+static int text_anchor(PxDocument *d, int chapter, int target_page, float target_y,
+                       int *ordinal, double *offset, int *out_page, float *out_y, int restore) {
+    int count=0, found=0; fz_stext_page *text=NULL; fz_page *page=NULL;
+    fz_var(text); fz_var(page); fz_var(count); fz_var(found);
+    fz_try(d->ctx) {
+        int pages=fz_count_chapter_pages(d->ctx,d->doc,chapter);
+        for (int i=0; i<pages && !found; ++i) {
+            int n=fz_page_number_from_location(d->ctx,d->doc,fz_make_location(chapter,i));
+            page=fz_load_page(d->ctx,d->doc,n);
+            text=fz_new_stext_page_from_page(d->ctx,page,NULL);
+            for (fz_stext_block *b=text->first_block; b && !found; b=b->next) if(b->type==FZ_STEXT_BLOCK_TEXT)
+                for(fz_stext_line *l=b->u.t.first_line; l && !found; l=l->next)
+                    for(fz_stext_char *c=l->first_char; c; c=c->next) {
+                        if(c->c<=32) continue;
+                        float top=l->bbox.y0, height=fmaxf(1,l->bbox.y1-top);
+                        if ((restore && count>=*ordinal) || (!restore && n==target_page && l->bbox.y1>=target_y)) {
+                            if(restore) { *out_page=n; *out_y=fmaxf(0,top+(float)*offset*height); }
+                            else { *ordinal=count; *offset=fmax(-4,fmin(4,(target_y-top)/height)); }
+                            found=1; break;
+                        }
+                        ++count;
+                    }
+            fz_drop_stext_page(d->ctx,text); text=NULL; fz_drop_page(d->ctx,page); page=NULL;
+        }
+    }
+    fz_always(d->ctx) { fz_drop_stext_page(d->ctx,text); fz_drop_page(d->ctx,page); }
+    fz_catch(d->ctx) { found=0; }
+    return found;
+}
+/* Image-only/end-of-chapter fallback: normalized chapter geometry. */
+static int geometry_anchor(PxDocument *d,int chapter,int *page,float *y,double *fraction,int restore) {
+    int ok=0; fz_var(ok);
+    fz_try(d->ctx) {
+        int count=fz_count_chapter_pages(d->ctx,d->doc,chapter);
+        double total=0, position=0;
+        for(int i=0;i<count;++i) {
+            int n=fz_page_number_from_location(d->ctx,d->doc,fz_make_location(chapter,i));
+            float w=0,h=0;
+            if(!px_document_page_size(d,n,&w,&h)) fz_throw(d->ctx,FZ_ERROR_GENERIC,"Missing anchor geometry");
+            if(!restore && n<*page) position+=h;
+            total+=h;
+        }
+        if(total>0) {
+            if(!restore) { *fraction=fmax(0,fmin(1,(position+*y)/total)); ok=1; }
+            else {
+                double target=total*fmax(0,fmin(1,*fraction));
+                for(int i=0;i<count;++i) {
+                    int n=fz_page_number_from_location(d->ctx,d->doc,fz_make_location(chapter,i));
+                    float w=0,h=0; px_document_page_size(d,n,&w,&h);
+                    if(target<h || i==count-1) { *page=n; *y=(float)target; ok=1; break; }
+                    target-=h;
+                }
+            }
+        }
+    }
+    fz_catch(d->ctx) { ok=0; }
+    return ok;
+}
+int px_document_anchor(PxDocument *d,int page,float y,int *ch,int *character,double *offset) {
+    int local; if(!d || !px_document_get_location(d,page,ch,&local)) return 0;
+    if(text_anchor(d,*ch,page,y,character,offset,NULL,NULL,0)) return 1;
+    *character=-1;
+    return geometry_anchor(d,*ch,&page,&y,offset,0);
+}
+int px_document_restore_anchor(PxDocument *d,int ch,int character,double offset,int *page,float *y) {
+    if(!d || ch<0 || character< -1 || !isfinite(offset)) return 0;
+    if(character==-1) return geometry_anchor(d,ch,page,y,&offset,1);
+    return text_anchor(d,ch,0,0,&character,&offset,page,y,1);
 }

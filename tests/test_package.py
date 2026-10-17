@@ -50,6 +50,18 @@ def make_synthetic_nro(magic=b"NRO0", total_size=0x1000, seg_offsets=((0x80, 0x4
 def run_tests():
     print("[TEST] Running PaperNX packaging validation tests...")
     
+    from scripts.validate_branding import validate_icon
+    custom_icon = Path("assets/branding/PaperNX-icon-switch.jpg")
+    assert validate_icon(custom_icon)["components"] == 3
+    with tempfile.TemporaryDirectory() as invalid:
+        p = Path(invalid) / "invalid.jpg"
+        p.write_bytes(b"invalid")
+        try:
+            validate_icon(p)
+            assert False, "Invalid custom branding accepted"
+        except ValueError:
+            pass
+
     # 1. Valid NRO0 validation
     valid_nro = make_synthetic_nro()
     meta = validate_nro(valid_nro)
@@ -121,8 +133,15 @@ def run_tests():
 
         # Unpack archive and verify SD structure
         extract_dir = tmppath / "extracted_sd"
+        preserved = extract_dir / "switch" / "PaperNX"
+        for folder, name in (("books", "personal.epub"), ("data", "progress.txt"), ("logs", "papernx.log")):
+            (preserved / folder).mkdir(parents=True, exist_ok=True)
+            (preserved / folder / name).write_text("personal data: keep")
         with ZipFile(archive, "r") as z:
+            assert not any(n.startswith(("switch/PaperNX/data/", "switch/PaperNX/books/", "switch/PaperNX/logs/")) and not n.endswith("/") for n in z.namelist())
             z.extractall(extract_dir)
+        for folder, name in (("books", "personal.epub"), ("data", "progress.txt"), ("logs", "papernx.log")):
+            assert (preserved / folder / name).read_text() == "personal data: keep"
 
         base = extract_dir / "switch" / "PaperNX"
         assert base.is_dir()

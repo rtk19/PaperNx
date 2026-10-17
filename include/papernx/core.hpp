@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -29,21 +30,37 @@ struct Bookmark {
     std::int64_t muBookmark{-1};
 };
 
-struct Progress {
+struct ReaderPreferences {
+    int readingMode{0}; // 0 paginated, 1 continuous
+    int modeOverride{0}; // inherit global unless explicitly selected for this book
+    int scrollSensitivity{100};
+    int scrollInertia{1};
+    int fontSize{22};
+    int theme{0};
+    int lineHeight{140};
+    int margin{40};
+    int textAlign{0};
+    int fontFamily{0}; // Serif, Sans, Publisher
+    int textColor{-1}; // -1 uses curated preset; otherwise RGB24
+    int backgroundColor{-1};
+    int paragraphSpacing{80}; // hundredths of em
+    int indentation{120};
+    int touchZone{30}; // percentage on each edge
+    int publisherStyles{0};
+    int pdfColorMode{0}; // original, dark, sepia, invert (whole-page filters)
+    int pdfViewMode{0}; // fit page, fit width, 100%
+};
+
+struct Progress : ReaderPreferences {
+    int anchorChapter{-1};
+    int anchorCharacter{-1};
+    double anchorOffset{0};
     int page{0};
     int pageCount{0};
     double fraction{0.0};
-    int fontSize{22};
-    int theme{0};
     bool favorite{false};
-
-    // Extended Reader & Persistence Attributes (PAPERNX-2)
     std::int64_t muBookmark{-1};
     int chapter{-1};
-    int lineHeight{140}; // percentage (140 = 1.4)
-    int margin{40};      // margin in pixels
-    int textAlign{0};   // 0: justify, 1: left
-    int fontFamily{0};  // 0: Serif, 1: Sans, 2: Custom/Publisher
     std::int64_t lastRead{0};
     std::vector<Bookmark> bookmarks;
     std::string bookPath;
@@ -71,9 +88,16 @@ int restorePage(const Progress &progress, int newPageCount);
 
 class ProgressStore {
 public:
+    struct SaveOptions {
+        // Deterministic storage fault injection for regression tests. Empty in production.
+        std::function<int(const char *)> fault;
+        bool noReplaceRename{false};
+    };
     explicit ProgressStore(fs::path path);
     bool load();
     bool save() const;
+    bool save(const SaveOptions &options) const;
+    const std::string &saveDiagnostic() const { return saveDiagnostic_; }
     Progress get(const std::string &id) const;
     void put(const std::string &id, Progress progress);
     std::size_t count() const;
@@ -82,6 +106,7 @@ public:
 private:
     fs::path path_;
     std::map<std::string, Progress> records_;
+    mutable std::string saveDiagnostic_;
 };
 
 } // namespace papernx
