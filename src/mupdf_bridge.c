@@ -181,34 +181,30 @@ int px_document_is_epub(PxDocument *d) {
 }
 
 int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css, char *err, int cap) {
-    if (!d || !d->ctx || !d->doc || !d->epub) return 0;
-    int ok = 1;
+    if (!d || !d->ctx || !d->doc || !d->epub || w <= 0 || h <= 0 || w > 4096 || h > 4096 || !isfinite(em) || em < 8 || em > 96) { report(err, cap, "Invalid relayout arguments"); return 0; }
+    fz_document *replacement = NULL;
+    char *new_css = NULL;
+    int pages = 0, ok = 0;
+    fz_var(replacement); fz_var(new_css); fz_var(pages); fz_var(ok);
     fz_try(d->ctx) {
-        if (strcmp(d->css, css ? css : "") != 0) {
-            // MuPDF caches parsed chapter CSS; reopening invalidates that cache.
-            fz_document *replacement = NULL;
-            char *new_css = fz_strdup(d->ctx, css ? css : "");
-            fz_set_user_css(d->ctx, new_css);
-            fz_try(d->ctx) { replacement = fz_open_document(d->ctx, d->path); }
-            fz_catch(d->ctx) { fz_free(d->ctx, new_css); fz_rethrow(d->ctx); }
-            fz_drop_document(d->ctx, d->doc);
-            d->doc = replacement;
-            fz_free(d->ctx, d->css);
-            d->css = new_css;
-        }
-        fz_set_user_css(d->ctx, css ? css : "");
+        new_css = fz_strdup(d->ctx, css ? css : "");
+        fz_set_user_css(d->ctx, new_css);
         fz_set_use_document_css(d->ctx, 1);
-        float layout_w = (w > 100) ? (float)w : 1180.0f;
-        float layout_h = (h > 100) ? (float)h : 600.0f;
-        float layout_em = (em > 8.0f) ? em : 22.0f;
-        fz_layout_document(d->ctx, d->doc, layout_w, layout_h, layout_em);
-        d->pages = fz_count_pages(d->ctx, d->doc);
+        replacement = fz_open_document(d->ctx, d->path);
+        fz_layout_document(d->ctx, replacement, w > 100 ? w : 1180, h > 100 ? h : 600, em > 8 ? em : 22);
+        pages = fz_count_pages(d->ctx, replacement);
+        if (pages <= 0) fz_throw(d->ctx, FZ_ERROR_GENERIC, "Empty relayout");
+        ok = 1;
     }
-    fz_catch(d->ctx) {
-        report(err, cap, fz_caught_message(d->ctx));
-        ok = 0;
+    fz_catch(d->ctx) { report(err, cap, fz_caught_message(d->ctx)); }
+    if (ok) {
+        fz_drop_document(d->ctx, d->doc); d->doc = replacement;
+        fz_free(d->ctx, d->css); d->css = new_css;
+        d->pages = pages; set_background(d, css);
+    } else {
+        fz_drop_document(d->ctx, replacement); fz_free(d->ctx, new_css);
+        fz_set_user_css(d->ctx, d->css);
     }
-    if (ok) set_background(d, css);
     return ok;
 }
 
@@ -337,7 +333,7 @@ int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *
 int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x, int view_y,
                             int view_w, int view_h, PxImage *out, char *err, int cap) {
     if (!d || !d->ctx || !d->doc || !out || page_idx < 0 || page_idx >= d->pages ||
-        view_w <= 0 || view_h <= 0 || view_w > 4096 || view_h > 4096 || !isfinite(zoom) || zoom < 1.0f || zoom > 5.0f) {
+        view_w <= 0 || view_h <= 0 || view_w > 4096 || view_h > 4096 || !isfinite(zoom) || zoom < 0.1f || zoom > 5.0f) {
         report(err, cap, "Invalid view render arguments");
         return 0;
     }
@@ -367,7 +363,8 @@ int px_document_render_view(PxDocument *d, int page_idx, float zoom, int view_x,
         view_x = (int)fmaxf(0, fminf((float)view_x, ceilf(w * final_scale) - view_w));
         view_y = (int)fmaxf(0, fminf((float)view_y, ceilf(h * final_scale) - view_h));
         fz_matrix ctm = fz_make_matrix(final_scale, 0, 0, final_scale,
-            -bounds.x0 * final_scale - view_x, -bounds.y0 * final_scale - view_y);
+            -bounds.x0 * final_scale - view_x + fmaxf(0, (view_w - w * final_scale) / 2),
+            -bounds.y0 * final_scale - view_y + fmaxf(0, (view_h - h * final_scale) / 2));
         fz_irect irect = fz_make_irect(0, 0, view_w, view_h);
 
         pix = fz_new_pixmap_with_bbox(d->ctx, fz_device_rgb(d->ctx), irect, NULL, 0);
@@ -718,4 +715,16 @@ static void load_epub_extras(PxDocument *d) {
         fz_drop_xml(d->ctx, container); fz_drop_archive(d->ctx, archive);
     }
     fz_catch(d->ctx) { /* Optional extras; native outline/page-zero remain available. */ }
+}
+
+/* Explicitly whole-page, reversible filters; no claim of image-safe recoloring. */
+void px_image_filter(PxImage *image, int mode) {
+    if (!image || !image->rgb || mode < 1 || mode > 3) return;
+    for (int y = 0; y < image->height; ++y) for (int x = 0; x < image->width; ++x) {
+        unsigned char *p = image->rgb + (size_t)y * image->stride + x * 3;
+        int lum = (p[0] * 54 + p[1] * 183 + p[2] * 19) / 256;
+        if (mode == 3) { p[0] = 255-p[0]; p[1] = 255-p[1]; p[2] = 255-p[2]; }
+        else if (mode == 1) { p[0] = 230 - lum * 202 / 255; p[1] = 228 - lum * 198 / 255; p[2] = 222 - lum * 190 / 255; }
+        else { p[0] = 65 + lum * 171 / 255; p[1] = 50 + lum * 174 / 255; p[2] = 36 + lum * 162 / 255; }
+    }
 }

@@ -19,6 +19,127 @@ struct AppTest {
         SDL_Event e{}; e.type = SDL_CONTROLLERBUTTONDOWN; e.cbutton.button = button;
         bool running = true; app.handleEvent(e, running); assert(running);
     }
+    static void finger(PaperNxApp &app, Uint32 type, float x, float y, SDL_FingerID id = 41) {
+        SDL_Event e{}; e.type = type; e.tfinger.fingerId = id; e.tfinger.x = x; e.tfinger.y = y;
+        bool running = true; app.handleEvent(e, running); assert(running);
+    }
+    static void tap(PaperNxApp &app, float x, float y) {
+        finger(app, SDL_FINGERDOWN, x, y); finger(app, SDL_FINGERUP, x, y);
+    }
+    static void modalTap(PaperNxApp &app, int x, int y) {
+        int w, h; app.getWindowSize(w, h);
+        tap(app, float((w - 600) / 2 + x) / w, float((h - 460) / 2 + y) / h);
+    }
+    static void snapshot(PaperNxApp &app, const char *name) {
+        for (int i = 0; i < 15; ++i) { app.render(); SDL_Delay(10); app.processCompletedThumbnails(); }
+        app.render(); int w, h; app.getWindowSize(w, h);
+        SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+        assert(surface);
+        assert(SDL_RenderReadPixels(app.renderer_, nullptr, surface->format->format, surface->pixels, surface->pitch) == 0);
+        fs::create_directories("verification/screenshots");
+        assert(SDL_SaveBMP(surface, (std::string("verification/screenshots/") + name + ".bmp").c_str()) == 0);
+        SDL_FreeSurface(surface);
+    }
+    static void touchOnly(const fs::path &root) {
+        const auto start = std::chrono::steady_clock::now();
+        std::string epubId, pdfId;
+        int savedPage;
+        {
+            PaperNxApp app(root); assert(app.init()); assert(!app.controller_);
+            auto epub = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });
+            // Open first library card using only finger events.
+            tap(app, .06f, .18f); assert(app.doc_ && app.screen_ == ScreenState::Reader);
+            if (!px_document_is_epub(app.doc_)) { app.closeBook(); app.openBook(epub); }
+            epubId = app.currentBookId_;
+            for (int i = 0; i < 10; ++i) tap(app, .75f, .5f);
+            assert(app.currentPage_ == 10);
+            tap(app, .25f, .5f); assert(app.currentPage_ == 9);
+            finger(app, SDL_FINGERDOWN, .7f, .5f); SDL_Delay(900);
+            finger(app, SDL_FINGERMOTION, .45f, .51f); finger(app, SDL_FINGERUP, .4f, .51f);
+            assert(app.currentPage_ == 10); // Slow swipe used to be rejected.
+            finger(app, SDL_FINGERDOWN, .25f, .5f); SDL_Delay(550); finger(app, SDL_FINGERUP, .27f, .51f);
+            assert(app.currentPage_ == 9); // Long tap and ordinary finger drift.
+            finger(app, SDL_FINGERDOWN, .3f, .5f); finger(app, SDL_FINGERUP, .65f, .5f);
+            assert(app.currentPage_ == 8);
+            // Two-finger input cannot also turn a page.
+            finger(app, SDL_FINGERDOWN, .8f, .5f, 1); finger(app, SDL_FINGERDOWN, .7f, .5f, 2);
+            finger(app, SDL_FINGERUP, .8f, .5f, 1); finger(app, SDL_FINGERUP, .7f, .5f, 2);
+            assert(app.currentPage_ == 8);
+            // Synthesized mouse event arriving after the native finger is ignored.
+            SDL_Event mouse{}; mouse.type = SDL_MOUSEBUTTONDOWN; mouse.button.which = SDL_TOUCH_MOUSEID;
+            mouse.button.button = SDL_BUTTON_LEFT; mouse.button.x = 1100; mouse.button.y = 350;
+            bool running = true; app.handleEvent(mouse, running); mouse.type = SDL_MOUSEBUTTONUP; app.handleEvent(mouse, running);
+            assert(app.currentPage_ == 8);
+            // A mouse-only SDL backend remains usable, on release (not down).
+            app.sawFinger_ = false;
+            mouse.type = SDL_MOUSEBUTTONDOWN; app.handleEvent(mouse, running); assert(app.currentPage_ == 8);
+            mouse.type = SDL_MOUSEBUTTONUP; app.handleEvent(mouse, running); assert(app.currentPage_ == 9);
+            tap(app, .5f, .5f); assert(app.toolbarVisible_);
+            tap(app, .96f, .04f); assert(app.screen_ == ScreenState::AaModal);
+            const auto mark = px_document_make_bookmark(app.doc_, app.currentPage_);
+            modalTap(app, 370, 135); assert(app.currentFontSize_ == 24);
+            modalTap(app, 280, 205); assert(app.currentFontFamily_ == 1);
+            modalTap(app, 225, 65); assert(app.aaTab_ == 1);
+            modalTap(app, 280, 310); assert(app.extraStyle_.paragraphSpacing == 120);
+            modalTap(app, 280, 370); assert(app.extraStyle_.indentation == 0);
+            modalTap(app, 375, 65); assert(app.aaTab_ == 2);
+            for (int i = 0; i < 6; ++i) { modalTap(app, 60 + i % 3 * 180, 140 + i / 3 * 65); assert(app.currentTheme_ == i); }
+            assert(app.commitColor("123456", 0)); assert(app.commitColor("#EEDDBB", 1));
+            assert(!app.commitColor("GGGGGG", 0));
+            assert(app.extraStyle_.textColor == 0x123456 && app.extraStyle_.backgroundColor == 0xeeddbb);
+            assert(app.currentPage_ == px_document_lookup_bookmark(app.doc_, mark));
+            snapshot(app, "epub-settings");
+            // Global defaults are explicit; current book retains an independent override.
+            app.storeDefaults();
+            modalTap(app, 575, 20); assert(app.screen_ == ScreenState::Reader);
+            savedPage = app.currentPage_;
+            tap(app, .86f, .04f); assert(app.screen_ == ScreenState::BookmarksModal);
+            modalTap(app, 250, 430); assert(app.progressStore_.get(epubId).bookmarks.size() == 1);
+            modalTap(app, 575, 20); assert(app.screen_ == ScreenState::Reader);
+            tap(app, .04f, .04f); assert(app.screen_ == ScreenState::Library && !app.progressDirty_);
+            app.category_ = Category::Completed; app.updateVisibleBooks();
+            assert(app.libraryEmptyMessage() == "Henüz tamamladığınız bir kitap yok.");
+            snapshot(app, "library-empty-completed");
+            app.category_ = Category::All; app.updateVisibleBooks();
+            app.books_[0].title = "İstanbul'da çok uzun bir kitap başlığı — Türkçe karakterler ve çok satırlı kitap kartı";
+            app.updateVisibleBooks(); snapshot(app, "library");
+            for (auto size : {std::pair<int,int>{960,540}, {1920,1080}, {640,480}}) {
+                SDL_SetWindowSize(app.window_, size.first, size.second); app.render();
+            }
+            SDL_SetWindowSize(app.window_, 1280, 720);
+            auto pdf = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Pdf; });
+            app.openBook(pdf); pdfId = pdf.id;
+            assert(app.currentFontFamily_ == 1); // New book inherits global defaults.
+            tap(app, .5f, .5f); tap(app, .96f, .04f);
+            modalTap(app, 120, 195); assert(app.extraStyle_.pdfViewMode == 1 && app.pdfZoom_ > 1);
+            modalTap(app, 220, 275); assert(app.extraStyle_.pdfColorMode == 1);
+            snapshot(app, "pdf-settings");
+            modalTap(app, 575, 20); tap(app, .5f, .5f); // Hide toolbar.
+            const int page = app.currentPage_;
+            finger(app, SDL_FINGERDOWN, .5f, .6f); finger(app, SDL_FINGERMOTION, .5f, .3f); finger(app, SDL_FINGERUP, .5f, .3f);
+            assert(app.currentPage_ == page && app.pdfPanY_ > 0);
+            app.handleDirectional(100000, 100000); int maxPan = app.pdfPanY_;
+            app.handleDirectional(100000, 100000); assert(app.pdfPanY_ == maxPan);
+            snapshot(app, "pdf-fit-width-filter");
+            app.setPdfView(0); assert(app.pdfZoom_ == 1 && app.pdfPanY_ == 0);
+            tap(app, .75f, .5f); assert(app.currentPage_ == 1);
+            SDL_Event background{}; background.type = SDL_APP_WILLENTERBACKGROUND;
+            app.handleEvent(background, running); assert(!app.progressDirty_);
+            background.type = SDL_APP_DIDENTERFOREGROUND; app.handleEvent(background, running);
+            app.closeBook();
+        }
+        {
+            PaperNxApp restart(root); assert(restart.init());
+            auto epub = *std::find_if(restart.books_.begin(), restart.books_.end(), [&](const Book &b) { return b.id == epubId; });
+            restart.openBook(epub); assert(restart.currentPage_ == savedPage);
+            assert(restart.extraStyle_.textColor == 0x123456 && restart.extraStyle_.backgroundColor == 0xeeddbb);
+            assert(restart.currentTheme_ == 5 && restart.currentFontFamily_ == 1);
+            assert(restart.progressStore_.get(epubId).bookmarks.size() == 1);
+            auto pdf = *std::find_if(restart.books_.begin(), restart.books_.end(), [&](const Book &b) { return b.id == pdfId; });
+            restart.openBook(pdf); assert(restart.currentPage_ == 1 && restart.extraStyle_.pdfColorMode == 1);
+        }
+        std::cout << "[PASS] Touch-only workflow elapsed_ms=" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() << "\n";
+    }
     static void checkRestart(const fs::path &root) {
         PaperNxApp app(root); assert(app.init());
         assert(app.books_.size() == 3);
@@ -216,6 +337,12 @@ int main() {
     fs::copy_file("tests/fixtures/sample_doc.pdf", root / "external.pdf");
     AppTest::run(root);
     AppTest::checkRestart(root);
+    const auto touchRoot = root / "touch-only";
+    fs::create_directories(touchRoot / "books");
+    fs::copy_file("tests/fixtures/sample_book.epub", touchRoot / "books" / "a.epub");
+    fs::copy_file("tests/fixtures/sample_doc.pdf", touchRoot / "books" / "b.pdf");
+    fs::create_directory_symlink(fs::absolute("fonts"), touchRoot / "fonts");
+    AppTest::touchOnly(touchRoot);
     SDL_Window *window = SDL_CreateWindow("cache", 0, 0, 128, 128, SDL_WINDOW_HIDDEN);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     assert(renderer);
@@ -253,6 +380,31 @@ int main() {
         px_image_free(&image);
     }
     assert(themeHashes.size() == 6);
+    // Exercise the reader's V4 CSS model, not just the legacy palette helper.
+    for (int preset = 0; preset < 6; ++preset) {
+        ReaderPreferences style; style.theme = preset; style.fontFamily = preset % 3;
+        const auto css = generateEpubCss(style);
+        assert(px_document_relayout(doc, 600, 600, 22, css.c_str(), err, sizeof err));
+        PxImage image{}; assert(px_document_render(doc, 0, 600, 600, &image, err, sizeof err));
+        assert(image.rgb[0] == g_palettes[preset].bg.r && image.rgb[1] == g_palettes[preset].bg.g);
+        px_image_free(&image);
+    }
+    ReaderPreferences custom; custom.backgroundColor = 0xeeddbb; custom.textColor = 0x123456;
+    auto customCss = generateEpubCss(custom);
+    assert(px_document_relayout(doc, 600, 600, 22, customCss.c_str(), err, sizeof err));
+    PxImage customImage{}; assert(px_document_render(doc, 0, 600, 600, &customImage, err, sizeof err));
+    assert(customImage.rgb[0] == 0xee && customImage.rgb[1] == 0xdd && customImage.rgb[2] == 0xbb);
+    const auto customHash = hashImage(customImage); px_image_free(&customImage);
+    custom.textColor = 0x884422; customCss = generateEpubCss(custom);
+    assert(px_document_relayout(doc, 600, 600, 22, customCss.c_str(), err, sizeof err));
+    assert(px_document_render(doc, 0, 600, 600, &customImage, err, sizeof err));
+    assert(hashImage(customImage) != customHash && customImage.rgb[0] == 0xee); px_image_free(&customImage);
+    const int validPages = px_document_pages(doc);
+    assert(!px_document_relayout(doc, 100000, 600, 22, customCss.c_str(), err, sizeof err));
+    assert(px_document_pages(doc) == validPages);
+    assert(px_document_render(doc, 0, 600, 600, &customImage, err, sizeof err)); px_image_free(&customImage);
+    assert(readingContrast({255,255,255,255}, {255,255,255,255}) == 1);
+    assert(readingContrast({255,255,255,255}, {0,0,0,255}) > 20);
     auto mark = px_document_make_bookmark(doc, px_document_pages(doc) - 1);
     px_document_close(doc);
     for (int i = 0; i < 20; ++i) {

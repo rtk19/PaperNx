@@ -35,6 +35,7 @@ void px_document_close(PxDocument *doc);
 int px_document_render(PxDocument *doc, int page, int max_width, int max_height, PxImage *image, char *error, int capacity);
 int px_document_render_view(PxDocument *doc, int page, float zoom, int view_x, int view_y, int view_w, int view_h, PxImage *image, char *error, int capacity);
 int px_document_render_thumbnail(PxDocument *doc, int max_w, int max_h, PxImage *image, char *error, int capacity);
+void px_image_filter(PxImage *image, int mode);
 void px_image_free(PxImage *image);
 
 // Versioned chapter/fraction locations; approximate after layout changes.
