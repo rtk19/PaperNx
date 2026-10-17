@@ -231,7 +231,43 @@ int main() {
     assert(nav.processAxis(0, 20000, dx, dy));
     assert(dx == 1 && dy == 0);
 
+    // 12. Malformed Save Data & Power-Loss Edge Cases
+    {
+        const fs::path malformedPath = root / "data" / "malformed.txt";
+        {
+            std::ofstream mf(malformedPath);
+            mf << "PAPERNX-2\n";
+            mf << "corrupt_id_too_short\tnot_an_int\t50\t0.5\t20\t0\t0\t0\t0\t140\t40\t0\t0\t0\t0\n";
+            mf << "validid012345678\t10\t100\t0.1\t24\t2\t1\t12345\t3\t150\t50\t1\t0\t1700000000\t0\n";
+            mf << "another_bad_row\t0\t0\tnan\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n";
+        }
+        ProgressStore malformedStore(malformedPath);
+        // Loading should parse valid lines and skip corrupt rows without throwing or aborting
+        assert(malformedStore.load());
+        assert(malformedStore.count() == 1);
+        assert(malformedStore.get("validid012345678").page == 10);
+    }
+
+    // 13. Turkish Search & Diacritic Roundtrip
+    {
+        std::vector<Book> trBooks;
+        Book tb1; tb1.id = "tr1"; tb1.title = "IŞIK DOĞUDAN YÜKSELİR"; tb1.author = "İSMAİL ÇAĞLAR";
+        Book tb2; tb2.id = "tr2"; tb2.title = "ıslak kaldırımlar"; tb2.author = "ömer seyfettin";
+        Book tb3; tb3.id = "tr3"; tb3.title = "Gül ve Bülbülün Şarkısı"; tb3.author = "Şemseddin Sami";
+        trBooks = {tb1, tb2, tb3};
+
+        // Query with lowercase 'i' must find 'İ'
+        assert(search(trBooks, "ismail").size() == 1);
+        // Query with lowercase 'ı' must find 'I'
+        assert(search(trBooks, "ışık").size() == 1);
+        assert(search(trBooks, "ISIK").size() == 1);
+        // Query with 'ş' and 'ç'
+        assert(search(trBooks, "şarkısı").size() == 1);
+        assert(search(trBooks, "çağlar").size() == 1);
+    }
+
     fs::remove_all(root);
-    std::cout << "[PASS] All PaperNX core and gesture tests succeeded without error.\n";
+    std::cout << "[PASS] All PaperNX core, Turkish unicode, and gesture tests succeeded without error.\n";
     return 0;
 }
+
