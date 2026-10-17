@@ -1,145 +1,76 @@
-name: PaperNX Switch Build & Verification Pipeline
-
+﻿name: PaperNX verification
 on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'fonts/**'
+      - 'romfs/**'
+      - 'CMakeLists.txt'
+      - 'Makefile'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type BUILD to authorize Nintendo Switch AArch64 compilation and release packaging'
+        description: 'Type BUILD to run the Switch ARM64 build and preview packaging'
         required: true
         type: string
-
+permissions:
+  contents: read
+concurrency:
+  group: papernx-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
-  # =========================================================================
-  # Stage A: Source Preflight & Tests
-  # =========================================================================
-  source-preflight-and-tests:
-    if: ${{ inputs.confirm == 'BUILD' }}
-    runs-on: ubuntu-latest
+  portable:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential
-
-      - name: Build and run portable core tests
-        run: |
-          cmake -S . -B build-core -G Ninja -DBUILD_TESTING=ON
-          ninja -C build-core
+      - uses: actions/checkout@v4
+      - run: |
+          cmake -S . -B build-core -G Ninja -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --parallel 4
           ctest --test-dir build-core --output-on-failure
-
-      - name: Run packaging and SD layout tests
-        run: |
-          python tests/test_package.py
-
-  # =========================================================================
-  # Stage B: Native Desktop Reader & MuPDF EPUB/PDF Verification
-  # =========================================================================
-  native-desktop-integration:
-    needs: source-preflight-and-tests
-    if: ${{ inputs.confirm == 'BUILD' }}
-    runs-on: ubuntu-latest
+          python3 tests/test_package.py
+  desktop:
+    needs: portable
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install native reader dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build build-essential \
-            libsdl2-dev libsdl2-ttf-dev libmupdf-dev mupdf-tools \
-            libfreetype-dev libharfbuzz-dev libjbig2dec0-dev libopenjp2-7-dev libjpeg-dev zlib1g-dev
-
-      - name: Generate real EPUB and PDF test fixtures
-        run: |
-          python3 tests/generate_fixtures.py
-
-      - name: Build PaperNX desktop and native MuPDF render test runner
-        run: |
-          cmake -S . -B build-desktop -G Ninja -DPAPERNX_NATIVE=ON
-          ninja -C build-desktop PaperNX mupdf_render_tests
-
-      - name: Verify desktop executable
-        run: |
-          test -x build-desktop/PaperNX
-          file build-desktop/PaperNX
-
-      - name: Execute native MuPDF EPUB/PDF render verification test suite
-        run: |
-          ./build-desktop/mupdf_render_tests
-
-      - name: Upload render artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
+      - run: docker compose build desktop
+      - run: docker compose run --rm desktop
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-render-snapshots
-          path: tests/fixtures/*.ppm
-
-  # =========================================================================
-  # Stage C & D & E: Switch AArch64 Cross-Compile & Verified NRO0 Packaging
-  # =========================================================================
-  switch-aarch64-nro-build:
-    needs: [source-preflight-and-tests, native-desktop-integration]
-    if: ${{ inputs.confirm == 'BUILD' }}
-    runs-on: ubuntu-latest
-    container: devkitpro/devkita64:latest
+          name: desktop-evidence
+          path: |
+            verification/desktop.log
+            build-desktop/Testing/Temporary/LastTest.log
+            tests/fixtures/*.ppm
+  switch:
+    needs: [portable, desktop]
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm == 'BUILD') ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' &&
+       github.event.label.name == 'switch-build' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure safe directory and runtime dependencies
-        run: |
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}" || true
-          if ! command -v python3 &> /dev/null; then
-            (apt-get update && apt-get install -y python3) || (pacman -Sy --noconfirm python) || true
-          fi
-
-      - name: Install Switch portlibs via dkp-pacman
-        run: |
-          dkp-pacman -Syu --noconfirm
-          dkp-pacman -S --noconfirm \
-            switch-sdl2 \
-            switch-sdl2_ttf \
-            switch-freetype \
-            switch-libjpeg-turbo \
-            switch-zlib \
-            switch-bzip2 \
-            switch-libpng
-
-      - name: Cache MuPDF AArch64 cross-compile
-        id: cache-mupdf
-        uses: actions/cache@v4
+      - uses: actions/checkout@v4
+      - run: docker compose build switch
+      - uses: actions/cache@v4
         with:
           path: prefix-mupdf-switch
-          key: mupdf-switch-1.23.11-${{ hashFiles('scripts/build-mupdf-switch.sh') }}
-
-      - name: Cross-compile MuPDF for Switch AArch64
-        if: steps.cache-mupdf.outputs.cache-hit != 'true'
-        run: |
-          chmod +x scripts/build-mupdf-switch.sh
-          ./scripts/build-mupdf-switch.sh "${GITHUB_WORKSPACE}/prefix-mupdf-switch"
-
-      - name: Build native PaperNX.nro
-        run: |
-          export MUPDF_PREFIX="${GITHUB_WORKSPACE}/prefix-mupdf-switch"
-          make all -j$(nproc)
-          test -f PaperNX.nro
-          test -f PaperNX.nacp
-
-      - name: Validate NRO0 and assemble release ZIP
-        run: |
-          python3 scripts/package_release.py PaperNX.nro --destination dist --version "v0.1.0"
-          ls -la dist/
-
-      - name: Upload Switch release artifacts
-        uses: actions/upload-artifact@v4
+          key: mupdf-arm64-${{ runner.arch }}-${{ hashFiles('Dockerfile', 'scripts/build-mupdf-switch.sh', 'include/papernx/switch_compat.h') }}
+      # Always run: cached archives are checked against the real compiler fingerprint.
+      - run: docker compose run --rm switch
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: PaperNX-switch-v0.1.0
-          path: dist/*
+          name: switch-preview-evidence
+          path: |
+            verification/switch.log
+            dist/*

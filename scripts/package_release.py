@@ -11,8 +11,20 @@ import json
 import os
 import struct
 import sys
+import re
+import shutil
+try:
+    from .artifact_validation import validate_assets, source_identity
+except ImportError:
+    from artifact_validation import validate_assets, source_identity
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+
+def write_entry(archive, name, data):
+    info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+    info.compress_type = ZIP_DEFLATED
+    archive.writestr(info, data)
 
 def validate_nro(image: bytes) -> dict:
     if len(image) < 0x80:
@@ -38,11 +50,10 @@ def validate_nro(image: bytes) -> dict:
     if not any(s["size"] > 0 for s in segments):
         raise ValueError("NRO has no non-empty executable or data segments")
 
-    # Ensure segments do not overlap
-    for i in range(2):
-        if segments[i]["size"] > 0 and segments[i + 1]["size"] > 0:
-            if segments[i]["offset"] + segments[i]["size"] > segments[i + 1]["offset"]:
-                raise ValueError(f"Segment {seg_names[i]} overlaps with {seg_names[i+1]}")
+    spans = sorted((s["offset"], s["offset"] + s["size"]) for s in segments if s["size"])
+    for left, right in zip(spans, spans[1:]):
+        if left[1] > right[0]:
+            raise ValueError("NRO segment overlaps another segment")
 
     return {
         "version": version,
@@ -52,6 +63,8 @@ def validate_nro(image: bytes) -> dict:
     }
 
 def package(nro_path: Path, destination: Path, version: str, repo_root: Path = None) -> tuple[Path, str]:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", version):
+        raise ValueError("Invalid release version")
     if not nro_path.is_file():
         raise FileNotFoundError(f"NRO file not found: {nro_path}")
 
@@ -60,6 +73,7 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
 
     image = nro_path.read_bytes()
     nro_meta = validate_nro(image)
+    assets = validate_assets(image, nro_meta["declared_size"])
 
     destination.mkdir(parents=True, exist_ok=True)
     archive_name = f"PaperNX-switch-{version}.zip"
@@ -80,32 +94,42 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
     with ZipFile(archive_path, "w", ZIP_DEFLATED, compresslevel=9) as z:
         # Standard Switch SD Card directory structure:
         # sdmc:/switch/PaperNX/
-        z.writestr("switch/PaperNX/books/", "")
-        z.writestr("switch/PaperNX/data/", "")
-        z.writestr("switch/PaperNX/fonts/", "")
+        write_entry(z, "switch/PaperNX/books/", "")
+        write_entry(z, "switch/PaperNX/data/", "")
+        write_entry(z, "switch/PaperNX/fonts/", "")
 
         # Write NRO binary
-        z.writestr("switch/PaperNX/PaperNX.nro", image)
+        write_entry(z, "switch/PaperNX/PaperNX.nro", image)
 
         # Write Bundled Fonts & OFL
         for f in required_fonts:
             fpath = fonts_dir / f
-            z.writestr(f"switch/PaperNX/fonts/{f}", fpath.read_bytes())
+            write_entry(z, f"switch/PaperNX/fonts/{f}", fpath.read_bytes())
 
+        notices = repo_root / "third-party-licenses"
+        if notices.is_dir():
+            for notice in sorted(notices.rglob("*")):
+                if notice.is_file():
+                    write_entry(z, "switch/PaperNX/licenses/" + notice.relative_to(notices).as_posix(), notice.read_bytes())
         # Include README and LICENSE if available
         readme = repo_root / "README.md"
         if readme.is_file():
-            z.writestr("switch/PaperNX/README.md", readme.read_bytes())
+            write_entry(z, "switch/PaperNX/README.md", readme.read_bytes())
 
         license_file = repo_root / "LICENSE"
         if license_file.is_file():
-            z.writestr("switch/PaperNX/LICENSE", license_file.read_bytes())
+            write_entry(z, "switch/PaperNX/LICENSE", license_file.read_bytes())
 
         # Verify no path traversal in created archive
         for info in z.infolist():
             if info.filename.startswith("/") or ".." in info.filename:
                 raise ValueError(f"Security error: dangerous relative path in archive '{info.filename}'")
 
+    with ZipFile(archive_path) as check:
+        if check.testzip() is not None:
+            raise ValueError("ZIP integrity validation failed")
+    if nro_path.resolve() != (destination / "PaperNX.nro").resolve():
+        shutil.copyfile(nro_path, destination / "PaperNX.nro")
     archive_bytes = archive_path.read_bytes()
     digest = hashlib.sha256(archive_bytes).hexdigest()
     nro_digest = hashlib.sha256(image).hexdigest()
@@ -116,7 +140,9 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
 
     # Write detailed Manifest
     manifest_file = destination / "manifest.json"
+    (destination / "PaperNX.nro.sha256").write_text(f"{nro_digest}  PaperNX.nro\n", encoding="utf-8")
     manifest_data = {
+        "source": source_identity(repo_root),
         "name": archive_name,
         "version": version,
         "sha256": digest,
@@ -124,7 +150,8 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
             "sha256": nro_digest,
             "declared_size": nro_meta["declared_size"],
             "actual_size": nro_meta["actual_size"],
-            "segments": nro_meta["segments"]
+            "segments": nro_meta["segments"],
+            "assets": assets
         },
         "contents": [
             "switch/PaperNX/PaperNX.nro",

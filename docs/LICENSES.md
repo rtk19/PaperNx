@@ -1,32 +1,23 @@
-# Dependency and License Documentation
+﻿# Lisanslar ve kaynak
 
-PaperNX and its bundled dependencies adhere to the following licenses:
+- PaperNX: [AGPL-3.0](../LICENSE).
+- MuPDF 1.23.11: dağıtım arşivindeki `COPYING` ve üçüncü taraf bildirimleri; kaynak
+  [Artifex deposu](https://github.com/ArtifexSoftware/mupdf/tree/1.23.11).
+- Noto Sans/Serif: [OFL](../fonts/OFL.txt); aynı dosya SD font dizininde ve RomFS'tedir.
+- libnx 4.12.0: [upstream izin bildirimi](https://github.com/switchbrew/libnx/blob/v4.12.0/LICENSE.md).
+- SDL2 2.28.5: [zlib bildirimi](https://github.com/libsdl-org/SDL/blob/release-2.28.5/LICENSE.txt).
+- HarfBuzz 10.0.1: [COPYING](https://github.com/harfbuzz/harfbuzz/blob/10.0.1/COPYING).
+- FreeType: portlibs içindeki FTL/GPLv2 seçenek bildirimleri pakete kopyalanır.
+- MuPDF'nin JPEG, OpenJPEG, JBIG2, zlib, LCMS, Gumbo, MuJS, Extract ve diğer kaynak
+  bildirimleri seçilmiş kaynak dağıtımından toplanır. SDL2_ttf ve diğer portlibs'in
+  kurulu lisans dosyaları da dahil edilir.
 
----
+`collect_licenses.py` kaynak ve SDK bildirimlerini toplar; sabit sürüm ek bildirimleri
+`scripts/license-notices/` içindedir. ZIP, bunları `switch/PaperNX/licenses/` altında taşır.
+`SOURCE.txt` upstream kaynak adreslerini içerir. Derlemede kullanılan paket sürümleri
+`verification/switch-packages.txt` ile kaydedilir.
 
-## 1. PaperNX
-- **License**: GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
-- **Full Text**: Refer to the [`LICENSE`](file:///c:/Users/Yusuf/AndroidStudioProjects/PaperNx/LICENSE) file in the root directory.
-
----
-
-## 2. Artifex MuPDF
-- **License**: GNU Affero General Public License v3.0 (AGPL-3.0) or commercial license.
-- **Source Code**: https://github.com/ArtifexSoftware/mupdf
-- **Notice**: When distributing compiled binary packages containing MuPDF, full corresponding source code, build scripts, and modifications must be made accessible under the terms of the AGPL.
-
----
-
-## 3. Bundled Typography (Fonts)
-- **Noto Sans Regular** & **Noto Serif Regular**:
-  - **License**: SIL Open Font License, Version 1.1 (OFL-1.1).
-  - **Full Text**: Included at [`fonts/OFL.txt`](file:///c:/Users/Yusuf/AndroidStudioProjects/PaperNx/fonts/OFL.txt) and embedded in `romfs:/fonts/OFL.txt`.
-  - **Copyright**: Copyright 2022 The Noto Project Authors (https://github.com/notofonts).
-
----
-
-## 4. Nintendo Switch Homebrew Libraries
-- **libnx**: Public domain / ISC-style permissive license (devkitPro).
-- **SDL2 & SDL2_ttf**: zlib license.
-- **FreeType, libjpeg-turbo, zlib, libpng**: Permissive open-source licenses.
-- No proprietary Nintendo SDK code or headers are used.
+Genel dağıtımda AGPL'nin karşılık gelen kaynak, değişiklikler ve derleme tariflerine
+ilişkin koşulları uygulanmalıdır; yalnızca bir lisans dosyası eklemek bu yükümlülükleri
+tek başına yerine getirmez. Bu oturumda GitHub stable release yayınlanmamıştır.
+Kaynak deposu ve kullanılan MuPDF arşivine erişim sürüm paketiyle birlikte korunmalıdır.

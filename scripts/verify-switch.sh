@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p verification
+exec > >(tee verification/switch.log) 2>&1
+export PATH="${DEVKITPRO}/portlibs/switch/bin:${PATH}"
+bash scripts/build-mupdf-switch.sh /work/prefix-mupdf-switch
+export MUPDF_PREFIX=/work/prefix-mupdf-switch
+make all -j4
+"${DEVKITPRO}/devkitA64/bin/aarch64-none-elf-readelf" -h PaperNX.elf
+mkdir -p third-party-licenses
+cp -r prefix-mupdf-switch/licenses/. third-party-licenses/
+mkdir -p third-party-licenses/SDK-notices
+cp scripts/license-notices/* third-party-licenses/SDK-notices/
+dkp-pacman -Q > verification/switch-packages.txt
+python3 scripts/verify_artifacts.py
+python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.1.0-rc1

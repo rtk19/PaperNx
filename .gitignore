@@ -15,3 +15,6 @@ __pycache__/
 *.ppm
 .DS_Store
 
+
+/third-party-licenses/
+*.nacp

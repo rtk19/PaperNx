@@ -1,65 +1,42 @@
-# Nintendo Switch Build Guide & Toolchain Reference
+﻿# Switch derleme
 
-PaperNX is compiled as a native Nintendo Switch homebrew executable (`.nro`) using devkitPro (`devkitA64` / `libnx`).
-
----
-
-## 1. Prerequisites
-
-To cross-compile PaperNX for the Nintendo Switch:
-1. **devkitPro & devkitA64**:
-   - `aarch64-none-elf-gcc` and `aarch64-none-elf-g++` (GCC 13+ / 14+)
-   - `libnx` (Nintendo Switch Homebrew Library)
-   - `switch-tools` (`elf2nro`, `nacptool`)
-2. **Switch Portlibs** (installable via `dkp-pacman`):
-   ```bash
-   dkp-pacman -S switch-sdl2 switch-sdl2_ttf switch-freetype switch-libjpeg-turbo switch-zlib switch-bzip2 switch-libpng
-   ```
-3. **Cross-Compiled MuPDF AArch64 Static Libraries**:
-   - `libmupdf.a` and `libmupdf-third.a` built for `aarch64-none-elf` (Tegra X1 / Cortex-A57).
-
----
-
-## 2. Compiling MuPDF for Switch (Automated Script)
-
-Run the included idempotent cross-compilation script:
-```bash
-chmod +x scripts/build-mupdf-switch.sh
-./scripts/build-mupdf-switch.sh "$(pwd)/prefix-mupdf-switch"
-```
-This builds static libraries targeting `-march=armv8-a+crc+crypto -mtune=cortex-a57` with X11, GLFW, and curl disabled, installing headers to `prefix-mupdf-switch/include` and archives to `prefix-mupdf-switch/lib`.
-
----
-
-## 3. Building PaperNX.nro
-
-Once the MuPDF prefix is prepared:
-```bash
-export MUPDF_PREFIX="$(pwd)/prefix-mupdf-switch"
-make all -j$(nproc)
-```
-Outputs generated:
-- `PaperNX.elf`: 64-bit ARM ELF executable.
-- `PaperNX.nacp`: Title (`PaperNX`), author (`ysfbz`), and version (`0.1.0`) metadata.
-- `PaperNX.nro`: Validated Switch homebrew binary with embedded RomFS containing default fonts.
-
----
-
-## 4. Packaging for SD Card
+Fiziksel Switch uyumluluğu UNVERIFIED; bu yönerge gerçek ARM64/NRO derlemesi içindir.
 
 ```bash
-python3 scripts/package_release.py PaperNX.nro --destination dist --version "v0.1.0"
+docker compose build switch
+docker compose run --rm switch
 ```
-Produces:
-- `dist/PaperNX-switch-v0.1.0.zip`
-- `dist/PaperNX-switch-v0.1.0.zip.sha256`
-- `dist/manifest.json`
 
----
+İmaj devkitPro devkitA64 taban digest'ine sabitlenmiştir. `dkp-pacman` ile devkitA64/libnx
+ve Switch portlibs kurulumu/güncellemesi yapılır. Gerçek paket sürümleri
+`verification/switch-packages.txt` dosyasına yazılır; paket deposunun gelecekte aynı
+sürümleri vermesi garanti edilmez. MuPDF arşivinin SHA256 değeri sabittir.
 
-## 5. Automated CI via GitHub Actions
+Docker içindeki işlem:
 
-The repository includes a guarded GitHub Actions workflow (`.github/workflows/manual-switch-build.yml`):
-- Run method: Manual trigger (`workflow_dispatch`).
-- Confirmation gate: Requires typing `BUILD` to authorize compute minutes.
-- Uses `devkitpro/devkita64:latest` container to compile and package the release.
+```bash
+export PATH="$DEVKITPRO/portlibs/switch/bin:$PATH"
+bash scripts/build-mupdf-switch.sh /work/prefix-mupdf-switch
+export MUPDF_PREFIX=/work/prefix-mupdf-switch
+make all -j4
+python3 scripts/verify_artifacts.py
+python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.1.0-rc1
+```
+
+C++17, `-fno-exceptions`, `-fno-rtti` ve C11 kullanılır. ELF C++ linker ile bağlanır.
+HarfBuzz ve FreeType, SDL2_ttf ile ortak portlibs sürümünden alınır. MuPDF'nin diğer
+üçüncü taraf bağımlılıkları `libmupdf-third.a` içindedir. SDL2/SDL2_ttf, HarfBuzz,
+FreeType, bzip2, PNG, JPEG, zlib, libm ve libnx linker grubuna dahildir.
+
+MuPDF kaynağının kendi başlıkları önce seçilir. Sistem font bağımlılıklarının include
+klasörleri ayrı verilir; eski portlibs MuPDF başlıkları derlemeye karışmaz. Arşivlerin
+**tüm üyeleri** AArch64 kontrolünden geçer. Önbellek compiler/flag/uyumluluk ve font
+arşiv hash'leriyle doğrulanır; arşiv SHA256 değerleri tekrar kontrol edilir.
+
+NACP sürümü `0.1.0-rc1`; varsayılan libnx ikonu kullanılır. `elf2nro`, `romfs/`
+klasörünü dahil eder. Doğrulayıcı ELF machine=183, NRO0 segment sınırları, ASET/NACP,
+RomFS dizinleri ve gömülü fontların kaynakla eşitliğini denetler.
+Bu kontroller konsolda başlatma veya fiziksel bellek kullanımını kanıtlamaz.
+
+`dist/` gerçek NRO'yu, SD ZIP'ini, SHA256 dosyalarını ve manifest'i içerir.
+Genel Docker prune komutları kullanılmaz.

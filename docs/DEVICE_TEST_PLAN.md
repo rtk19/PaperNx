@@ -1,68 +1,28 @@
-# PaperNX Physical Nintendo Switch Device Test Plan
+﻿# Fiziksel Switch doğrulama matrisi
 
-This checklist outlines the testing procedure to be executed on a physical Nintendo Switch console to promote PaperNX from **HARDWARE UNVERIFIED — ALPHA** to **HARDWARE VERIFIED — STABLE**.
+Tüm satırlar **UNVERIFIED**. Konsol bu oturuma bağlı değildir. NRO'nun varlığı veya
+başlık doğrulaması bu satırları PASS yapmaz. Sonuç, tarih, HOS/libnx/hbmenu sürümü,
+cihaz modeli, açılan kitabın SHA256 değeri ve log dosyasıyla kaydedilmelidir.
 
----
+| Senaryo | Kabul ölçütü | Sonuç |
+|---|---|---|
+| Kurulum/başlatma | SD ZIP doğru dizine açılır; ikon/NACP, RomFS ve Türkçe UI görünür | UNVERIFIED |
+| EPUB3 | Yerel kitap, resim, kapak, nav/NCX ve bütün bölümler açılır | UNVERIFIED |
+| EPUB düzeni | Boyut, serif/sans, satır, kenar ve hizalama değişir; konum aynı bölümde kalır | UNVERIFIED |
+| Altı tema | Metin ve sayfa arka planı değişir; resimler bozulmaz | UNVERIFIED |
+| PDF | Çok sayfalı vektör/tarama PDF, sığdırma, 1–5× zoom ve sınırlı pan | UNVERIFIED |
+| Touch | Tap/swipe ile PDF drag ayrılır; çift mouse olayı oluşmaz | UNVERIFIED |
+| Pinch | SDL çoklu dokunma olayının konsolda oluştuğu ve zoom yaptığı görülür | UNVERIFIED |
+| Joy-Con/Pro | A/B/X/Y, Plus/Minus, L/R, ZL/ZR, çubuk ve yönler tablodaki işlemleri yapar | UNVERIFIED |
+| Bağlantı | İkinci kumandayı ayırmak birinciyi kapatmaz; yeniden bağlantı çalışır | UNVERIFIED |
+| Arama | İ ı I i Ş ş Ğ ğ Ü ü Ö ö Ç ç yazılım klavyesiyle girilir ve aranır | UNVERIFIED |
+| Yeniden başlatma | Kitap kimliği, sayfa, düzen, tema, metadata ve yer imleri geri gelir | UNVERIFIED |
+| Uyku/uyanma | Konum kaydedilir; çizim, kontrol ve worker güvenli devam eder | UNVERIFIED |
+| Handheld/docked | Yerleşim ve viewport çözünürlük değişiminde güncellenir | UNVERIFIED |
+| Application/applet | Gerçek RAM ve büyük kitap davranışı her iki kipte ölçülür | UNVERIFIED |
+| Çıkış | B/Esc kütüphaneden hbmenu'ye güvenli döner | UNVERIFIED |
+| Yazma hatası | Yazılamayan SD'de uyarı/yeniden deneme; geçerli yedek korunur | UNVERIFIED |
 
-## 1. Environment & Setup
-
-- **Hardware**: Nintendo Switch (V1, V2, Lite, or OLED).
-- **Firmware**: Atmosphere 1.5.0+ running on HOS 16.0.0+.
-- **Loader**: Homebrew Menu (via Title Override / NSP Forwarder or Album applet).
-  > **Note**: For large EPUB/PDF rasterization, launch via Title Override (holding `R` while launching an installed game) to grant PaperNX full RAM access (up to 3 GB) instead of Applet Mode (approx. 400 MB limit).
-
----
-
-## 2. Installation Steps
-
-1. Download the verified release archive: `PaperNX-switch-v0.1.0.zip`.
-2. Extract the archive directly to the root of your FAT32 or exFAT microSD card.
-3. Verify files exist:
-   - `sdmc:/switch/PaperNX/PaperNX.nro`
-   - `sdmc:/switch/PaperNX/fonts/NotoSans-Regular.ttf`
-   - `sdmc:/switch/PaperNX/fonts/NotoSerif-Regular.ttf`
-4. Copy test books into `sdmc:/switch/PaperNX/books/`:
-   - Sample EPUB book (Turkish text, chapters)
-   - Sample PDF document (multi-page, vector text, scanned graphics)
-5. Reinsert microSD card into Nintendo Switch and launch Atmosphere.
-
----
-
-## 3. Step-by-Step Test Checklist
-
-### A. Startup & RomFS
-- [ ] Application icon and metadata render cleanly in Homebrew Menu.
-- [ ] Application launches without black screen or immediate crash.
-- [ ] Log file is created at `sdmc:/switch/PaperNX/logs/papernx.log`.
-- [ ] RomFS mounts successfully; Turkish fonts render sharp in UI header.
-
-### B. Library Screen
-- [ ] `books/` directory is scanned; books appear in library grid with titles and authors.
-- [ ] Switching categories (*Continue Reading*, *Favorites*, *Unread*, *Completed*) works via touch and Joy-Con (`L` / `R`).
-- [ ] Turkish search via virtual keyboard filters titles accurately (`İ`, `ı`, `ş`, `ç`, `ö`, `ü`).
-- [ ] Selecting a book opens the reader within 1.0 second.
-
-### C. EPUB Reading Experience
-- [ ] Full-screen reading surface displays crisp text with eye-friendly theme.
-- [ ] Tap right (right 22%) or press `R` / `ZR` / `A` turns to next page.
-- [ ] Tap left (left 22%) or press `L` / `ZL` / `Y` turns to previous page.
-- [ ] Tap center opens header and footer toolbars without turning page.
-- [ ] Opening "Aa" modal allows changing font size, margins, line height, and theme.
-- [ ] Theme changes reflect immediately across the entire screen.
-- [ ] Opening TOC modal displays chapters; selecting a chapter jumps to the exact section.
-- [ ] Bookmarking current page adds entry to Bookmarks modal.
-
-### D. PDF Reading Experience
-- [ ] PDF renders in fit-page mode with correct aspect ratio.
-- [ ] Zooming via Right Stick Up increases magnification cleanly.
-- [ ] Panning via Right Stick or touchscreen drag scrolls around the zoomed page without visual tearing or stale tiles.
-- [ ] Turning page resets zoom/pan cleanly to page fit.
-
-### E. Persistence & Battery / Power Loss
-- [ ] Read several pages, then press `Plus (+)` -> Exit to Homebrew Menu.
-- [ ] Reopen PaperNX; the last opened book and page position are restored identically.
-- [ ] Sleep mode: Put console to sleep while reading; wake console up; render surface resumes without texture corruption.
-
-### F. Controller Lifecycle
-- [ ] Detach Joy-Cons to play in tabletop mode; controller hotplugging is recognized.
-- [ ] Connect Nintendo Switch Pro Controller; navigation functions without restart.
+Ani güç kesme testi yalnızca yedeklenmiş test SD'siyle yapılmalıdır. Simüle edilmiş
+interrupted-save testi gerçek fiziksel storage arızalarının tümünü kapsamaz.
+Kararlı v1.0 onayı bu matris tamamlanmadan verilmez.

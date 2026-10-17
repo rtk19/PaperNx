@@ -22,6 +22,10 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.package_release import validate_nro, package
+from scripts.artifact_validation import validate_assets, validate_elf
+
+if not __debug__:
+    raise RuntimeError("Packaging tests require enabled assertions")
 
 def make_synthetic_nro(magic=b"NRO0", total_size=0x1000, seg_offsets=((0x80, 0x400), (0x480, 0x200), (0x680, 0x100))):
     buf = bytearray(total_size)
@@ -38,7 +42,10 @@ def make_synthetic_nro(magic=b"NRO0", total_size=0x1000, seg_offsets=((0x80, 0x4
     # 0x20: Segments (.text, .rodata, .data)
     for i, (off, sz) in enumerate(seg_offsets):
         struct.pack_into("<II", buf, 0x20 + 8 * i, off, sz)
-    return bytes(buf)
+    asset = bytearray(0x38 + 0x4000 + 0x50)
+    struct.pack_into("<4sI6Q", asset, 0, b"ASET", 0, 0, 0, 0x38, 0x4000, 0x4038, 0x50)
+    struct.pack_into("<Q", asset, 0x4038, 0x50)
+    return bytes(buf + asset)
 
 def run_tests():
     print("[TEST] Running PaperNX packaging validation tests...")
@@ -50,6 +57,20 @@ def run_tests():
     assert len(meta["segments"]) == 3
     assert meta["segments"][0]["name"] == ".text"
     assert meta["segments"][0]["size"] == 0x400
+    assert validate_assets(valid_nro, meta["declared_size"])["nacp"]["size"] == 0x4000
+    for image in (b"not an ELF", b"\x7fELF\x02\x01" + bytes(64)):
+        try:
+            validate_elf(image)
+            assert False, "Invalid target architecture accepted"
+        except ValueError:
+            pass
+    invalid_assets = bytearray(valid_nro)
+    struct.pack_into("<Q", invalid_assets, 0x1000 + 0x30, 0xffffffffffffffff)
+    try:
+        validate_assets(invalid_assets, 0x1000)
+        assert False, "Oversized RomFS accepted"
+    except ValueError:
+        pass
 
     # 2. Rejection of invalid magic (e.g. standard ELF header \x7fELF)
     elf_nro = make_synthetic_nro(magic=b"\x7fELF")

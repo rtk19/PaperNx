@@ -1,136 +1,113 @@
-# PaperNX — Native Nintendo Switch EPUB/PDF Reader
+﻿# PaperNX — Nintendo Switch için yerel EPUB/PDF okuyucu
 
-Offline, browser-free Nintendo Switch EPUB and PDF reader built in native C++17, SDL2, and the **MuPDF C API**.
-Zero Chromium, zero WebView, zero HTTP servers, zero background daemons. Extremely lightweight, battery-friendly, and optimized for handheld reading on the Nintendo Switch Tegra X1.
+C++17, SDL2/SDL2_ttf, libnx ve MuPDF 1.23.11 C API kullanan çevrimdışı okuyucu.
+EPUB/PDF dosyaları microSD üzerinden açılır. Tarayıcı, WebView veya HTTP sunucusu kullanılmaz.
 
----
+**Sürüm: v0.1.0-rc1 önizleme. Fiziksel Nintendo Switch: UNVERIFIED.**
+Gerçek ARM64/NRO derlemesi ile konsolda çalıştırma ayrı doğrulamalardır.
+Güncel kanıtlar: [STATUS](docs/STATUS.md), [test sonuçları](docs/TEST_RESULTS.md),
+[sürüm raporu](docs/RELEASE_REPORT.md).
 
-## Key Features
+## Özellikler
 
-- **Kindle-Grade Reading Surface**:
-  - Distraction-free full-screen reading with warm, eye-friendly color palettes.
-  - 6 Built-in Themes: *Paper*, *Ivory*, *Sepia*, *Slate*, *Dark*, and *OLED Black*.
-  - Configurable typography: Font family, font size, line height, page margins, and text alignment.
-  - Bundled high-legibility Google Noto Sans and Noto Serif typography with full Turkish UTF-8 character support (`İ`, `ı`, `ğ`, `ş`, `ü`, `ö`, `ç`).
-  - True EPUB layout reflow and font size adjustments on the fly.
-  - PDF fit-page rendering with smooth zoom (up to 3.0x) and 2D panning.
-- **Kindle-Style Library & Navigation**:
-  - Book shelf categories: *All Books*, *Continue Reading*, *Favorites*, *Unread*, *Completed*.
-  - Fast Turkish-aware search with case-folding.
-  - Cover thumbnails and multi-level LRU page/texture caching with memory budgeting.
-  - In-app Table of Contents (TOC) and Bookmarks modal.
-  - Read-only native SD card file picker.
-- **Dual Touch & Joy-Con Controls**:
-  - Standard Kindle touch zones: Tap left (previous page), tap right (next page), tap center (toggle toolbar).
-  - Swipe left and right gesture tracking.
-  - Full Joy-Con and Pro Controller support: D-Pad, face buttons, shoulder triggers (L/R/ZL/ZR), and analog sticks with hardware deadzone filtering.
-  - Hotplugging: dynamically recovers when controllers disconnect or reconnect.
-- **Fail-Safe Persistence (`PAPERNX-2`)**:
-  - Multi-stage atomic file rotation (`.tmp` -> `.bak.old` -> `.bak` -> `.dat`) to protect progress against sudden power loss or SD removal.
-  - Stores reading page, progress percentage, layout settings, and multiple bookmarks per document.
-  - Checksum verification on save and load with automatic recovery from backup files.
-  - Seamless migration from legacy `PAPERNX-1` saves.
-- **Engineered for Nintendo Switch**:
-  - Standalone `PaperNX.nro` homebrew binary with embedded RomFS assets.
-  - Clean startup (`romfsInit()`) and safe teardown ensuring textures and caches are purged before SDL renderer destruction.
-  - Log output to `sdmc:/switch/PaperNX/logs/papernx.log` with size bounds and zero privacy leakage.
+- EPUB metin/resim çizimi; EPUB3 nav/NCX içindekiler ve metadata ile kapak çıkarma.
+- Altı tema; serif/sans, yazı boyutu, satır aralığı, kenar boşluğu ve hizalama.
+- PDF sayfaya sığdırma; 1–5× yakınlaştırma ve gerçek sayfa boyutlarına göre sınırlandırılmış kaydırma.
+- Izgara/liste, favoriler, okumaya devam, son okunanlar, okunmamış ve biten kitaplar.
+- Türkçe UTF-8 başlık/yazar/dosya adı araması; Switch üzerinde libnx yazılım klavyesi.
+- SD dosya gezgini ve dış klasörlerden açılan kitapların kalıcı kütüphane kaydı.
+- Çoklu yer imleri; checksum korumalı PAPERNX-3 kayıtları, PAPERNX-1/2 okuma desteği.
+- Sınırlı thumbnail kuyruğu, ana iş parçacığında SDL texture oluşturma, bellek bütçeli LRU.
 
----
+Kalıcı EPUB konumu bölüm ve bölüm içindeki sayfa oranıyla saklanır. Düzen değiştiğinde
+aynı bölüme yaklaşık dönüş sağlar; karakter/CFI düzeyinde kesin konum garantisi vermez.
+Dosyayı yeniden adlandırmak veya taşımak belge kimliğini değiştirir.
 
-## Directory Structure on Nintendo Switch SD Card
-
-When extracted to the root of your SD card (`sdmc:/`), PaperNX installs to:
+## SD yerleşimi
 
 ```text
-sdmc:/
-└── switch/
-    └── PaperNX/
-        ├── PaperNX.nro                  # Native Homebrew application
-        ├── books/                       # Put your .epub and .pdf books here
-        │   └── Sample_Book.epub
-        ├── fonts/                       # Bundled and custom TTF/OTF fonts
-        │   ├── NotoSans-Regular.ttf
-        │   ├── NotoSerif-Regular.ttf
-        │   └── OFL.txt
-        ├── data/                        # Progress & reading states (PAPERNX-2)
-        │   └── progress.txt
-        ├── logs/                        # Diagnostics log
-        │   └── papernx.log
-        └── README.md
+switch/PaperNX/
+├── PaperNX.nro
+├── books/
+├── data/
+└── fonts/
+    ├── NotoSans-Regular.ttf
+    ├── NotoSerif-Regular.ttf
+    └── OFL.txt
 ```
 
----
+Paket ayrıca README, AGPL lisansı ve bağımlılık lisans bildirimlerini içerir.
 
-## Building from Source
-
-### 1. Portable Core Tests (Host OS)
-
-Verify format detection, Turkish case-folding, persistence rotation, and gesture navigation:
+## Tekrarlanabilir yerel Docker doğrulaması
 
 ```bash
-cmake -S . -B build-core -DBUILD_TESTING=ON
+docker version
+docker info
+docker compose version
+docker compose build desktop switch
+docker compose run --rm desktop
+docker compose run --rm desktop bash scripts/verify-pinned-desktop.sh
+docker compose run --rm desktop bash scripts/verify-sanitizers.sh
+docker compose run --rm switch
+```
+
+`desktop` çekirdek/paketleme testlerini ve SDL2/MuPDF uygulamasını derler, üç CTest testini çalıştırır.
+`verify-pinned-desktop.sh` SHA256 ile doğrulanmış MuPDF 1.23.11 kaynağını derleyerek aynı testleri çalıştırır.
+`switch` devkitA64/libnx/portlibs ile gerçek NRO oluşturur; ELF/NRO/NACP/RomFS ve font içeriklerini denetler.
+Çıktılar bind mount üzerinde `verification/`, `build-*`, `prefix-*` ve `dist/` altında kalır.
+Mevcut Docker kaynakları için genel temizleme yapılmaz.
+
+MuPDF, SDL2_ttf ile aynı sistem HarfBuzz/FreeType kitaplıklarını kullanır; diğer gerekli
+MuPDF üçüncü taraf modülleri statik arşive derlenir. PDF/EPUB modülleri kapatılmaz.
+
+Docker dışındaki çekirdek testi:
+
+```bash
+cmake -S . -B build-core -G Ninja -DBUILD_TESTING=ON
 cmake --build build-core --parallel
 ctest --test-dir build-core --output-on-failure
-python tests/test_package.py
+python3 tests/test_package.py
 ```
 
-### 2. Native Desktop Reader & MuPDF EPUB/PDF Integration Tests
+Masaüstü uygulaması: `./build-desktop/PaperNX ./PaperNX-data`.
+Switch için ayrıntılar: [BUILD_SWITCH](docs/BUILD_SWITCH.md).
 
-Prerequisites: `libsdl2-dev`, `libsdl2-ttf-dev`, `libmupdf-dev`.
+## Kontroller
 
-```bash
-python3 tests/generate_fixtures.py
-cmake -S . -B build-desktop -DPAPERNX_NATIVE=ON
-cmake --build build-desktop --parallel
-./build-desktop/mupdf_render_tests
-./build-desktop/PaperNX ./test-data
-```
+Aşağıdakiler SDL mantıksal düğme eşlemeleridir; fiziksel Joy-Con/Pro Controller eşlemesi cihazda doğrulanmalıdır.
 
-### 3. Nintendo Switch AArch64 Cross-Compilation
+| Ekran | Kontrol | İşlev |
+|---|---|---|
+| Kütüphane | A / Enter | Kitabı aç |
+| Kütüphane | X / X | Ara; masaüstünde Esc aramayı kapatır |
+| Kütüphane | Y / Y | SD gezgini |
+| Kütüphane | Minus / klavye - | Izgara/liste |
+| Kütüphane | L/R veya PageUp/PageDown | Kategori |
+| Kütüphane | Sol çubuk tık / F | Favori |
+| Okuyucu | A / Enter / orta dokunuş | Araç çubuğu |
+| Okuyucu | L/R / PageUp/PageDown | Önceki/sonraki sayfa |
+| Okuyucu | D-pad/sol çubuk | Sayfa; yakınlaştırılmış PDF'te kaydırma |
+| Okuyucu | X / X | İçindekiler |
+| Okuyucu | Y / Y | Yer imi ekle/kaldır |
+| Okuyucu | Minus / B klavye | Yer imleri listesi |
+| Okuyucu | Plus / klavye + | Aa/PDF görünüm ayarları |
+| PDF | ZL/ZR / klavye - veya = | Küçült/büyüt |
+| PDF | Sağ çubuk tık / 0 | Sayfaya sığdır |
+| Aa | Sol/sağ; Y; yukarı/aşağı | Sekme; alan; değer |
+| PDF ayarları | Sol/sağ; yukarı/aşağı; Y | Büyütme; tema; sığdır |
+| Modal/okuyucu | B / Esc | Kapat/kütüphaneye dön |
+| Kütüphane | B / Esc | Çıkış |
 
-Prerequisites: devkitPro (`devkitA64`, `libnx`, `switch-sdl2`, `switch-sdl2_ttf`).
+Dokunma: sol/sağ kenar sayfa, orta araç çubuğu; PDF yakınlaştırılmışken sürükleme kaydırır.
+SDL çoklu dokunma olayı sağlarsa pinch işlenir; Switch'teki çoklu dokunma desteği UNVERIFIED.
+PDF sayfa değişiminde büyütme korunur, kaydırma başlangıca sıfırlanır.
 
-```bash
-# 1. Build and install MuPDF AArch64 static libraries
-chmod +x scripts/build-mupdf-switch.sh
-./scripts/build-mupdf-switch.sh prefix-mupdf-switch
+## CI ve lisans
 
-# 2. Build PaperNX.nro
-export MUPDF_PREFIX=$(pwd)/prefix-mupdf-switch
-make all -j$(nproc)
+PR kaynak değişikliklerinde hafif çekirdek/paketleme ve masaüstü testleri çalışır.
+Pahalı Switch işi aynı depodaki PR'a `switch-build` etiketi eklenmesiyle istenir.
+Default branch'e alındıktan sonra `workflow_dispatch` + `confirm=BUILD` kullanılabilir.
+Yerel doğrulama önceliklidir; sonuç alınmadan merge veya stable yayın yapılmaz.
 
-# 3. Assemble and verify release ZIP package
-python3 scripts/package_release.py PaperNX.nro --destination dist --version "v0.1.0"
-```
-
----
-
-## Automated CI Pipeline
-
-A guarded GitHub Actions workflow (`.github/workflows/manual-switch-build.yml`) provides:
-1. **Preflight**: Compiles and runs all portable unit tests and packaging validators.
-2. **Native Desktop Verification**: Compiles with SDL2/MuPDF, generates real EPUB/PDF fixtures, and executes `mupdf_render_tests`.
-3. **Switch Cross-Compile**: Builds `PaperNX.nro` in `devkitpro/devkita64` with pinned dependencies, validates NRO0 segments, and bundles the SD distribution ZIP.
-
----
-
-## Controls Summary
-
-| Action | Touch | Joy-Con / Controller |
-|:---|:---:|:---:|
-| Next Page | Tap Right Zone / Swipe Left | **D-Pad Right**, **R**, **ZR**, **A** |
-| Previous Page | Tap Left Zone / Swipe Right | **D-Pad Left**, **L**, **ZL**, **Y** |
-| Toggle Menu / Toolbars | Tap Center Zone | **X**, **Plus (+)** |
-| Close Modal / Return to Library | Tap Outside / Back Button | **B**, **Minus (-)** |
-| PDF Zoom In / Out | Pinch / UI Scrubber | **Right Stick Up / Down** |
-| PDF Pan | Touch Drag | **Right Stick / D-Pad** |
-| Font & Theme (Aa) | Tap "Aa" in Toolbar | **Plus (+)** -> Navigate |
-
----
-
-## Licenses & Compliance
-
-- **PaperNX**: Released under the **GNU Affero General Public License (AGPL-3.0-or-later)**.
-- **MuPDF**: Licensed by Artifex Software under **AGPL-3.0**.
-- **Noto Fonts**: Licensed under the **SIL Open Font License (OFL-1.1)**.
-- For third-party notices and corresponding source instructions, see [docs/LICENSES.md](docs/LICENSES.md).
+PaperNX ve MuPDF AGPL-3.0 kapsamındadır. Noto fontları OFL kapsamındadır.
+Kaynak ve bağımlılık dağıtım yükümlülükleri için [LICENSES](docs/LICENSES.md) dosyasına bakın.

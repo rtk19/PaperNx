@@ -1,67 +1,41 @@
-# PaperNX System Architecture
+﻿# Mimari
 
-PaperNX is designed as a modular, lightweight, native C++17 e-reader application built for the Nintendo Switch Tegra X1 architecture.
+PaperNX çevrimdışı C++17 uygulamasıdır. `main.cpp` SDL olaylarını ve ekran durumlarını yönetir;
+`core.cpp` kitap tarama/arama ve kayıtları; `gestures.cpp` dokunma ve çubuk tekrarlarını;
+`typography.cpp` SDL_ttf metinlerini; `page_cache.cpp` texture sahipliğini yönetir.
+`mupdf_bridge.c` C11 sınırı MuPDF fz_try/fz_catch temizleme yollarını içerir.
 
----
+## Belge ve konum
 
-## 1. Modular Subsystems
+Her açık belge kendi sınırlı allocator'ına ve MuPDF context'ine sahiptir. Thumbnail worker
+ayrı belge/context açar. SDL texture oluşturma ve silme ana thread üzerinde kalır.
+Kapatmada worker join edilir, belge/font/cache bırakılır, ardından renderer/window kapanır.
 
-```
-                     ┌───────────────────────────────────────────────┐
-                     │                 main.cpp                      │
-                     │  (Screen State Machine, Event-Driven Loop)     │
-                     └───────┬──────────────┬─────────────┬──────────┘
-                             │              │             │
-              ┌──────────────┴───────┐      │      ┌──────┴───────────────┐
-              │     Typography       │      │      │     Gestures         │
-              │  (Noto Sans/Serif,   │      │      │ (Touch Zones 22/56,  │
-              │   UTF-8 Truncation)  │      │      │  Swipes, Joy-Con)    │
-              └──────────────────────┘      │      └──────────────────────┘
-                                            │
-                     ┌──────────────────────┴────────────────┐
-                     │            Theme System               │
-                     │  (6 Palettes, Dynamic EPUB CSS Reflow) │
-                     └──────────────────────┬────────────────┘
-                                            │
-              ┌─────────────────────────────┴─────────────────┐
-              │                                               │
-    ┌─────────┴───────────────┐                    ┌──────────┴──────────────┐
-    │     MuPDF Bridge        │                    │      Page Cache         │
-    │  (C ABI boundary,       │                    │ (Memory-capped Texture  │
-    │   fz_try/fz_catch,      │                    │  LRU, Prefetching)      │
-    │   Bookmarks, TOC, View) │                    └─────────────────────────┘
-    └─────────┬───────────────┘
-              │
-    ┌─────────┴───────────────┐
-    │    papernx_core         │
-    │ (Domain Models, Scanner,│
-    │  PAPERNX-2 Store,       │
-    │  Turkish Case Folding)  │
-    └─────────────────────────┘
-```
+EPUB3 nav ve cover-image/EPUB2 cover metadata ZIP/XML API ile okunur; NCX native
+outline fallback olarak kalır. URI'ler MuPDF ile çözülür. CSS değişiminde belge yeniden
+oluşturulur, TOC ve render cache geçersizleştirilir. Tüm EPUB yüzeyi tema arka planıyla temizlenir;
+PDF görüntüleri EPUB CSS/renk dönüşümüne sokulmaz.
 
----
+MuPDF 1.23.11 EPUB bookmark'ları HTML nesnelerine bağlıdır; ham değerleri süreçler arasında
+saklamak güvenli değildir. Bridge bunun yerine sürüm işaretli bölüm/oran konumu saklar.
+Bu düzen değişiminde yaklaşık konumdur; CFI veya karakter çapası değildir. Eski ham
+bookmark'lar reddedilir; sayfa sayısı ve toplam ilerleme oranı fallback olarak kullanılır.
 
-## 2. Core Architectural Decisions
+## Kalıcılık
 
-1. **Strict Exception Boundary (`src/mupdf_bridge.c`)**:
-   - MuPDF uses `setjmp`/`longjmp` under `fz_try` and `fz_catch`.
-   - To guarantee that C++ object destructors are not bypassed, the MuPDF engine is completely isolated behind an `extern "C"` ABI.
-   - All pixel buffers (`PxImage`) and document instances (`PxDocument`) have explicit, leak-proof lifecycle management.
+CHECKSUM başlığı FNV-1a payload bütünlüğünü doğrular; güvenlik/imza mekanizması değildir.
+PAPERNX-3, PAPERNX-2 alanlarına kitabın yol/başlık/yazar bilgisini ekler. V1/V2 okunur.
+Bozuk tekil satırlar atlanır; dosya checksum kontrolü zayıflatılmaz. `.bak`, `.bak.old`
+ve `.tmp` sırayla kurtarma adaylarıdır. Temp flush/fsync ve byte doğrulamasından sonra
+geçerli primary yedeklenir. Başarısız yazmada dirty korunur ve 3 saniye sonra denenir.
 
-2. **Logical Bookmarks & Reflow Stability**:
-   - Rather than relying on simple fractional page approximations, EPUB reflow captures a persistent bookmark identifier via MuPDF's `fz_make_bookmark` and `fz_location_from_page_number`.
-   - When the user changes font size or line height, the bookmark is looked up with `fz_lookup_bookmark` to keep the reader anchored at the same reading position.
+Belge kimliği yol ve boyuta bağlıdır; yeniden adlandırma/taşıma otomatik eşleşmez.
+Tema, düzen ve birden fazla yer imi kayıtla döner; dosya taramasıyla bulunmayan ama
+kaydı geçerli olan dış klasör kitapları yeniden kütüphaneye alınır.
 
-3. **Atomic Persistence & Backup Rotation (`src/core.cpp`)**:
-   - The `PAPERNX-2` format encodes book reading status, bookmarks, and typography preferences.
-   - All disk writes are performed atomically: write to `.tmp` with FNV-1a checksum, flush to disk, rotate `.dat` to `.bak`, and rename `.tmp` to `.dat`.
-   - If the primary record is corrupted or truncated (e.g. by an abrupt shutdown), the engine recovers from `.bak`.
-   - Automatically migrates existing legacy `PAPERNX-1` records.
+## Derleme
 
-4. **Event-Driven Redraw Loop (`src/main.cpp`)**:
-   - Replaces battery-draining continuous polling with `SDL_WaitEventTimeout(100ms)`.
-   - Only triggers hardware render passes when an interaction occurs or when background textures/caches finish updating.
-
-5. **Memory-Capped LRU Cache (`src/page_cache.cpp`)**:
-   - Both reading page textures and library thumbnail covers are bounded by configurable VRAM budgets (64 MB for pages, 32 MB for covers) to strictly conform to Nintendo Switch applet and application memory limits.
+CMake taşınabilir core ve masaüstü hedeflerini; Makefile devkitA64/libnx NRO hedefini kurar.
+MuPDF 1.23.11 kaynak SHA256 değeri sabittir. SDL_ttf ve MuPDF ortak sistem HarfBuzz/FreeType
+kullanır; uyumsuz iki statik font engine kopyası bağlanmaz. Docker tarifleri, doğrulama
+betikleri ve PR testleri aynı kaynakları kullanır. Hardware matrisi ayrı tutulur.

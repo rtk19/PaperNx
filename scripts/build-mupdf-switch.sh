@@ -3,13 +3,14 @@
 # Production cross-compilation of MuPDF static archives for Nintendo Switch (devkitA64 / libnx).
 set -euo pipefail
 
-MUPDF_VERSION="${MUPDF_VERSION:-1.23.11}"
+MUPDF_VERSION="1.23.11"
 MUPDF_PINNED_SHA256="478f2a167feae2a291c8b8bc5205f2ce2f09f09b574a6eb0525bfad95a3cfe66"
+COMPAT_HEADER="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/include/papernx/switch_compat.h"
 INSTALL_PREFIX="${1:-$(pwd)/prefix-mupdf-switch}"
 BUILD_DIR="${BUILD_DIR:-$(pwd)/build-mupdf-switch}"
 
 echo "=========================================================="
-echo "PaperNX — Building MuPDF ${MUPDF_VERSION} for Nintendo Switch AArch64"
+echo "PaperNX - Building MuPDF ${MUPDF_VERSION} for Nintendo Switch AArch64"
 echo "Prefix: ${INSTALL_PREFIX}"
 echo "=========================================================="
 
@@ -33,22 +34,39 @@ export RANLIB="aarch64-none-elf-ranlib"
 
 # Arch flags for Nintendo Switch Tegra X1 (Cortex-A57)
 ARCH_FLAGS="-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE -O2 -ffunction-sections -fdata-sections"
-SWITCH_INCLUDES="-I${DEVKITPRO}/libnx/include -I${DEVKITPRO}/portlibs/switch/include"
+SWITCH_INCLUDES="-I${DEVKITPRO}/libnx/include"
 
+FONT_DEPS_SHA="$(sha256sum "${DEVKITPRO}/portlibs/switch/lib/libharfbuzz.a" "${DEVKITPRO}/portlibs/switch/lib/libfreetype.a" | sha256sum | cut -d' ' -f1)"
+COMPAT_SHA="$(sha256sum "${COMPAT_HEADER}" | cut -d' ' -f1)"
 GCC_VER="$("${CC}" --version | head -n1)"
-FINGERPRINT="MUPDF=${MUPDF_VERSION}:${MUPDF_PINNED_SHA256}|CC=${GCC_VER}|FLAGS=${ARCH_FLAGS}"
+FINGERPRINT="MUPDF=${MUPDF_VERSION}:${MUPDF_PINNED_SHA256}|CC=${GCC_VER}|FLAGS=${ARCH_FLAGS}|COMPAT=${COMPAT_SHA}|BUNDLED_HEADERS_ONLY=1|SYSTEM_HB_FT=1:${FONT_DEPS_SHA}"
 
+mkdir -p "${INSTALL_PREFIX}"
+INSTALL_PREFIX="$(cd "${INSTALL_PREFIX}" && pwd)"
 FINGERPRINT_FILE="${INSTALL_PREFIX}/.build_fingerprint"
+verify_arch() {
+    local machines
+    machines="$(aarch64-none-elf-readelf -h "$1" | sed -n 's/.*Machine: *//p' | sort -u)"
+    if [ "$machines" != "AArch64" ]; then
+        echo "ERROR: archive contains non-AArch64 or unreadable members: $1: $machines" >&2
+        exit 1
+    fi
+    echo "All archive members are AArch64: $1"
+}
 
 # Check if already installed, valid, and fingerprint matches
 if [ -f "${INSTALL_PREFIX}/lib/libmupdf.a" ] && \
    [ -f "${INSTALL_PREFIX}/lib/libmupdf-third.a" ] && \
    [ -f "${INSTALL_PREFIX}/include/mupdf/fitz.h" ] && \
+   [ -f "${INSTALL_PREFIX}/licenses/MuPDF-1.23.11/COPYING" ] && \
+   [ -f "${INSTALL_PREFIX}/archive-sha256" ] && \
    [ -f "${FINGERPRINT_FILE}" ] && \
    [ "$(cat "${FINGERPRINT_FILE}")" = "${FINGERPRINT}" ]; then
     echo "MuPDF is already compiled and cache fingerprint verified in ${INSTALL_PREFIX}."
     echo "Validating AArch64 architecture..."
-    aarch64-none-elf-readelf -h "${INSTALL_PREFIX}/lib/libmupdf.a" | grep -m1 "AArch64"
+    verify_arch "${INSTALL_PREFIX}/lib/libmupdf.a"
+    verify_arch "${INSTALL_PREFIX}/lib/libmupdf-third.a"
+    (cd "${INSTALL_PREFIX}/lib" && sha256sum -c ../archive-sha256)
     exit 0
 fi
 
@@ -60,7 +78,8 @@ URL="https://mupdf.com/downloads/archive/${TARBALL}"
 
 if [ ! -f "${TARBALL}" ]; then
     echo "Fetching MuPDF source tarball from ${URL}..."
-    curl -fsSL -o "${TARBALL}" "${URL}" || wget -O "${TARBALL}" "${URL}"
+    curl --connect-timeout 20 --max-time 600 --retry 3 -fsSL -o "${TARBALL}.download" "${URL}"
+    mv "${TARBALL}.download" "${TARBALL}"
 fi
 
 echo "Verifying SHA256 checksum of downloaded tarball..."
@@ -69,8 +88,8 @@ if command -v sha256sum &> /dev/null; then
 elif command -v shasum &> /dev/null; then
     ACTUAL_SHA="$(shasum -a 256 "${TARBALL}" | awk '{print $1}')"
 else
-    echo "WARNING: sha256sum/shasum not found, skipping local hash check."
-    ACTUAL_SHA="${MUPDF_PINNED_SHA256}"
+    echo "ERROR: SHA256 verification tool required." >&2
+    exit 1
 fi
 
 if [ "${ACTUAL_SHA}" != "${MUPDF_PINNED_SHA256}" ]; then
@@ -89,10 +108,12 @@ if [ ! -d "${SRC_DIR}" ]; then
 fi
 
 cd "${SRC_DIR}"
+OUT="build/papernx-switch-$(printf %s "${FINGERPRINT}" | sha256sum | cut -c1-16)"
 
 echo "Building static libraries..."
-make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)" \
-    build=release \
+make -j"${JOBS:-4}" \
+    build=release OUT="${OUT}" \
+    XCXXFLAGS="-fno-exceptions -fno-rtti" \
     OS=none \
     HAVE_X11=no \
     HAVE_GLFW=no \
@@ -100,26 +121,25 @@ make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)" \
     HAVE_CURL=no \
     HAVE_WIN32=no \
     USE_SYSTEM_LIBS=no \
+    USE_SYSTEM_HARFBUZZ=yes USE_SYSTEM_FREETYPE=yes \
+    SYS_HARFBUZZ_CFLAGS="-I${DEVKITPRO}/portlibs/switch/include/harfbuzz" \
+    SYS_FREETYPE_CFLAGS="-I${DEVKITPRO}/portlibs/switch/include/freetype2" \
     CROSS_COMPILE=aarch64-none-elf- \
-    XCFLAGS="${ARCH_FLAGS} ${SWITCH_INCLUDES} -D__SWITCH__ -D__arm64__" \
+    XCFLAGS="-I$(pwd)/include ${ARCH_FLAGS} ${SWITCH_INCLUDES} -include ${COMPAT_HEADER} -Dtimegm=papernx_timegm -D__SWITCH__ -D__arm64__" \
     libs
 
 echo "Installing to ${INSTALL_PREFIX}..."
 mkdir -p "${INSTALL_PREFIX}/lib" "${INSTALL_PREFIX}/include"
 cp -r include/mupdf "${INSTALL_PREFIX}/include/"
-cp build/release/libmupdf.a "${INSTALL_PREFIX}/lib/"
-cp build/release/libmupdf-third.a "${INSTALL_PREFIX}/lib/"
+cp "${OUT}/libmupdf.a" "${INSTALL_PREFIX}/lib/"
+cp "${OUT}/libmupdf-third.a" "${INSTALL_PREFIX}/lib/"
 
 echo "Strictly verifying AArch64 target architecture of generated libraries..."
-if ! aarch64-none-elf-readelf -h "${INSTALL_PREFIX}/lib/libmupdf.a" | grep -m1 "AArch64"; then
-    echo "FATAL: ${INSTALL_PREFIX}/lib/libmupdf.a is NOT AArch64!" >&2
-    exit 1
-fi
+verify_arch "${INSTALL_PREFIX}/lib/libmupdf.a"
+verify_arch "${INSTALL_PREFIX}/lib/libmupdf-third.a"
+(cd "${INSTALL_PREFIX}/lib" && sha256sum libmupdf.a libmupdf-third.a > ../archive-sha256)
 
-if ! aarch64-none-elf-readelf -h "${INSTALL_PREFIX}/lib/libmupdf-third.a" | grep -m1 "AArch64"; then
-    echo "FATAL: ${INSTALL_PREFIX}/lib/libmupdf-third.a is NOT AArch64!" >&2
-    exit 1
-fi
+python3 "$(dirname "${COMPAT_HEADER}")/../../scripts/collect_licenses.py" "$PWD" "${INSTALL_PREFIX}/licenses"
 
 # Write cache fingerprint
 echo "${FINGERPRINT}" > "${FINGERPRINT_FILE}"

@@ -55,7 +55,7 @@ ROMFS	:=	romfs
 
 APP_TITLE	:=	PaperNX
 APP_AUTHOR	:=	ysfbz
-APP_VERSION	:=	0.1.0
+APP_VERSION	:=	0.1.0-rc1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -65,14 +65,15 @@ ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 CFLAGS	:=	-g -Wall -O2 -ffunction-sections -fdata-sections \
 			$(ARCH) $(DEFINES)
 
-CFLAGS	+=	-D__SWITCH__ $(INCLUDE) `sdl2-config --cflags`
+CFLAGS	+=	-D__SWITCH__ -D_POSIX_C_SOURCE=200809L $(INCLUDE) `sdl2-config --cflags`
 
 CXXFLAGS := $(CFLAGS) -std=c++17 -fno-rtti -fno-exceptions
+CFLAGS += -std=c11
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
 
-LIBS := -lmupdf -lmupdf-third -lSDL2_ttf `sdl2-config --libs` -lfreetype -lbz2 -lpng -lz -lm
+LIBS := -Wl,--start-group -lSDL2_ttf -lmupdf -lharfbuzz -lfreetype -lmupdf-third `sdl2-config --libs` -lbz2 -lpng -ljpeg -lz -Wl,--end-group -lm -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -120,7 +121,7 @@ export OFILES_SRC	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export OFILES 	:=	$(OFILES_BIN) $(OFILES_SRC)
 export HFILES_BIN	:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(if $(filter /%,$(dir)),$(dir),$(CURDIR)/$(dir))) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
 			-I$(CURDIR)/$(BUILD)
 
@@ -150,6 +151,10 @@ ifeq ($(strip $(ICON)),)
 	endif
 else
 	export APP_ICON := $(TOPDIR)/$(ICON)
+endif
+
+ifeq ($(strip $(APP_ICON)),)
+	export APP_ICON := $(LIBNX)/default_icon.jpg
 endif
 
 ifeq ($(strip $(NO_ICON)),)

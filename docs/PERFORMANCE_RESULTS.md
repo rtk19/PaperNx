@@ -1,29 +1,24 @@
-# PaperNX Performance Benchmarks & Memory Profiles
+﻿# Performans ve bellek kanıtlarının sınırı
 
-This document records the measured performance characteristics, cache efficiency, and memory consumption metrics of PaperNX.
+Önceki sürümdeki milisaniye/RAM tabloları bu oturumda ölçülemediği için kaldırıldı.
+Switch FPS, pil tüketimi, açılış süresi ve gerçek tepe RAM: **UNVERIFIED**.
 
----
+Çekirdek testinde 1.000 dosya tarama/arama doğruluğu çalıştırılır. CTest süreleri test
+hazırlığını ve birçok senaryoyu birlikte içerir; bunlar tek bir kitap açma benchmark'ı değildir.
+Güncel süreler `verification/*.log` ve [TEST_RESULTS](TEST_RESULTS.md) içindedir.
 
-## 1. Automated Benchmark Summary
+Kaynakta uygulanan sınırlar:
 
-| Metric | Measured Target | Optimization Applied |
-|---|---|---|
-| **Directory Scan (1,000 Books)** | **< 45 ms** | Recursive directory iterator with format extension fast-filter and depth bounds. |
-| **Turkish Query Search (1,000 Books)** | **< 12 ms** | Pre-computed case-folded search tokens with fast substring matching. |
-| **Page Cache Retrieval (Cache Hit)** | **< 2 ms** | In-memory SDL_Texture pointer lookup via hashed `RenderKey`. |
-| **Cold EPUB Page Layout & Raster** | **~180–280 ms** | MuPDF Fitz engine reflow with hardware-accelerated SDL texture upload. |
-| **Cold PDF Page Fit Raster** | **~220–350 ms** | Direct RGB/RGBA pixmap conversion with pre-calculated display aspect ratio. |
-| **PDF Zoom & Viewport Pan Hit** | **< 5 ms** | Dedicated `RenderKey` with quantized pan offsets (`panX`, `panY`, `viewW`, `viewH`). |
-| **Save State Serialization (`PAPERNX-2`)** | **< 4 ms** | Non-throwing `strtol`/`strtod` parsers, atomic backup rotation (`.tmp` -> `.bak.old` -> `.bak`). |
+- Sayfa texture cache: 64 MiB; thumbnail texture cache: 32 MiB.
+- Texture hesabı RGB24 için olası backend genişlemesini dikkate alarak en az 4 byte/piksel sayar.
+  Bu bir cache bütçesidir, GPU sürücüsünün gerçek tahsisi ölçülmemiştir.
+- Thumbnail bekleyen/işlenen/yüklemeye hazır toplam iş sayısı en fazla 32.
+- Başarısız thumbnail retry kaydı en fazla 512; yeniden deneme aralığı 30 saniye.
+- Her MuPDF context'inin callback üzerinden geçen tahsisleri en fazla 96 MiB;
+  MuPDF store sınırı 32 MiB. Bunlar bütün uygulama için RAM garantisi değildir.
+- Kapak sıkıştırılmış veri sınırı 8 MiB; XML metadata sınırı 2 MiB; kapak boyutu en fazla
+  16 milyon piksel. Büyük/bozuk varlıklar reddedilir veya ilk sayfa/placeholder'a düşer.
+- Render boyutları en fazla 4096×4096; TOC en fazla 256 giriş; kütüphane en fazla 10.000 kitap.
 
----
-
-## 2. Memory Footprint & Caching Budget
-
-- **Page Cache Maximum Budget**: 48 MB (Capped LRU texture cache).
-- **Thumbnail Cache Budget**: 16 MB (Capped book cover textures).
-- **Base Executable Resident Size**: ~28 MB.
-- **Total Peak Active RAM Footprint**: **~92 MB** (Well within Nintendo Switch Applet Mode limit of 400 MB and Application Mode limit of 3 GB).
-- **Zero Memory Leaks**:
-  - `Typography` de-duplicates aliased font pointers before calling `TTF_CloseFont`.
-  - `PaperNxApp` clears `PageCache` and `ThumbnailCache` before destroying `SDL_Renderer`.
+ASan/UBSan/leak detection koşularında bildirilen hata olup olmadığı test raporunda yazılıdır.
+Sonlu bir test kümesi bütün belgeler veya fiziksel cihaz için sıfır sızıntı kanıtı oluşturmaz.

@@ -1,0 +1,13 @@
+services:
+  desktop:
+    build:
+      context: .
+      target: desktop
+    volumes:
+      - .:/work
+  switch:
+    build:
+      context: .
+      target: switch
+    volumes:
+      - .:/work

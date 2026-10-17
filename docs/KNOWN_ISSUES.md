@@ -1,21 +1,31 @@
-# PaperNX Known Issues & Technical Limitations
+﻿# Açık doğrulamalar ve sınırlamalar
 
-This document tracks known limitations, hardware-specific considerations, and architectural trade-offs in PaperNX.
+## P1-HW: Fiziksel Switch doğrulaması eksik
 
----
+Joy-Con/Pro Controller düğme eşlemesi ve yeniden bağlantı, libnx yazılım klavyesi,
+çoklu dokunma, uyku/uyanma, hbmenu çıkışı, handheld/docked geçişi ve application/applet
+RAM davranışı **UNVERIFIED**. Masaüstü sanal SDL kontrol testleri bu doğrulamaların
+yerine geçmez. Kaynak: `src/main.cpp` olay döngüsü, `toggleSearch`, `handleEvent`;
+[cihaz matrisi](DEVICE_TEST_PLAN.md). Stable v1.0 için engeldir.
 
-## 1. Physical Hardware Unverified (ALPHA)
-- **Status**: The application and all toolchain components have been validated on AArch64 Clang/GCC compilers and in headless CI container environments. However, physical Nintendo Switch execution (via Atmosphère / Homebrew Menu) has not yet been performed on a physical console.
-- **Remediation**: Follow [docs/DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md) upon physical hardware availability.
+## P2: Konum hassasiyeti ve dosya taşıma
 
-## 2. Large Complex Fixed-Layout EPUBs
-- **Status**: PaperNX is optimized for reflowable standard EPUB (novels, essays, articles). Fixed-layout EPUBs (e.g., interactive children's books or heavily styled comics) may fall back to default viewport dimension rasterization.
-- **Workaround**: Use PDF format for fixed-layout visual media (comics, manga, scanned textbooks) to enable smooth hardware-accelerated zoom and pan.
+Kalıcı EPUB konumu bölüm/oran yaklaşımıdır; düzen değişiminde yakın metne döner,
+CFI/karakter kesinliği sağlamaz. Eski ham MuPDF pointer bookmark'ları kullanılmaz.
+`src/mupdf_bridge.c`: `px_document_make_bookmark`, `px_document_lookup_bookmark`.
 
-## 3. Persistent Reading Locator across Format Changes
-- **Status**: EPUB bookmarks generated via `fz_make_bookmark` are layout-dependent within the current rendering instance. When switching font size or margins, the application recalculates the logical location based on chapter index and text percentage fraction.
-- **Planned Enhancement**: Implement CFI (Canonical Fragment Identifier) persistence across different document versions.
+Belge kimliği yol/boyuttan türetilir. Taşınan/yeniden adlandırılan dosyaya otomatik
+ilerleme eşleştirme yapılmaz (`src/core.cpp: documentId`). Aynı yol ve boyutla değişen
+farklı içerik için de otomatik kimlik ayrımı yoktur.
 
-## 4. Docked / Handheld Resolution Transitions
-- **Status**: PaperNX initializes at standard 1280x720 (720p). When docking the console to a 1080p TV, SDL2 scales the 720p presentation surface.
-- **Impact**: Text remains sharp due to high-DPI font rendering, but native 1080p framebuffers are not dynamically recreated during runtime docking transitions.
+## Belgeler, sınırlar ve dağıtım
+
+DRM ve parola korumalı dosyalar desteklenmez. EPUB script/video/interaktivite çalıştırılmaz.
+TOC 256 girişle, scanner 10.000 kitapla sınırlıdır. Kaynakta bellek sınırları vardır;
+tüm büyük/bozuk belge türleri veya bütün allocation hata noktaları denenmemiştir.
+Taranmış PDF'de metin araması veya OCR uygulama özelliği değildir.
+
+Docker taban imajları ve MuPDF kaynak hash'i sabittir; devkitPro paket kurulumu rolling
+depoya bağlıdır. Kullanılan sürümler loglanır; gelecekte byte düzeyinde aynı toolchain
+kurulumu garanti edilmez. Genel yayımdan önce lisans/kaynak erişimi korunmalı ve cihaz
+matrisi tamamlanmalıdır. [TEST_RESULTS](TEST_RESULTS.md) son yürütme kanıtıdır.
