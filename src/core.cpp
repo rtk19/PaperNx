@@ -2,10 +2,20 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cerrno>
+#include <cstdlib>
+#include <limits>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <system_error>
+#include <cstdio>
+#ifndef _WIN32
+#include <unistd.h>
+#include <fcntl.h>
+#else
+#include <io.h>
+#endif
 
 namespace papernx {
 namespace {
@@ -54,8 +64,10 @@ std::string unescapeString(const std::string &s) {
 bool parseSafeInt(const std::string &s, int &out) {
     if (s.empty()) return false;
     char *end = nullptr;
+    errno = 0;
     long val = std::strtol(s.c_str(), &end, 10);
-    if (!end || *end != '\0') return false;
+    if (errno == ERANGE || end == s.c_str() || end != s.c_str() + s.size() ||
+        val < std::numeric_limits<int>::min() || val > std::numeric_limits<int>::max()) return false;
     out = static_cast<int>(val);
     return true;
 }
@@ -63,8 +75,9 @@ bool parseSafeInt(const std::string &s, int &out) {
 bool parseSafeLL(const std::string &s, std::int64_t &out) {
     if (s.empty()) return false;
     char *end = nullptr;
+    errno = 0;
     long long val = std::strtoll(s.c_str(), &end, 10);
-    if (!end || *end != '\0') return false;
+    if (errno == ERANGE || end == s.c_str() || end != s.c_str() + s.size()) return false;
     out = static_cast<std::int64_t>(val);
     return true;
 }
@@ -72,8 +85,9 @@ bool parseSafeLL(const std::string &s, std::int64_t &out) {
 bool parseSafeDouble(const std::string &s, double &out) {
     if (s.empty()) return false;
     char *end = nullptr;
+    errno = 0;
     double val = std::strtod(s.c_str(), &end);
-    if (!end || *end != '\0') return false;
+    if (errno == ERANGE || end == s.c_str() || end != s.c_str() + s.size() || !std::isfinite(val)) return false;
     out = val;
     return true;
 }
@@ -374,6 +388,9 @@ bool ProgressStore::load() {
         std::ifstream in(candidate, std::ios::binary);
         if (!in) return false;
 
+        std::error_code sizeError;
+        auto size = fs::file_size(candidate, sizeError);
+        if (sizeError || size > 8 * 1024 * 1024) return false;
         std::string encoded((std::istreambuf_iterator<char>(in)), {});
         if (encoded.size() < 20 || encoded.size() > 8 * 1024 * 1024) return false;
 
@@ -422,7 +439,12 @@ bool ProgressStore::load() {
                              parseSafeLL(tokens[13], p.lastRead) &&
                              parseSafeInt(tokens[14], bmCount);
 
-                if (!valid) continue;
+                if (!valid || bmCount < 0 || bmCount > 1024 ||
+                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 ||
+                    p.page < 0 || p.pageCount < 0 || p.fraction < 0 || p.fraction > 1 ||
+                    p.fontSize < 12 || p.fontSize > 48 || p.theme < 0 || p.theme > 5 ||
+                    p.lineHeight < 100 || p.lineHeight > 220 || p.margin < 10 || p.margin > 120 ||
+                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > 1) continue;
                 p.favorite = (fav != 0);
 
                 std::size_t cursor = 15;
@@ -490,73 +512,57 @@ bool ProgressStore::load() {
 
 bool ProgressStore::save() const {
     std::error_code ec;
-    fs::create_directories(path_.parent_path(), ec);
+    if (!path_.parent_path().empty()) fs::create_directories(path_.parent_path(), ec);
     if (ec) return false;
-
     const auto data = payloadV2(records_);
-    fs::path temp = path_;
-    temp += ".tmp";
-
-    {
-        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
-        if (!out) return false;
-        out << "CHECKSUM=" << hex(fnv1a(data)) << '\n' << data;
-        out.flush();
-        if (!out.good()) return false;
-    }
-
-    // Verify temp file exists and has data before rotating
-    auto tempSize = fs::file_size(temp, ec);
-    if (ec || tempSize == 0) {
-        ec.clear();
-        fs::remove(temp, ec);
-        return false;
-    }
-
-    fs::path backup = path_;
-    backup += ".bak";
-    fs::path backupOld = path_;
-    backupOld += ".bak.old";
-
-    // Step 1: Preserve existing backup into backup.old
-    if (fs::exists(backup, ec)) {
-        ec.clear();
-        fs::remove(backupOld, ec);
-        ec.clear();
-        fs::rename(backup, backupOld, ec);
-    }
-    ec.clear();
-
-    // Step 2: Rotate active primary file to backup
-    if (fs::exists(path_, ec)) {
-        ec.clear();
-        fs::rename(path_, backup, ec);
-        if (ec) {
-            // Restore backup from backup.old if rotation failed
-            if (fs::exists(backupOld, ec)) {
-                ec.clear();
-                fs::rename(backupOld, backup, ec);
-            }
-            return false;
-        }
-    }
-    ec.clear();
-
-    // Step 3: Promote verified temp to active primary file
-    fs::rename(temp, path_, ec);
-    if (ec) {
-        ec.clear();
-        // Rollback: restore primary from backup
+    const auto encoded = "CHECKSUM=" + hex(fnv1a(data)) + "\n" + data;
+    if (encoded.size() > 8 * 1024 * 1024) return false;
+    fs::path temp = path_; temp += ".tmp";
+    FILE *out = std::fopen(temp.string().c_str(), "wb");
+    if (!out) return false;
+    bool ok = std::fwrite(encoded.data(), 1, encoded.size(), out) == encoded.size();
+    if (std::fflush(out) != 0) ok = false;
+#ifdef _WIN32
+    if (_commit(_fileno(out)) != 0) ok = false;
+#else
+    if (fsync(fileno(out)) != 0) ok = false;
+#endif
+    if (std::fclose(out) != 0) ok = false;
+    if (!ok) return false;
+    // Read back the exact bytes before modifying any recovery copy.
+    std::ifstream verify(temp, std::ios::binary);
+    const std::string actual((std::istreambuf_iterator<char>(verify)), {});
+    if (actual != encoded) return false;
+    verify.close();
+    fs::path backup = path_; backup += ".bak";
+    fs::path old = path_; old += ".bak.old";
+    auto validPrimary = [&]() {
+        std::ifstream in(path_, std::ios::binary);
+        std::string bytes((std::istreambuf_iterator<char>(in)), {});
+        const auto split = bytes.find('\n');
+        return split != std::string::npos && bytes.substr(0, split) ==
+            "CHECKSUM=" + hex(fnv1a(bytes.substr(split + 1)));
+    };
+    if (fs::exists(path_, ec) && validPrimary()) {
         if (fs::exists(backup, ec)) {
-            ec.clear();
-            fs::rename(backup, path_, ec);
+            fs::copy_file(backup, old, fs::copy_options::overwrite_existing, ec);
+            if (ec) return false;
         }
-        return false;
+        fs::copy_file(path_, backup, fs::copy_options::overwrite_existing, ec);
+        if (ec) return false; // Primary and .bak.old are still intact.
     }
-
-    // Step 4: Transaction committed; safe to purge stale backup.old
-    ec.clear();
-    fs::remove(backupOld, ec);
+#ifdef _WIN32
+    // Windows cannot rename over an existing file; backup/temp survive this gap.
+    fs::remove(path_, ec);
+    if (ec) return false;
+#endif
+    fs::rename(temp, path_, ec);
+    if (ec) return false;
+#ifndef _WIN32
+    const auto parent = path_.parent_path().empty() ? fs::path(".") : path_.parent_path();
+    int dir = open(parent.string().c_str(), O_RDONLY);
+    if (dir >= 0) { fsync(dir); close(dir); }
+#endif
     return true;
 }
 

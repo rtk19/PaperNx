@@ -6,8 +6,18 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#ifdef NDEBUG
+#error Tests require enabled assertions
+#endif
 
 using namespace papernx;
+
+static void writeChecked(const fs::path &path, const std::string &body) {
+    uint64_t h = 14695981039346656037ull;
+    for (unsigned char c : body) { h ^= c; h *= 1099511628211ull; }
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out << "CHECKSUM=" << std::hex << std::setw(16) << std::setfill('0') << h << '\n' << body;
+}
 
 int main() {
     std::cout << "[TEST] Running PaperNX comprehensive core suite...\n";
@@ -235,17 +245,44 @@ int main() {
     {
         const fs::path malformedPath = root / "data" / "malformed.txt";
         {
-            std::ofstream mf(malformedPath);
+            std::ostringstream mf;
             mf << "PAPERNX-2\n";
             mf << "corrupt_id_too_short\tnot_an_int\t50\t0.5\t20\t0\t0\t0\t0\t140\t40\t0\t0\t0\t0\n";
-            mf << "validid012345678\t10\t100\t0.1\t24\t2\t1\t12345\t3\t150\t50\t1\t0\t1700000000\t0\n";
+            mf << "0123456789abcdef\t10\t100\t0.1\t24\t2\t1\t12345\t3\t150\t50\t1\t0\t1700000000\t0\n";
             mf << "another_bad_row\t0\t0\tnan\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\n";
+            writeChecked(malformedPath, mf.str());
         }
         ProgressStore malformedStore(malformedPath);
         // Loading should parse valid lines and skip corrupt rows without throwing or aborting
         assert(malformedStore.load());
         assert(malformedStore.count() == 1);
-        assert(malformedStore.get("validid012345678").page == 10);
+        assert(malformedStore.get("0123456789abcdef").page == 10);
+        const std::string valid = "0123456789abcdef\t10\t100\t0.1\t24\t2\t1\t12345\t3\t150\t50\t1\t0\t1700000000\t0\n";
+        for (const auto &bad : {"2147483648", "-2147483649", "999999999999999999999", "abc", "12x"}) {
+            auto row = valid;
+            row.replace(17, 2, bad);
+            writeChecked(malformedPath, "PAPERNX-2\n" + row);
+            ProgressStore s(malformedPath);
+            assert(s.load() && s.count() == 0);
+        }
+        for (const auto &bad : {"nan", "inf", "-inf", "1e9999", "1e-9999", "0.1x"}) {
+            auto row = valid;
+            row.replace(row.find("0.1"), 3, bad);
+            writeChecked(malformedPath, "PAPERNX-2\n" + row);
+            ProgressStore s(malformedPath);
+            assert(s.load() && s.count() == 0);
+        }
+        for (const auto &suffix : {".bak", ".bak.old", ".tmp"}) {
+            const fs::path recovery = root / "data" / (std::string("recover") + suffix);
+            std::ofstream(recovery) << "CHECKSUM=0000000000000000\nPAPERNX-2\n";
+            ProgressStore broken(recovery);
+            assert(!broken.load());
+            writeChecked(recovery.string() + suffix, "PAPERNX-2\n" + valid);
+            assert(broken.load() && broken.get("0123456789abcdef").page == 10);
+        }
+        std::ofstream(malformedPath, std::ios::trunc) << "CHECKSUM=";
+        ProgressStore truncated(malformedPath);
+        assert(!truncated.load());
     }
 
     // 13. Turkish Search & Diacritic Roundtrip
@@ -260,7 +297,7 @@ int main() {
         assert(search(trBooks, "ismail").size() == 1);
         // Query with lowercase 'ı' must find 'I'
         assert(search(trBooks, "ışık").size() == 1);
-        assert(search(trBooks, "ISIK").size() == 1);
+        assert(search(trBooks, "IŞIK").size() == 1);
         // Query with 'ş' and 'ç'
         assert(search(trBooks, "şarkısı").size() == 1);
         assert(search(trBooks, "çağlar").size() == 1);

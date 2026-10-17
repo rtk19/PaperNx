@@ -86,8 +86,8 @@ GestureResult TouchGestureTracker::onFingerUp(float x, float y, std::int64_t fin
 
 ControllerNavigator::ControllerNavigator() {
     auto now = std::chrono::steady_clock::now();
-    lastTickX_ = now;
-    lastTickY_ = now;
+    lastTickX_ = now - std::chrono::milliseconds(220);
+    lastTickY_ = now - std::chrono::milliseconds(220);
 }
 
 bool ControllerNavigator::processAxis(int axis, int value, int &outDeltaX, int &outDeltaY) {
@@ -97,6 +97,12 @@ bool ControllerNavigator::processAxis(int axis, int value, int &outDeltaX, int &
     const int REPEAT_MS = 220;
 
     auto now = std::chrono::steady_clock::now();
+
+    if (std::abs(value) <= DEADZONE) {
+        if (axis == SDL_CONTROLLER_AXIS_LEFTX) lastTickX_ = now - std::chrono::milliseconds(REPEAT_MS);
+        if (axis == SDL_CONTROLLER_AXIS_LEFTY) lastTickY_ = now - std::chrono::milliseconds(REPEAT_MS);
+        return false;
+    }
 
     if (axis == SDL_CONTROLLER_AXIS_LEFTX) {
         if (std::abs(value) > DEADZONE) {
