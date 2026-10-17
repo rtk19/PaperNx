@@ -1,0 +1,54 @@
+{
+  "source": {
+    "git_revision": "5c9cd44fe6d27457b8096a0452ea8d75974ed1f1",
+    "implementation_sha256": "0151aac04ef2e0659bc70236623e715245edbfcc316af7f4c08e66a069393353"
+  },
+  "elf": {
+    "architecture": "AArch64",
+    "machine": 183,
+    "type": 3
+  },
+  "nro": {
+    "version": 0,
+    "declared_size": 45830144,
+    "actual_size": 47042549,
+    "segments": [
+      {
+        "name": ".text",
+        "offset": 0,
+        "size": 8585216
+      },
+      {
+        "name": ".rodata",
+        "offset": 8585216,
+        "size": 36716544
+      },
+      {
+        "name": ".data",
+        "offset": 45301760,
+        "size": 528384
+      }
+    ]
+  },
+  "assets": {
+    "icon": {
+      "offset": 45830200,
+      "size": 6285
+    },
+    "nacp": {
+      "offset": 45836485,
+      "size": 16384
+    },
+    "romfs": {
+      "offset": 45852869,
+      "size": 1189680
+    }
+  },
+  "romfs_files": [
+    "fonts/NotoSans-Regular.ttf",
+    "fonts/NotoSerif-Regular.ttf",
+    "fonts/OFL.txt"
+  ],
+  "nro_sha256": "472336e44501ab893237899a11e33f6c1e7cbedc1dce4b8efdf7a2f714fa2dfc",
+  "hardware": "UNVERIFIED"
+}

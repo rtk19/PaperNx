@@ -1,0 +1,94 @@
+==========================================================
+PaperNX - Building MuPDF 1.23.11 for Nintendo Switch AArch64
+Prefix: /work/prefix-mupdf-switch
+==========================================================
+MuPDF is already compiled and cache fingerprint verified in /work/prefix-mupdf-switch.
+Validating AArch64 architecture...
+All archive members are AArch64: /work/prefix-mupdf-switch/lib/libmupdf.a
+All archive members are AArch64: /work/prefix-mupdf-switch/lib/libmupdf-third.a
+libmupdf.a: OK
+libmupdf-third.a: OK
+main.cpp
+linking PaperNX.elf
+Visiting directories...
+Calculating metadata...
+Writing /work/romfs/fonts/NotoSans-Regular.ttf to RomFS image...
+Writing /work/romfs/fonts/NotoSerif-Regular.ttf to RomFS image...
+Writing /work/romfs/fonts/OFL.txt to RomFS image...
+built ... PaperNX.nro
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           AArch64
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          64 (bytes into file)
+  Start of section headers:          62103072 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           56 (bytes)
+  Number of program headers:         4
+  Size of section headers:           64 (bytes)
+  Number of section headers:         37
+  Section header string table index: 36
+{
+  "source": {
+    "git_revision": "5c9cd44fe6d27457b8096a0452ea8d75974ed1f1",
+    "implementation_sha256": "0151aac04ef2e0659bc70236623e715245edbfcc316af7f4c08e66a069393353"
+  },
+  "elf": {
+    "architecture": "AArch64",
+    "machine": 183,
+    "type": 3
+  },
+  "nro": {
+    "version": 0,
+    "declared_size": 45830144,
+    "actual_size": 47042549,
+    "segments": [
+      {
+        "name": ".text",
+        "offset": 0,
+        "size": 8585216
+      },
+      {
+        "name": ".rodata",
+        "offset": 8585216,
+        "size": 36716544
+      },
+      {
+        "name": ".data",
+        "offset": 45301760,
+        "size": 528384
+      }
+    ]
+  },
+  "assets": {
+    "icon": {
+      "offset": 45830200,
+      "size": 6285
+    },
+    "nacp": {
+      "offset": 45836485,
+      "size": 16384
+    },
+    "romfs": {
+      "offset": 45852869,
+      "size": 1189680
+    }
+  },
+  "romfs_files": [
+    "fonts/NotoSans-Regular.ttf",
+    "fonts/NotoSerif-Regular.ttf",
+    "fonts/OFL.txt"
+  ],
+  "nro_sha256": "472336e44501ab893237899a11e33f6c1e7cbedc1dce4b8efdf7a2f714fa2dfc",
+  "hardware": "UNVERIFIED"
+}
+[OK] Release package created: dist/PaperNX-switch-v0.1.0-rc1.zip
+[OK] SHA256: a01d10029332644cb8b7242f5fd226047509cadbf7646aa153b7a565af494b5c

@@ -1,0 +1,9 @@
+cmake	3.28.3-1build7
+g++	4:13.2.0-7ubuntu1
+gcc	4:13.2.0-7ubuntu1
+libfreetype-dev:amd64	2.13.2+dfsg-1ubuntu0.2
+libharfbuzz-dev:amd64	8.3.0-2build2
+libmupdf-dev	1.23.10+ds1-1build3
+libsdl2-dev:amd64	2.30.0+dfsg-1ubuntu3.1
+libsdl2-ttf-dev:amd64	2.22.0+dfsg-1
+ninja-build	1.11.1-2

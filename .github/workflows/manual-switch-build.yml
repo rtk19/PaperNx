@@ -1,0 +1,99 @@
+﻿name: PaperNX verification
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'fonts/**'
+      - 'romfs/**'
+      - 'CMakeLists.txt'
+      - 'Makefile'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type BUILD to run the Switch ARM64 build and preview packaging'
+        required: true
+        type: string
+      upload_artifacts:
+        description: 'Upload binary/evidence archives (requires available artifact storage quota)'
+        required: false
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: papernx-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          cmake -S . -B build-core -G Ninja -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --parallel 4
+          ctest --test-dir build-core --output-on-failure
+          python3 tests/test_package.py
+  desktop:
+    needs: portable
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build desktop
+      - run: docker compose run --rm desktop
+      - name: Preserve desktop evidence in the job summary
+        if: always()
+        run: |
+          if [ -f verification/desktop.log ]; then
+            echo '### Executed desktop verification' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 100 verification/desktop.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
+        with:
+          name: desktop-evidence
+          path: |
+            verification/desktop.log
+            build-desktop/Testing/Temporary/LastTest.log
+            tests/fixtures/*.ppm
+  switch:
+    needs: [portable, desktop]
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm == 'BUILD') ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' &&
+       github.event.label.name == 'switch-build' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build switch
+      - uses: actions/cache@v4
+        with:
+          path: prefix-mupdf-switch
+          key: mupdf-arm64-${{ runner.arch }}-${{ hashFiles('Dockerfile', 'scripts/build-mupdf-switch.sh', 'include/papernx/switch_compat.h') }}
+      # Always run: cached archives are checked against the real compiler fingerprint.
+      - run: docker compose run --rm switch
+      - name: Preserve Switch evidence in the job summary
+        if: always()
+        run: |
+          if [ -f verification/switch.log ]; then
+            echo '### Executed Switch verification' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 100 verification/switch.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.upload_artifacts
+        with:
+          name: switch-preview-evidence
+          path: |
+            verification/switch.log
+            dist/*
