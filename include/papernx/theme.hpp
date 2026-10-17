@@ -111,15 +111,15 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
     if (style.publisherStyles) return result;
     std::snprintf(css, sizeof css,
         "body { font-size: %dpx !important; line-height: %.2f !important; margin: 0 !important; padding: 0; } "
-        "p, li, blockquote, div { color: #%02x%02x%02x !important; line-height: %.2f !important; text-align: %s !important; } "
-        "p { margin-top: 0; margin-bottom: %.2fem !important; text-indent: %.2fem !important; } "
+        "p, li, blockquote, div, span, em, strong, td, th, a { color: #%02x%02x%02x !important; line-height: %.2f !important; text-align: %s !important; } "
+        "p { font-size: 1em !important; margin-top: 0; margin-bottom: %.2fem !important; text-indent: %.2fem !important; } "
         "h1,h2,h3,h4,h5,h6 { color: #%02x%02x%02x !important; } "
         "img,svg { max-width: 100%%; height: auto; } ",
         style.fontSize, style.lineHeight / 100.0, fg.r, fg.g, fg.b, style.lineHeight / 100.0,
         style.textAlign ? "left" : "justify", style.paragraphSpacing / 100.0, style.indentation / 100.0,
         fg.r, fg.g, fg.b);
     result += css;
-    if (style.fontFamily != 2) result += std::string("body, p, li, blockquote { font-family: ") +
+    if (style.fontFamily != 2) result += std::string("body, p, li, blockquote, span, em, strong, td, th { font-family: ") +
         (style.fontFamily == 1 ? "sans-serif" : "serif") + " !important; }";
     return result;
 }

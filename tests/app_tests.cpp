@@ -384,11 +384,24 @@ int main() {
     for (int preset = 0; preset < 6; ++preset) {
         ReaderPreferences style; style.theme = preset; style.fontFamily = preset % 3;
         const auto css = generateEpubCss(style);
+        const auto layoutStart = std::chrono::steady_clock::now();
         assert(px_document_relayout(doc, 600, 600, 22, css.c_str(), err, sizeof err));
+        const auto renderStart = std::chrono::steady_clock::now();
         PxImage image{}; assert(px_document_render(doc, 0, 600, 600, &image, err, sizeof err));
         assert(image.rgb[0] == g_palettes[preset].bg.r && image.rgb[1] == g_palettes[preset].bg.g);
+        std::cout << "BENCH preset=" << preset << " relayout_us=" << std::chrono::duration_cast<std::chrono::microseconds>(renderStart - layoutStart).count()
+            << " render_us=" << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - renderStart).count() << " viewport=600x600\n";
         px_image_free(&image);
     }
+    std::set<uint64_t> fontHashes;
+    for (int family = 0; family < 2; ++family) {
+        ReaderPreferences style; style.fontFamily = family;
+        const auto css = generateEpubCss(style);
+        assert(px_document_relayout(doc, 600, 600, 22, css.c_str(), err, sizeof err));
+        PxImage image{}; assert(px_document_render(doc, 0, 600, 600, &image, err, sizeof err));
+        fontHashes.insert(hashImage(image)); px_image_free(&image);
+    }
+    assert(fontHashes.size() == 2);
     ReaderPreferences custom; custom.backgroundColor = 0xeeddbb; custom.textColor = 0x123456;
     auto customCss = generateEpubCss(custom);
     assert(px_document_relayout(doc, 600, 600, 22, customCss.c_str(), err, sizeof err));
