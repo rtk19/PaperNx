@@ -12,5 +12,8 @@ cp -r prefix-mupdf-switch/licenses/. third-party-licenses/
 mkdir -p third-party-licenses/SDK-notices
 cp scripts/license-notices/* third-party-licenses/SDK-notices/
 dkp-pacman -Q > verification/switch-packages.txt
-python3 scripts/verify_artifacts.py
-python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.2.0-rc1
+version="${PAPERNX_RELEASE_VERSION:-v0.3.0-rc1}"
+release_dir="${PAPERNX_RELEASE_DIST:-dist/${version}}"
+python3 scripts/verify_artifacts.py --version "$version"
+python3 scripts/package_release.py PaperNX.nro --destination "$release_dir" --version "$version"
+python3 scripts/verify_distribution.py --dist "$release_dir" --version "$version"

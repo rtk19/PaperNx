@@ -282,9 +282,11 @@ std::vector<Book> filterByCategory(const std::vector<Book> &books, const Progres
 
     for (const auto &b : books) {
         auto p = store.get(b.id);
+        const bool continuousEpub = b.format == Format::Epub && p.readingMode == 1;
         switch (category) {
             case Category::ContinueReading:
-                if (p.pageCount > 1 && p.page < p.pageCount - 1 && p.lastRead > 0 && p.fraction < 0.98)
+                if (p.lastRead > 0 && p.fraction < 0.98 &&
+                    (continuousEpub ? p.pageCount > 0 : p.pageCount > 1 && p.page < p.pageCount - 1))
                     result.push_back(b);
                 break;
             case Category::Recent:
@@ -300,7 +302,7 @@ std::vector<Book> filterByCategory(const std::vector<Book> &books, const Progres
                     result.push_back(b);
                 break;
             case Category::Completed:
-                if (p.pageCount > 0 && (p.page >= p.pageCount - 1 || p.fraction >= 0.98))
+                if (p.pageCount > 0 && (p.fraction >= 0.98 || (!continuousEpub && p.page >= p.pageCount - 1)))
                     result.push_back(b);
                 break;
             default:

@@ -186,10 +186,38 @@ int main() {
     assert(v2CheckStore.get("fedcba9876543210").page == 12);
 
     // 9. Categories and Advanced Search Filtering
-    Book b1; b1.id = "b1"; b1.title = "Kürk Mantolu Madonna"; b1.author = "Sabahattin Ali";
+    Book b1; b1.id = "b1"; b1.title = "Kürk Mantolu Madonna"; b1.author = "Sabahattin Ali"; b1.format = Format::Epub;
     Book b2; b2.id = "b2"; b2.title = "İnce Memed"; b2.author = "Yaşar Kemal";
     Book b3; b3.id = "b3"; b3.title = "Tutunamayanlar"; b3.author = "Oğuz Atay";
     std::vector<Book> testBooks = {b1, b2, b3};
+
+    // A continuous chapter is a layout segment, not a completed page. Even a
+    // single-chapter book must remain in Continue Reading halfway through it.
+    {
+        ProgressStore scrollStore(root / "data" / "scroll-categories");
+        Progress scrolling; scrolling.page = 1; scrolling.pageCount = 2;
+        scrolling.fraction = .5; scrolling.readingMode = 1; scrolling.lastRead = 1700000000;
+        scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).empty());
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).size() == 1);
+        scrolling.fraction = .99; scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).size() == 1);
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).empty());
+        // PDF may carry a global EPUB navigation field but remains fixed-layout.
+        Book pdfBook = b1; pdfBook.format = Format::Pdf;
+        scrolling.readingMode = 1; scrolling.pageCount = 1; scrolling.page = 0; scrolling.fraction = 0;
+        scrollStore.put(pdfBook.id, scrolling);
+        assert(filterByCategory({pdfBook}, scrollStore, Category::Completed).size() == 1);
+        assert(filterByCategory({pdfBook}, scrollStore, Category::ContinueReading).empty());
+        scrolling.page = 0; scrolling.pageCount = 1; scrolling.fraction = .5;
+        scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).empty());
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).size() == 1);
+        scrolling.readingMode = 0; scrolling.pageCount = 2; scrolling.page = 1;
+        scrollStore.put(b1.id, scrolling);
+        assert(filterByCategory({b1}, scrollStore, Category::Completed).size() == 1);
+        assert(filterByCategory({b1}, scrollStore, Category::ContinueReading).empty());
+    }
 
     Progress pb1; pb1.page = 50; pb1.pageCount = 150; pb1.fraction = 0.33; pb1.lastRead = 200; pb1.favorite = true;
     Progress pb2; pb2.page = 0; pb2.pageCount = 300; pb2.fraction = 0.0; pb2.lastRead = 0; pb2.favorite = false;

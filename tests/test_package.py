@@ -130,6 +130,8 @@ def run_tests():
         assert manifest["name"] == archive.name
         assert manifest["sha256"] == actual_sha
         assert manifest["verified_format"] == "NRO0"
+        assert manifest["hardware_verified"] is False
+        assert "switch/PaperNX/docs/PRODUCT_ROADMAP_2026.md" in manifest["contents"]
 
         # Unpack archive and verify SD structure
         extract_dir = tmppath / "extracted_sd"
@@ -138,6 +140,8 @@ def run_tests():
             (preserved / folder).mkdir(parents=True, exist_ok=True)
             (preserved / folder / name).write_text("personal data: keep")
         with ZipFile(archive, "r") as z:
+            assert sorted(z.namelist()) == sorted(manifest["contents"])
+            assert z.read("switch/PaperNX/docs/PRODUCT_ROADMAP_2026.md") == Path("docs/PRODUCT_ROADMAP_2026.md").read_bytes()
             assert not any(n.startswith(("switch/PaperNX/data/", "switch/PaperNX/books/", "switch/PaperNX/logs/")) and not n.endswith("/") for n in z.namelist())
             z.extractall(extract_dir)
         for folder, name in (("books", "personal.epub"), ("data", "progress.txt"), ("logs", "papernx.log")):

@@ -26,10 +26,21 @@ struct AppTest {
     static void tap(PaperNxApp &app, float x, float y) {
         finger(app, SDL_FINGERDOWN, x, y); finger(app, SDL_FINGERUP, x, y);
     }
-    static void modalTap(PaperNxApp &app, int x, int y) {
-        int w, h; app.getWindowSize(w, h);
-        tap(app, float((w - 600) / 2 + x) / w, float((h - 460) / 2 + y) / h);
+    static void settingsControl(PaperNxApp &app,int row,bool right=true) {
+        int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).control(row);
+        tap(app,float(r.x+int(r.w*(right?.75:.25)))/w,float(r.y+28)/h);
     }
+    static void settingsTab(PaperNxApp &app,int tab) {
+        int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).tab(tab);
+        tap(app,float(r.x+r.w/2)/w,float(r.y+28)/h);
+    }
+    static void closeSettings(PaperNxApp &app) {
+        int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).close;
+        tap(app,float(r.x+r.w/2)/w,float(r.y+28)/h);
+    }
+    static void closeNavigation(PaperNxApp &app) { int w,h; app.getWindowSize(w,h); tap(app,float(w-128)/w,116.f/h); }
+    #include "v03_app_workflow.hpp"
+    #include "v03_stress_workflow.hpp"
     static void snapshot(PaperNxApp &app, const char *name) {
         for (int i = 0; i < 15; ++i) { app.render(); SDL_Delay(10); app.processCompletedThumbnails(); }
         app.render(); int w, h; app.getWindowSize(w, h);
@@ -40,11 +51,25 @@ struct AppTest {
         assert(SDL_SaveBMP(surface, (std::string("verification/screenshots/") + name + ".bmp").c_str()) == 0);
         SDL_FreeSurface(surface);
     }
+    static void captureV03Screens(const fs::path &root) {
+        PaperNxApp app(root); assert(app.init());
+        snapshot(app,"v03-library-final");
+        v03Plus(app); snapshot(app,"v03-plus-menu"); tap(app,.1f,.5f);
+        v03Plus(app); v03MenuItem(app,0); snapshot(app,"v03-settings-final");
+        settingsTab(app,3); snapshot(app,"v03-navigation-final");
+        SDL_SetWindowSize(app.window_,640,480); settingsTab(app,0); v03Control(app,5);
+        snapshot(app,"v03-settings-640"); closeSettings(app);
+        SDL_SetWindowSize(app.window_,1280,720);
+        auto epub=std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Epub;});
+        assert(epub!=app.books_.end()); app.openBook(*epub); tap(app,.5f,.5f);
+        snapshot(app,"v03-reader-toolbar");
+        app.openSettings(); settingsTab(app,5); v03Control(app,5); snapshot(app,"v03-application-english");
+    }
     static void continuousReading(const fs::path &root) {
         PaperNxApp app(root); assert(app.init());
-        tap(app, .22f, .03f); assert(app.globalSettings_ && app.screen_==ScreenState::AaModal);
-        modalTap(app,200,130); assert(app.extraStyle_.readingMode==1);
-        modalTap(app,575,20); assert(app.screen_==ScreenState::Library);
+        v03Plus(app); v03MenuItem(app,0); assert(app.globalSettings_ && app.screen_==ScreenState::AaModal);
+        settingsTab(app,3); settingsControl(app,1); assert(app.extraStyle_.readingMode==1);
+        closeSettings(app); assert(app.screen_==ScreenState::Library);
         auto epub=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Epub;});
         app.openBook(epub); assert(app.continuous());
         assert(app.segmentHeight(0)>720);
@@ -127,7 +152,7 @@ struct AppTest {
             PaperNxApp app(root); assert(app.init()); assert(!app.controller_);
             auto epub = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });
             // Open first library card using only finger events.
-            tap(app, .06f, .18f); assert(app.doc_ && app.screen_ == ScreenState::Reader);
+            tap(app, .06f, .30f); assert(app.doc_ && app.screen_ == ScreenState::Reader);
             if (!px_document_is_epub(app.doc_)) { app.closeBook(); app.openBook(epub); }
             epubId = app.currentBookId_;
             for (int i = 0; i < 10; ++i) tap(app, .75f, .5f);
@@ -154,27 +179,31 @@ struct AppTest {
             mouse.type = SDL_MOUSEBUTTONDOWN; app.handleEvent(mouse, running); assert(app.currentPage_ == 8);
             mouse.type = SDL_MOUSEBUTTONUP; app.handleEvent(mouse, running); assert(app.currentPage_ == 9);
             tap(app, .5f, .5f); assert(app.toolbarVisible_);
-            tap(app, .96f, .04f); assert(app.screen_ == ScreenState::AaModal);
-            const auto mark = px_document_make_bookmark(app.doc_, app.currentPage_);
-            modalTap(app, 370, 135); assert(app.currentFontSize_ == 24);
-            modalTap(app, 280, 205); assert(app.currentFontFamily_ == 1);
-            modalTap(app, 225, 65); assert(app.aaTab_ == 1);
-            modalTap(app, 280, 310); assert(app.extraStyle_.paragraphSpacing == 120);
-            modalTap(app, 280, 370); assert(app.extraStyle_.indentation == 0);
-            modalTap(app, 375, 65); assert(app.aaTab_ == 2);
-            for (int i = 0; i < 6; ++i) { modalTap(app, 60 + i % 3 * 180, 140 + i / 3 * 65); assert(app.currentTheme_ == i); }
+            tap(app, .89f, .04f); assert(app.screen_ == ScreenState::AaModal);
+            int oldCh=-1,oldCharacter=-1; double oldOffset=0;
+            assert(px_document_anchor(app.doc_,app.currentPage_,app.scrollY_,&oldCh,&oldCharacter,&oldOffset));
+            settingsControl(app,0); assert(app.currentFontSize_ == 24);
+            settingsControl(app,1); assert(app.currentFontFamily_ == 1);
+            settingsTab(app,1); assert(app.aaTab_ == 1);
+            settingsControl(app,3); assert(app.extraStyle_.paragraphSpacing == 100);
+            settingsControl(app,2); assert(app.extraStyle_.indentation == 0);
+            settingsTab(app,2); assert(app.aaTab_ == 2);
+            for (int i = 0; i < 6; ++i) { settingsControl(app,i/2,i%2==1); assert(app.currentTheme_ == i); }
             assert(app.commitColor("123456", 0)); assert(app.commitColor("#EEDDBB", 1));
             assert(!app.commitColor("GGGGGG", 0));
             assert(app.extraStyle_.textColor == 0x123456 && app.extraStyle_.backgroundColor == 0xeeddbb);
-            assert(app.currentPage_ == px_document_lookup_bookmark(app.doc_, mark));
+            v03WaitLayout(app);
+            int newCh=-1,newCharacter=-1; double newOffset=0;
+            assert(px_document_anchor(app.doc_,app.currentPage_,app.scrollY_,&newCh,&newCharacter,&newOffset));
+            assert(newCh==oldCh && std::abs(newCharacter-oldCharacter)<400);
             snapshot(app, "epub-settings");
             // Global defaults are explicit; current book retains an independent override.
             app.storeDefaults();
-            modalTap(app, 575, 20); assert(app.screen_ == ScreenState::Reader);
+            closeSettings(app); assert(app.screen_ == ScreenState::Reader);
             savedPage = app.currentPage_;
-            tap(app, .86f, .04f); assert(app.screen_ == ScreenState::BookmarksModal);
-            modalTap(app, 250, 430); assert(app.progressStore_.get(epubId).bookmarks.size() == 1);
-            modalTap(app, 575, 20); assert(app.screen_ == ScreenState::Reader);
+            tap(app, .78f, .04f); assert(app.screen_ == ScreenState::BookmarksModal);
+            tap(app,.5f,636.f/720); assert(app.progressStore_.get(epubId).bookmarks.size() == 1);
+            closeNavigation(app); assert(app.screen_ == ScreenState::Reader);
             tap(app, .04f, .04f); assert(app.screen_ == ScreenState::Library && !app.progressDirty_);
             app.category_ = Category::Completed; app.updateVisibleBooks();
             assert(app.libraryEmptyMessage() == "Henüz tamamladığınız bir kitap yok.");
@@ -189,11 +218,11 @@ struct AppTest {
             auto pdf = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Pdf; });
             app.openBook(pdf); pdfId = pdf.id;
             assert(app.currentFontFamily_ == 1); // New book inherits global defaults.
-            tap(app, .5f, .5f); tap(app, .96f, .04f);
-            modalTap(app, 120, 195); assert(app.extraStyle_.pdfViewMode == 1 && app.pdfZoom_ > 1);
-            modalTap(app, 220, 275); assert(app.extraStyle_.pdfColorMode == 1);
+            tap(app, .5f, .5f); tap(app, .89f, .04f);
+            settingsControl(app,1); assert(app.extraStyle_.pdfViewMode == 1 && app.pdfZoom_ > 1);
+            settingsControl(app,3); assert(app.extraStyle_.pdfColorMode == 1);
             snapshot(app, "pdf-settings");
-            modalTap(app, 575, 20); tap(app, .5f, .5f); // Hide toolbar.
+            closeSettings(app); tap(app, .5f, .5f); // Hide toolbar.
             const int page = app.currentPage_;
             finger(app, SDL_FINGERDOWN, .5f, .6f); finger(app, SDL_FINGERMOTION, .5f, .3f); finger(app, SDL_FINGERUP, .5f, .3f);
             assert(app.currentPage_ == page && app.pdfPanY_ > 0);
@@ -327,7 +356,7 @@ struct AppTest {
         pad(app, SDL_CONTROLLER_BUTTON_RIGHTSTICK);
         pad(app, SDL_CONTROLLER_BUTTON_START);
         int w, h; app.getWindowSize(w, h);
-        app.handleAaModalTap((w - 600) / 2 + 200, (h - 460) / 2 + 130, w, h);
+        settingsControl(app,4);
         assert(app.pdfZoom_ == 1.25f);
         pad(app, SDL_CONTROLLER_BUTTON_Y); assert(app.pdfZoom_ == 1);
         pad(app, SDL_CONTROLLER_BUTTON_B);
@@ -514,6 +543,9 @@ int main() {
     fs::create_directory_symlink(fs::absolute("fonts"),root / "fonts");
     fs::copy("tests/fixtures/sample_book.epub",root / "books" / "scroll.epub");
     AppTest::continuousReading(root);
+    AppTest::captureV03Screens(root);
+    AppTest::v03Workflow(root);
+    AppTest::v03StressWorkflow(root);
     fs::remove_all(root);
     TTF_Quit(); SDL_Quit();
     std::cout << "[PASS] SDL input, worker reload, EPUB themes/cover/reopen, PDF controls, texture budget and UTC regressions\n";

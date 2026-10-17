@@ -5,6 +5,14 @@
 #include <iostream>
 using namespace papernx;
 int main() {
+    const auto nativePaths = cover_detail::rootInspectionPaths("sdmc:/switch/PaperNX/data/covers", true);
+    assert(nativePaths.size() == 5);
+    assert(nativePaths.front().generic_string() == "sdmc:/");
+    assert(nativePaths.back().generic_string() == "sdmc:/switch/PaperNX/data/covers");
+    for (const auto &p : nativePaths) assert(p.generic_string().find("sdmc:/", 1) == std::string::npos);
+    assert(cover_detail::rootInspectionPaths("sdmc:relative/covers", true).empty());
+    assert(cover_detail::rootInspectionPaths("sdmc:/switch/../covers", true).empty());
+    assert(cover_detail::rootInspectionPaths("sdmc:/other:/covers", true).empty());
     auto root = fs::temp_directory_path() / ("papernx-covers-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::create_directories(root);
     Book book; book.id = "../../never-a-filename"; book.path = (root / "book.epub").string();

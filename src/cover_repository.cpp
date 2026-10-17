@@ -6,6 +6,42 @@
 #include <sstream>
 
 namespace papernx {
+namespace cover_detail {
+std::vector<fs::path> rootInspectionPaths(const fs::path &root, bool nativeDevicePaths) {
+    std::vector<fs::path> paths;
+    const auto raw = root.generic_string();
+    if (nativeDevicePaths && raw.find(':') != std::string::npos) {
+        const auto colon = raw.find(':');
+        if (!colon || colon + 1 >= raw.size() || raw[colon+1] != '/' ||
+            raw.find(':', colon+1) != std::string::npos || raw.find('\\') != std::string::npos ||
+            raw.find('\0') != std::string::npos) return {};
+        for (std::size_t i = 0; i < colon; ++i) {
+            const char c = raw[i];
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                  (c >= '0' && c <= '9') || c == '_')) return {};
+        }
+        fs::path part(raw.substr(0, colon+2)); // Retain the device root's slash.
+        paths.push_back(part);
+        std::size_t begin = colon+2;
+        while (begin < raw.size()) {
+            auto end = raw.find('/', begin); if (end == std::string::npos) end = raw.size();
+            auto component = raw.substr(begin, end-begin);
+            // Cache roots are never allowed to traverse above a device prefix.
+            if (component == ".." || component == ".") return {};
+            if (!component.empty()) { part /= component; paths.push_back(part); }
+            begin = end+1;
+        }
+        return paths;
+    }
+    std::error_code ec;
+    // Preserve '..' so symlinks are inspected before any parent traversal.
+    const auto absolute = fs::absolute(root, ec);
+    if (ec) return {};
+    fs::path part;
+    for (const auto &component : absolute) { part /= component; paths.push_back(part); }
+    return paths;
+}
+}
 namespace {
 constexpr std::uintmax_t headerSize = 56;
 std::uint32_t checksum(const std::vector<std::uint8_t> &bytes) {
@@ -32,13 +68,17 @@ bool regular(const fs::path &p) {
 }
 bool safeRoot(const fs::path &root) {
     std::error_code ec;
-    // Keep '..' components: normalizing before inspection can hide a symlink
-    // whose OS traversal would resolve outside the lexical parent.
-    const auto absolute = fs::absolute(root, ec);
-    if (ec) return false;
-    fs::path part;
-    for (const auto &component : absolute) {
-        part /= component;
+    // libnx fsdev strips the device prefix and aliases lstat to stat because SD
+    // symlinks are unsupported (verification/libnx-fsdev-source.txt). Inspect
+    // "sdmc:/" directly; fs::absolute would incorrectly prepend getcwd().
+#ifdef __SWITCH__
+    constexpr bool nativeDevicePaths = true;
+#else
+    constexpr bool nativeDevicePaths = false;
+#endif
+    const auto prefixes = cover_detail::rootInspectionPaths(root, nativeDevicePaths);
+    if (prefixes.empty()) return false;
+    for (const auto &part : prefixes) {
         auto status = fs::symlink_status(part, ec);
         if (fs::is_symlink(status)) return false;
         if (ec && ec != std::errc::no_such_file_or_directory) return false;

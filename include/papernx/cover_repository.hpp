@@ -4,6 +4,11 @@
 #include <optional>
 
 namespace papernx {
+namespace cover_detail {
+// Pure path-planning seam: native devoptab roots are absolute to libnx even
+// though the POSIX std::filesystem parser considers "sdmc:/" relative.
+std::vector<fs::path> rootInspectionPaths(const fs::path &root, bool nativeDevicePaths);
+}
 enum class CoverState { NotRequested, Loading, Loaded, NoEmbeddedCover, Failed, Cached };
 struct CoverImage {
     int width{}, height{}, stride{};

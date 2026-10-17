@@ -115,6 +115,10 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
         readme = repo_root / "README.md"
         if readme.is_file():
             write_entry(z, "switch/PaperNX/README.md", readme.read_bytes())
+        for name in ("PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md", "DESIGN_SYSTEM.md", "TOUCH_CONTROLS_V03.md", "V03_REQUIREMENT_COVERAGE.md", "TEST_RESULTS.md", "PERFORMANCE_RESULTS.md", "KNOWN_ISSUES.md", "STATUS.md", "RELEASE_REPORT.md"):
+            doc = repo_root / "docs" / name
+            if doc.is_file():
+                write_entry(z, "switch/PaperNX/docs/" + name, doc.read_bytes())
 
         license_file = repo_root / "LICENSE"
         if license_file.is_file():
@@ -128,6 +132,7 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
     with ZipFile(archive_path) as check:
         if check.testzip() is not None:
             raise ValueError("ZIP integrity validation failed")
+        contents = check.namelist()
     if nro_path.resolve() != (destination / "PaperNX.nro").resolve():
         shutil.copyfile(nro_path, destination / "PaperNX.nro")
     archive_bytes = archive_path.read_bytes()
@@ -153,14 +158,7 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
             "segments": nro_meta["segments"],
             "assets": assets
         },
-        "contents": [
-            "switch/PaperNX/PaperNX.nro",
-            "switch/PaperNX/books/",
-            "switch/PaperNX/data/",
-            "switch/PaperNX/fonts/NotoSans-Regular.ttf",
-            "switch/PaperNX/fonts/NotoSerif-Regular.ttf",
-            "switch/PaperNX/fonts/OFL.txt"
-        ],
+        "contents": contents,
         "sd_root_target": "sdmc:/",
         "verified_format": "NRO0",
         "hardware_verified": False
@@ -172,8 +170,8 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Package PaperNX release ZIP for Nintendo Switch")
     parser.add_argument("nro", type=Path, help="Path to compiled PaperNX.nro")
-    parser.add_argument("--destination", type=Path, default=Path("dist"), help="Output directory")
-    parser.add_argument("--version", default="v0.1.0", help="Release version tag")
+    parser.add_argument("--destination", "--dist", type=Path, default=Path("dist/v0.3.0-rc1"), help="Output directory")
+    parser.add_argument("--version", default="v0.3.0-rc1", help="Release version tag")
     parser.add_argument("--repo-root", type=Path, default=Path("."), help="Path to repository root")
 
     args = parser.parse_args()
