@@ -116,7 +116,7 @@ void PageCache::evictOldest() {
 void PageCache::evictDocument(const std::string &docId) {
     auto it = order_.begin();
     while (it != order_.end()) {
-        if (it->key.rfind(docId, 0) == 0) { // starts with docId
+        if (it->key.rfind(docId + "_p", 0) == 0) { // starts with docId
             if (it->texture) {
                 SDL_DestroyTexture(it->texture);
             }

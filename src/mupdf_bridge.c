@@ -10,6 +10,9 @@ struct PxDocument {
     fz_document *doc;
     int pages;
     int epub;
+    size_t allocated;
+    size_t memory_limit;
+    unsigned char background[3];
     char *path;
     char *css;
     fz_buffer *cover;
@@ -19,6 +22,57 @@ struct PxDocument {
 };
 
 static void load_epub_extras(PxDocument *d);
+
+static void set_background(PxDocument *d, const char *css) {
+    unsigned int r = 255, g = 255, b = 255;
+    const char *color = css ? strstr(css, "background-color: #") : NULL;
+    if (color && sscanf(color + strlen("background-color: #"), "%2x%2x%2x", &r, &g, &b) != 3)
+        r = g = b = 255;
+    d->background[0] = (unsigned char)r;
+    d->background[1] = (unsigned char)g;
+    d->background[2] = (unsigned char)b;
+}
+
+typedef union AllocationHeader {
+    max_align_t alignment;
+    size_t bytes;
+} AllocationHeader;
+
+static void *budget_malloc(void *user, size_t bytes) {
+    PxDocument *d = (PxDocument *)user;
+    if (bytes > SIZE_MAX - sizeof(AllocationHeader)) return NULL;
+    size_t total = bytes + sizeof(AllocationHeader);
+    if (total > d->memory_limit - d->allocated) return NULL;
+    AllocationHeader *header = (AllocationHeader *)malloc(total);
+    if (!header) return NULL;
+    header->bytes = total;
+    d->allocated += total;
+    return header + 1;
+}
+
+static void budget_free(void *user, void *ptr) {
+    if (!ptr) return;
+    PxDocument *d = (PxDocument *)user;
+    AllocationHeader *header = (AllocationHeader *)ptr - 1;
+    d->allocated -= header->bytes;
+    free(header);
+}
+
+static void *budget_realloc(void *user, void *ptr, size_t bytes) {
+    if (!ptr) return budget_malloc(user, bytes);
+    if (!bytes) { budget_free(user, ptr); return NULL; }
+    PxDocument *d = (PxDocument *)user;
+    AllocationHeader *header = (AllocationHeader *)ptr - 1;
+    size_t old = header->bytes;
+    if (bytes > SIZE_MAX - sizeof(AllocationHeader)) return NULL;
+    size_t total = bytes + sizeof(AllocationHeader);
+    if (total > d->memory_limit - (d->allocated - old)) return NULL;
+    header = (AllocationHeader *)realloc(header, total);
+    if (!header) return NULL;
+    header->bytes = total;
+    d->allocated = d->allocated - old + total;
+    return header + 1;
+}
 
 static void report(char *dst, int cap, const char *msg) {
     if (dst && cap > 0) {
@@ -44,6 +98,10 @@ void px_document_close(PxDocument *d) {
 }
 
 PxDocument *px_document_open(const char *path, int w, int h, float em, const char *css, char *err, int cap) {
+    return px_document_open_limited(path, w, h, em, css, err, cap, 96u * 1024u * 1024u);
+}
+
+PxDocument *px_document_open_limited(const char *path, int w, int h, float em, const char *css, char *err, int cap, size_t memory_limit) {
     if (!path || !path[0]) {
         report(err, cap, "Invalid document path");
         return NULL;
@@ -55,7 +113,10 @@ PxDocument *px_document_open(const char *path, int w, int h, float em, const cha
         return NULL;
     }
 
-    d->ctx = fz_new_context(NULL, NULL, 128 << 20);
+    d->memory_limit = memory_limit;
+    set_background(d, css);
+    fz_alloc_context allocator = {d, budget_malloc, budget_realloc, budget_free};
+    d->ctx = fz_new_context(&allocator, NULL, 32 << 20);
     if (!d->ctx) {
         report(err, cap, "Cannot create MuPDF context");
         free(d);
@@ -147,6 +208,7 @@ int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css,
         report(err, cap, fz_caught_message(d->ctx));
         ok = 0;
     }
+    if (ok) set_background(d, css);
     return ok;
 }
 
@@ -218,10 +280,12 @@ int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *
     memset(out, 0, sizeof(*out));
     fz_page *page = NULL;
     fz_pixmap *pix = NULL;
+    fz_device *device = NULL;
     int ok = 1;
 
     fz_var(page);
     fz_var(pix);
+    fz_var(device);
 
     fz_try(d->ctx) {
         page = fz_load_page(d->ctx, d->doc, index);
@@ -237,7 +301,23 @@ int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *
             fz_throw(d->ctx, FZ_ERROR_GENERIC, "Invalid page scale");
         }
 
-        pix = fz_new_pixmap_from_page(d->ctx, page, fz_scale(scale, scale), fz_device_rgb(d->ctx), 0);
+        if (d->epub) {
+            // MuPDF's generic page helper clears to white, including CSS margins.
+            // Clear the complete EPUB surface to the selected theme before drawing.
+            fz_irect box = fz_make_irect(0, 0, (int)ceilf(w * scale), (int)ceilf(h * scale));
+            pix = fz_new_pixmap_with_bbox(d->ctx, fz_device_rgb(d->ctx), box, NULL, 0);
+            unsigned char *samples = fz_pixmap_samples(d->ctx, pix);
+            int stride = fz_pixmap_stride(d->ctx, pix);
+            for (int y = 0; y < box.y1; ++y)
+                for (int x = 0; x < box.x1; ++x)
+                    memcpy(samples + (size_t)y * stride + x * 3, d->background, 3);
+            device = fz_new_draw_device(d->ctx, fz_identity, pix);
+            fz_matrix ctm = fz_make_matrix(scale, 0, 0, scale, -bounds.x0 * scale, -bounds.y0 * scale);
+            fz_run_page(d->ctx, page, device, ctm, NULL);
+            fz_close_device(d->ctx, device);
+        } else {
+            pix = fz_new_pixmap_from_page(d->ctx, page, fz_scale(scale, scale), fz_device_rgb(d->ctx), 0);
+        }
         if (!copy_pixmap_to_image(d->ctx, pix, out, err, cap)) {
             ok = 0;
         }
@@ -248,6 +328,7 @@ int px_document_render(PxDocument *d, int index, int max_w, int max_h, PxImage *
         ok = 0;
     }
 
+    if (device) fz_drop_device(d->ctx, device);
     if (pix) fz_drop_pixmap(d->ctx, pix);
     if (page) fz_drop_page(d->ctx, page);
     return ok;
@@ -517,7 +598,8 @@ static int has_word(const char *words, const char *word) {
 static int archive_path(char *out, size_t cap, const char *base, const char *href) {
     if (!href || !*href || strlen(base) + strlen(href) + 2 >= cap ||
         strchr(href, ':') || href[0] == '/' || strchr(href, '\\')) return 0;
-    snprintf(out, cap, "%s%s", base, href);
+    memcpy(out, base, strlen(base));
+    memcpy(out + strlen(base), href, strlen(href) + 1);
     fz_urldecode(out);
     fz_cleanname(out);
     return strncmp(out, "../", 3) && out[0] != '/';

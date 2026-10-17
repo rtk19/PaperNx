@@ -40,6 +40,7 @@ std::string escapeString(const std::string &s) {
     for (char c : s) {
         if (c == '\t') res += "\\t";
         else if (c == '\n') res += "\\n";
+        else if (c == '\r') res += "\\r";
         else if (c == '\\') res += "\\\\";
         else res += c;
     }
@@ -52,6 +53,7 @@ std::string unescapeString(const std::string &s) {
         if (s[i] == '\\' && i + 1 < s.size()) {
             if (s[i + 1] == 't') { res += '\t'; ++i; }
             else if (s[i + 1] == 'n') { res += '\n'; ++i; }
+            else if (s[i + 1] == 'r') { res += '\r'; ++i; }
             else if (s[i + 1] == '\\') { res += '\\'; ++i; }
             else res += s[i];
         } else {
@@ -92,9 +94,9 @@ bool parseSafeDouble(const std::string &s, double &out) {
     return true;
 }
 
-std::string payloadV2(const std::map<std::string, Progress> &records) {
+std::string payloadV3(const std::map<std::string, Progress> &records) {
     std::ostringstream out;
-    out << "PAPERNX-2\n";
+    out << "PAPERNX-3\n";
     for (const auto &[id, p] : records) {
         if (id.size() > 128 || id.find_first_of("\t\r\n") != std::string::npos) continue;
         out << id << '\t'
@@ -116,7 +118,7 @@ std::string payloadV2(const std::map<std::string, Progress> &records) {
             out << '\t' << bm.page << '\t' << bm.timestamp << '\t'
                 << bm.muBookmark << '\t' << escapeString(bm.title);
         }
-        out << '\n';
+        out << '\t' << escapeString(p.bookPath) << '\t' << escapeString(p.bookTitle) << '\t' << escapeString(p.bookAuthor) << '\n';
     }
     return out.str();
 }
@@ -273,7 +275,7 @@ std::vector<Book> filterByCategory(const std::vector<Book> &books, const Progres
         auto p = store.get(b.id);
         switch (category) {
             case Category::ContinueReading:
-                if (p.pageCount > 0 && p.page > 0 && p.page < p.pageCount - 1 && p.lastRead > 0)
+                if (p.pageCount > 1 && p.page < p.pageCount - 1 && p.lastRead > 0 && p.fraction < 0.98)
                     result.push_back(b);
                 break;
             case Category::Recent:
@@ -285,7 +287,7 @@ std::vector<Book> filterByCategory(const std::vector<Book> &books, const Progres
                     result.push_back(b);
                 break;
             case Category::Unread:
-                if (p.page == 0 && p.fraction <= 0.001)
+                if (p.lastRead == 0 && p.page == 0 && p.fraction <= 0.001)
                     result.push_back(b);
                 break;
             case Category::Completed:
@@ -338,7 +340,7 @@ std::vector<Book> searchEx(const std::vector<Book> &books, const ProgressStore &
     auto filtered = filterByCategory(books, store, category);
     auto res = search(filtered, needle, sort);
 
-    if (sort == Sort::LastRead) {
+    if (sort == Sort::LastRead || category == Category::Recent || category == Category::ContinueReading) {
         std::sort(res.begin(), res.end(), [&store](const Book &a, const Book &b) {
             auto pa = store.get(a.id), pb = store.get(b.id);
             if (pa.lastRead != pb.lastRead) return pa.lastRead > pb.lastRead;
@@ -371,10 +373,14 @@ void ProgressStore::put(const std::string &id, Progress p) {
     p.lineHeight = std::clamp(p.lineHeight, 100, 220);
     p.margin = std::clamp(p.margin, 10, 120);
     p.textAlign = std::clamp(p.textAlign, 0, 1);
-    p.fontFamily = std::clamp(p.fontFamily, 0, 3);
-    if (p.lastRead <= 0) {
-        p.lastRead = std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
+    p.fontFamily = std::clamp(p.fontFamily, 0, 1);
+    p.bookPath = utf8SafeTruncate(p.bookPath, 4096);
+    p.bookTitle = utf8SafeTruncate(p.bookTitle, 1024);
+    p.bookAuthor = utf8SafeTruncate(p.bookAuthor, 1024);
+    if (p.bookmarks.size() > 1024) p.bookmarks.resize(1024);
+    for (auto &bm : p.bookmarks) {
+        bm.page = std::max(0, bm.page);
+        bm.title = utf8SafeTruncate(bm.title, 1024);
     }
     records_[id] = std::move(p);
 }
@@ -408,7 +414,7 @@ bool ProgressStore::load() {
 
         std::map<std::string, Progress> restored;
 
-        if (versionLine == "PAPERNX-2") {
+        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3") {
             std::string line;
             while (std::getline(rows, line)) {
                 if (line.empty()) continue;
@@ -418,6 +424,7 @@ bool ProgressStore::load() {
                 while (std::getline(tokenStream, token, '\t')) {
                     tokens.push_back(token);
                 }
+                if (!line.empty() && line.back() == '\t') tokens.emplace_back();
                 if (tokens.size() < 15) continue;
 
                 Progress p;
@@ -440,9 +447,9 @@ bool ProgressStore::load() {
                              parseSafeInt(tokens[14], bmCount);
 
                 if (!valid || bmCount < 0 || bmCount > 1024 ||
-                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 ||
+                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + (versionLine == "PAPERNX-3" ? 3 : 0) ||
                     p.page < 0 || p.pageCount < 0 || p.fraction < 0 || p.fraction > 1 ||
-                    p.fontSize < 12 || p.fontSize > 48 || p.theme < 0 || p.theme > 5 ||
+                    p.fontSize < 12 || p.fontSize > 48 || p.theme < 0 || p.theme > 5 || fav < 0 || fav > 1 ||
                     p.lineHeight < 100 || p.lineHeight > 220 || p.margin < 10 || p.margin > 120 ||
                     p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > 1) continue;
                 p.favorite = (fav != 0);
@@ -458,9 +465,16 @@ bool ProgressStore::load() {
                         break;
                     }
                     bm.title = unescapeString(tokens[cursor++]);
+                    if (bm.page < 0 || bm.timestamp < 0 || bm.title.size() > 1024) { bookmarksValid = false; break; }
                     p.bookmarks.push_back(std::move(bm));
                 }
 
+                if (versionLine == "PAPERNX-3" && bookmarksValid) {
+                    p.bookPath = unescapeString(tokens[cursor++]);
+                    p.bookTitle = unescapeString(tokens[cursor++]);
+                    p.bookAuthor = unescapeString(tokens[cursor++]);
+                    if (p.bookPath.size() > 4096 || p.bookTitle.size() > 1024 || p.bookAuthor.size() > 1024) continue;
+                }
                 if (bookmarksValid && id.size() == 16 && p.page >= 0 && std::isfinite(p.fraction)) {
                     restored[id] = p;
                 }
@@ -514,7 +528,7 @@ bool ProgressStore::save() const {
     std::error_code ec;
     if (!path_.parent_path().empty()) fs::create_directories(path_.parent_path(), ec);
     if (ec) return false;
-    const auto data = payloadV2(records_);
+    const auto data = payloadV3(records_);
     const auto encoded = "CHECKSUM=" + hex(fnv1a(data)) + "\n" + data;
     if (encoded.size() > 8 * 1024 * 1024) return false;
     fs::path temp = path_; temp += ".tmp";
@@ -536,15 +550,17 @@ bool ProgressStore::save() const {
     verify.close();
     fs::path backup = path_; backup += ".bak";
     fs::path old = path_; old += ".bak.old";
-    auto validPrimary = [&]() {
-        std::ifstream in(path_, std::ios::binary);
+    auto validFile = [&](const fs::path &candidate) {
+        auto size = fs::file_size(candidate, ec);
+        if (ec || size > 8 * 1024 * 1024) { ec.clear(); return false; }
+        std::ifstream in(candidate, std::ios::binary);
         std::string bytes((std::istreambuf_iterator<char>(in)), {});
         const auto split = bytes.find('\n');
         return split != std::string::npos && bytes.substr(0, split) ==
             "CHECKSUM=" + hex(fnv1a(bytes.substr(split + 1)));
     };
-    if (fs::exists(path_, ec) && validPrimary()) {
-        if (fs::exists(backup, ec)) {
+    if (fs::exists(path_, ec) && validFile(path_)) {
+        if (fs::exists(backup, ec) && validFile(backup)) {
             fs::copy_file(backup, old, fs::copy_options::overwrite_existing, ec);
             if (ec) return false;
         }

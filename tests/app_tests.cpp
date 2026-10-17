@@ -1,4 +1,4 @@
-﻿#define main papernx_application_entry
+#define main papernx_application_entry
 #include "../src/main.cpp"
 #undef main
 #include "papernx/switch_compat.h"
@@ -19,10 +19,36 @@ struct AppTest {
         SDL_Event e{}; e.type = SDL_CONTROLLERBUTTONDOWN; e.cbutton.button = button;
         bool running = true; app.handleEvent(e, running); assert(running);
     }
+    static void checkRestart(const fs::path &root) {
+        PaperNxApp app(root); assert(app.init());
+        assert(app.books_.size() == 3);
+        auto epub = std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });
+        assert(epub != app.books_.end() && epub->title.find("İstanbul") != std::string::npos);
+        app.openBook(*epub);
+        assert(app.currentTheme_ == 4 && app.currentFontFamily_ == 1);
+        assert(app.progressStore_.get(app.currentBookId_).bookmarks.size() == 1);
+    }
     static void run(const fs::path &root) {
         PaperNxApp app(root);
         assert(app.init());
         assert(app.books_.size() == 2);
+        int first = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 6, 21, 0);
+        int second = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 6, 21, 0);
+        assert(first >= 0 && second >= 0);
+        SDL_Event hotplug{}; hotplug.type = SDL_CONTROLLERDEVICEADDED; hotplug.cdevice.which = first;
+        bool keepRunning = true; app.handleEvent(hotplug, keepRunning);
+        assert(app.controller_);
+        SDL_JoystickID primaryId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(app.controller_));
+        hotplug.type = SDL_CONTROLLERDEVICEREMOVED; hotplug.cdevice.which = primaryId + 1000;
+        app.handleEvent(hotplug, keepRunning);
+        assert(app.controller_ && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(app.controller_)) == primaryId);
+        assert(SDL_JoystickDetachVirtual(first) == 0);
+        hotplug.cdevice.which = primaryId; app.handleEvent(hotplug, keepRunning);
+        assert(app.controller_ && SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(app.controller_)) != primaryId);
+        SDL_JoystickID secondaryId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(app.controller_));
+        assert(SDL_JoystickDetachVirtual(0) == 0);
+        hotplug.cdevice.which = secondaryId; app.handleEvent(hotplug, keepRunning);
+        assert(!app.controller_);
         app.render();
         key(app, SDLK_x);
         assert(app.searchActive_);
@@ -52,6 +78,20 @@ struct AppTest {
         assert(app.screen_ == ScreenState::Reader && app.currentPage_ > 1);
         const auto stableMark = px_document_make_bookmark(app.doc_, app.currentPage_);
         pad(app, SDL_CONTROLLER_BUTTON_START); assert(app.screen_ == ScreenState::AaModal);
+        pad(app, SDL_CONTROLLER_BUTTON_Y);
+        pad(app, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+        assert(app.currentFontFamily_ == 1);
+        pad(app, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+        const int oldLineHeight = app.currentLineHeight_;
+        pad(app, SDL_CONTROLLER_BUTTON_DPAD_UP);
+        assert(app.currentLineHeight_ > oldLineHeight);
+        pad(app, SDL_CONTROLLER_BUTTON_Y);
+        const int oldMargin = app.currentMargin_;
+        pad(app, SDL_CONTROLLER_BUTTON_DPAD_UP);
+        assert(app.currentMargin_ > oldMargin);
+        pad(app, SDL_CONTROLLER_BUTTON_Y);
+        pad(app, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+        assert(app.currentTextAlign_ == 1);
         int page = app.currentPage_;
         pad(app, SDL_CONTROLLER_BUTTON_B); assert(app.currentPage_ == page);
         app.currentFontFamily_ = 1;
@@ -82,6 +122,15 @@ struct AppTest {
         pad(app, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
         assert(app.currentPage_ == 1 && app.pdfPanX_ == 0 && app.pdfPanY_ == 0);
         pad(app, SDL_CONTROLLER_BUTTON_RIGHTSTICK); assert(app.pdfZoom_ == 1);
+        SDL_Event pinch{}; pinch.type = SDL_MULTIGESTURE; pinch.mgesture.numFingers = 2; pinch.mgesture.dDist = 0.1f;
+        app.handleEvent(pinch, running); assert(app.pdfZoom_ > 1);
+        pad(app, SDL_CONTROLLER_BUTTON_RIGHTSTICK);
+        pad(app, SDL_CONTROLLER_BUTTON_START);
+        int w, h; app.getWindowSize(w, h);
+        app.handleAaModalTap((w - 600) / 2 + 200, (h - 460) / 2 + 130, w, h);
+        assert(app.pdfZoom_ == 1.25f);
+        pad(app, SDL_CONTROLLER_BUTTON_Y); assert(app.pdfZoom_ == 1);
+        pad(app, SDL_CONTROLLER_BUTTON_B);
         app.render();
         app.closeBook();
         // Worker completion must release pending IDs and permit reload after eviction.
@@ -96,6 +145,24 @@ struct AppTest {
         app.thumbCache_.clear();
         app.getOrRenderThumbnail(epub);
         { std::lock_guard<std::mutex> lock(app.queueMutex_); assert(app.queuedThumbIds_.count(epub.id)); }
+        app.openBrowser();
+        auto external = std::find_if(app.browserEntries_.begin(), app.browserEntries_.end(), [](const BrowserEntry &e) { return e.path.filename() == "external.pdf"; });
+        assert(external != app.browserEntries_.end());
+        app.browserSelected_ = static_cast<int>(external - app.browserEntries_.begin());
+        app.handleBrowserSelect();
+        assert(app.doc_ && app.books_.size() == 3);
+        app.closeBook();
+        assert(app.progressStore_.save());
+        // A real failed periodic write must keep pending progress for retry.
+        const auto blockedTemp = root / "data" / "progress.txt.tmp";
+        fs::create_directory(blockedTemp);
+        app.progressDirty_ = true;
+        app.lastProgressSave_ = std::chrono::steady_clock::now() - std::chrono::seconds(4);
+        SDL_Event quit{}; quit.type = SDL_QUIT; assert(SDL_PushEvent(&quit) == 1);
+        app.run();
+        assert(app.progressDirty_);
+        fs::remove(blockedTemp);
+        assert(app.progressStore_.save());
     }
 };
 }
@@ -115,7 +182,9 @@ int main() {
     fs::copy_file("tests/fixtures/sample_book.epub", root / "books" / "sample.epub");
     fs::copy_file("tests/fixtures/sample_doc.pdf", root / "books" / "sample.pdf");
     fs::create_directory_symlink(fs::absolute("fonts"), root / "fonts");
+    fs::copy_file("tests/fixtures/sample_doc.pdf", root / "external.pdf");
     AppTest::run(root);
+    AppTest::checkRestart(root);
     SDL_Window *window = SDL_CreateWindow("cache", 0, 0, 128, 128, SDL_WINDOW_HIDDEN);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     assert(renderer);
@@ -135,6 +204,7 @@ int main() {
     }
     SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window);
     char err[256] = {};
+    assert(px_document_open_limited("tests/fixtures/sample_book.epub", 600, 600, 22, "", err, sizeof err, 1024) == nullptr);
     auto doc = px_document_open("tests/fixtures/sample_book.epub", 600, 600, 22, "", err, sizeof err);
     assert(doc);
     PxImage cover{};
@@ -147,6 +217,7 @@ int main() {
         const auto css = generateEpubCss(theme, 0, 22, 140, 20, 0);
         assert(px_document_relayout(doc, 600, 600, 22, css.c_str(), err, sizeof err));
         PxImage image{}; assert(px_document_render(doc, 0, 600, 600, &image, err, sizeof err));
+        assert(image.rgb[0] == g_palettes[theme].bg.r && image.rgb[1] == g_palettes[theme].bg.g && image.rgb[2] == g_palettes[theme].bg.b);
         themeHashes.insert(hashImage(image));
         px_image_free(&image);
     }

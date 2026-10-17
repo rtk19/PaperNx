@@ -89,6 +89,9 @@ int main() {
     p.chapter = 4;
     p.favorite = true;
     p.lastRead = 1700000000ll;
+    p.bookPath = "sdmc:/Kitaplar/İstanbul.epub";
+    p.bookTitle = "İstanbul Masalları";
+    p.bookAuthor = "Yaşar Kemal";
     p.bookmarks.push_back({10, "Bölüm 1 Başlangıcı", 1700000100ll, 12345ll});
     p.bookmarks.push_back({49, "Önemli Alıntı", 1700000200ll, 67890ll});
 
@@ -108,6 +111,7 @@ int main() {
     assert(loaded.count() == 1);
     auto lp = loaded.get("0123456789abcdef");
     assert(lp.page == 49);
+    assert(lp.bookPath == p.bookPath && lp.bookTitle == p.bookTitle && lp.bookAuthor == p.bookAuthor);
     assert(lp.pageCount == 100);
     assert(lp.fontSize == 27);
     assert(lp.theme == 2);
@@ -283,6 +287,31 @@ int main() {
         std::ofstream(malformedPath, std::ios::trunc) << "CHECKSUM=";
         ProgressStore truncated(malformedPath);
         assert(!truncated.load());
+    }
+
+    // Save failures retain primary and recovery copies; empty/escaped UTF-8 titles round-trip.
+    {
+        const auto path = root / "data" / "failure.txt";
+        ProgressStore s(path);
+        Progress p; p.pageCount = 20;
+        p.bookmarks.push_back({3, "", 1, -1});
+        p.bookmarks.push_back({4, "İ ı I i Ş ş Ğ ğ Ü ü Ö ö Ç ç\t\r\n\\", 2, -1});
+        s.put("0123456789abcdef", p);
+        assert(s.save());
+        ProgressStore read(path); assert(read.load());
+        assert(read.get("0123456789abcdef").bookmarks[0].title.empty());
+        assert(read.get("0123456789abcdef").bookmarks[1].title == p.bookmarks[1].title);
+        fs::create_directory(path.string() + ".bak");
+        assert(!s.save());
+        ProgressStore afterFailure(path); assert(afterFailure.load());
+        assert(afterFailure.count() == 1);
+        // Simulated crash after primary rotation, before .tmp promotion.
+        fs::remove_all(path.string() + ".bak");
+        fs::rename(path, path.string() + ".bak");
+        ProgressStore interrupted(path); assert(interrupted.load());
+        assert(interrupted.save());
+        ProgressStore recovered(path); assert(recovered.load());
+        assert(recovered.count() == 1);
     }
 
     // 13. Turkish Search & Diacritic Roundtrip

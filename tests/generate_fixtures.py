@@ -114,8 +114,8 @@ def create_valid_epub(output_path: Path):
 </body>
 </html>"""
 
-    paragraph = "<p>? ? I i ? ? ? ? ? ? ? ? ? ?. Bo?azi?i k?y?s?nda okuma, an?lar ve ya?mur. " + ("Kitap sayfalar?nda ?stanbul'un ?????. " * 15) + "</p>"
-    ch1_xhtml = ch1_xhtml.replace("</body>", '<img src="cover.png" alt="Kitap kapa??" width="96" height="144"/>' + paragraph * 20 + "</body>")
+    paragraph = "<p>İ ı I i Ş ş Ğ ğ Ü ü Ö ö Ç ç. Boğaziçi kıyısında okuma, anılar ve yağmur. " + ("Kitap sayfalarında İstanbul'un ışığı. " * 15) + "</p>"
+    ch1_xhtml = ch1_xhtml.replace("</body>", '<img src="cover.png" alt="Kitap kapağı" width="96" height="144"/>' + paragraph * 20 + "</body>")
     ch2_xhtml = ch2_xhtml.replace("</body>", paragraph * 16 + "</body>")
     with zipfile.ZipFile(output_path, "w") as z:
         # EPUB spec requirement: mimetype must be the first uncompressed entry

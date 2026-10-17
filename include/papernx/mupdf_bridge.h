@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,6 +23,7 @@ typedef struct PxTocEntry {
 
 // Lifecycle
 PxDocument *px_document_open(const char *path, int width, int height, float em, const char *css, char *error, int capacity);
+PxDocument *px_document_open_limited(const char *path, int width, int height, float em, const char *css, char *error, int capacity, size_t memory_limit);
 int px_document_pages(PxDocument *doc);
 int px_document_page_size(PxDocument *doc, int page, float *width, float *height);
 int px_document_is_epub(PxDocument *doc);
@@ -35,7 +37,7 @@ int px_document_render_view(PxDocument *doc, int page, float zoom, int view_x, i
 int px_document_render_thumbnail(PxDocument *doc, int max_w, int max_h, PxImage *image, char *error, int capacity);
 void px_image_free(PxImage *image);
 
-// True EPUB Location Anchors & Bookmarks
+// Versioned chapter/fraction locations; approximate after layout changes.
 int64_t px_document_make_bookmark(PxDocument *doc, int page);
 int px_document_lookup_bookmark(PxDocument *doc, int64_t bookmark);
 int px_document_get_location(PxDocument *doc, int page, int *chapter, int *p);

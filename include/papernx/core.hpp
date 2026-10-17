@@ -46,6 +46,9 @@ struct Progress {
     int fontFamily{0};  // 0: Serif, 1: Sans, 2: Custom/Publisher
     std::int64_t lastRead{0};
     std::vector<Bookmark> bookmarks;
+    std::string bookPath;
+    std::string bookTitle;
+    std::string bookAuthor;
 };
 
 Format detectFormat(const fs::path &path);
