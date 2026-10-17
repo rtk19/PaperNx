@@ -1,4 +1,5 @@
 #include "papernx/core.hpp"
+#include "papernx/app_settings.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -99,7 +100,7 @@ bool parseSafeDouble(const std::string &s, double &out) {
 
 std::string payloadV3(const std::map<std::string, Progress> &records) {
     std::ostringstream out;
-    out << "PAPERNX-5\n";
+    out << "PAPERNX-6\n";
     for (const auto &[id, p] : records) {
         if (id.size() > 128 || id.find_first_of("\t\r\n") != std::string::npos) continue;
         out << id << '\t'
@@ -126,7 +127,7 @@ std::string payloadV3(const std::map<std::string, Progress> &records) {
             << '\t' << p.indentation << '\t' << p.touchZone << '\t' << p.publisherStyles
             << '\t' << p.pdfColorMode << '\t' << p.pdfViewMode << '\t' << p.readingMode << '\t' << p.modeOverride
             << '\t' << p.scrollSensitivity << '\t' << p.scrollInertia
-            << '\t' << p.anchorChapter << '\t' << p.anchorCharacter << '\t' << p.anchorOffset << '\n';
+            << '\t' << p.anchorChapter << '\t' << p.anchorCharacter << '\t' << p.anchorOffset << '\t' << p.styleOverride << '\n';
     }
     return out.str();
 }
@@ -365,6 +366,58 @@ int restorePage(const Progress &p, int n) {
     return std::clamp(static_cast<int>(std::round(f * (n - 1))), 0, n - 1);
 }
 
+ReaderPreferences resolveReadingPreferences(const ReaderPreferences &global, const ReaderPreferences &book) {
+    ReaderPreferences resolved = book.styleOverride ? book : global;
+    resolved.styleOverride = book.styleOverride;
+    resolved.modeOverride = book.modeOverride;
+    const auto &navigation = book.modeOverride ? book : global;
+    resolved.readingMode = navigation.readingMode;
+    resolved.scrollSensitivity = navigation.scrollSensitivity;
+    resolved.scrollInertia = navigation.scrollInertia;
+    // Fixed-layout display choices must not be replaced by EPUB appearance inheritance.
+    resolved.pdfColorMode = book.pdfColorMode;
+    resolved.pdfViewMode = book.pdfViewMode;
+    return resolved;
+}
+
+AppSettingsStore::AppSettingsStore(fs::path path) : store_(std::move(path)) {}
+
+void AppSettingsStore::put(AppPreferences preferences) {
+    preferences.uiTheme = std::clamp(preferences.uiTheme, 0, 5);
+    preferences.language = std::clamp(preferences.language, 0, 1);
+    preferences.libraryLayout = std::clamp(preferences.libraryLayout, 0, 1);
+    preferences.sort = std::clamp(preferences.sort, 0, 4);
+    preferences.toolbar = std::clamp(preferences.toolbar, 0, 1);
+    preferences.defaultBrowserPath = utf8SafeTruncate(preferences.defaultBrowserPath, 4096);
+    preferences_ = std::move(preferences);
+}
+
+bool AppSettingsStore::load() {
+    if (!store_.load() || !store_.all().count("APP_PREFERENCES_")) return false;
+    const auto record = store_.get("APP_PREFERENCES_");
+    AppPreferences preferences;
+    preferences.uiTheme = record.theme;
+    preferences.language = record.fontFamily;
+    preferences.libraryLayout = record.textAlign;
+    preferences.sort = record.fontSize - 12;
+    preferences.toolbar = record.pdfViewMode;
+    preferences.defaultBrowserPath = record.bookPath;
+    put(std::move(preferences));
+    return true;
+}
+
+bool AppSettingsStore::save() const {
+    Progress record;
+    record.theme = preferences_.uiTheme;
+    record.fontFamily = preferences_.language;
+    record.textAlign = preferences_.libraryLayout;
+    record.fontSize = 12 + preferences_.sort;
+    record.pdfViewMode = preferences_.toolbar;
+    record.bookPath = preferences_.defaultBrowserPath;
+    store_.put("APP_PREFERENCES_", std::move(record));
+    return store_.save();
+}
+
 ProgressStore::ProgressStore(fs::path p) : path_(std::move(p)) {}
 
 Progress ProgressStore::get(const std::string &id) const {
@@ -378,6 +431,7 @@ void ProgressStore::put(const std::string &id, Progress p) {
     p.fraction = std::isfinite(p.fraction) ? std::clamp(p.fraction, 0.0, 1.0) : 0.0;
     p.readingMode=std::clamp(p.readingMode,0,1);
     p.modeOverride=std::clamp(p.modeOverride,0,1);
+    p.styleOverride=std::clamp(p.styleOverride,0,1);
     p.scrollSensitivity=std::clamp(p.scrollSensitivity,50,200);
     p.scrollInertia=std::clamp(p.scrollInertia,0,1);
     p.fontSize = std::clamp(p.fontSize, 12, 48);
@@ -434,7 +488,7 @@ bool ProgressStore::load() {
 
         std::map<std::string, Progress> restored;
 
-        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3" || versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") {
+        if (versionLine == "PAPERNX-2" || versionLine == "PAPERNX-3" || versionLine == "PAPERNX-4" || (versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6")) {
             std::string line;
             while (std::getline(rows, line)) {
                 if (line.empty()) continue;
@@ -467,11 +521,11 @@ bool ProgressStore::load() {
                              parseSafeInt(tokens[14], bmCount);
 
                 if (!valid || bmCount < 0 || bmCount > 1024 ||
-                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") ? (versionLine == "PAPERNX-5" ? 18 : 11) : versionLine == "PAPERNX-3" ? 3 : 0) ||
+                    tokens.size() != 15 + static_cast<std::size_t>(bmCount) * 4 + ((versionLine == "PAPERNX-4" || (versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6")) ? ((versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6") ? (versionLine == "PAPERNX-6" ? 19 : 18) : 11) : versionLine == "PAPERNX-3" ? 3 : 0) ||
                     p.page < 0 || p.pageCount < 0 || p.fraction < 0 || p.fraction > 1 ||
                     p.fontSize < 12 || p.fontSize > 48 || p.theme < 0 || p.theme > 5 || fav < 0 || fav > 1 ||
                     p.lineHeight < 100 || p.lineHeight > 220 || p.margin < 10 || p.margin > 120 ||
-                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") ? 2 : 1)) continue;
+                    p.textAlign < 0 || p.textAlign > 1 || p.fontFamily < 0 || p.fontFamily > ((versionLine == "PAPERNX-4" || (versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6")) ? 2 : 1)) continue;
                 p.favorite = (fav != 0);
 
                 std::size_t cursor = 15;
@@ -489,13 +543,13 @@ bool ProgressStore::load() {
                     p.bookmarks.push_back(std::move(bm));
                 }
 
-                if ((versionLine == "PAPERNX-3" || (versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5")) && bookmarksValid) {
+                if ((versionLine == "PAPERNX-3" || (versionLine == "PAPERNX-4" || (versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6"))) && bookmarksValid) {
                     p.bookPath = unescapeString(tokens[cursor++]);
                     p.bookTitle = unescapeString(tokens[cursor++]);
                     p.bookAuthor = unescapeString(tokens[cursor++]);
                     if (p.bookPath.size() > 4096 || p.bookTitle.size() > 1024 || p.bookAuthor.size() > 1024) continue;
                 }
-                if ((versionLine == "PAPERNX-4" || versionLine == "PAPERNX-5") && bookmarksValid) {
+                if ((versionLine == "PAPERNX-4" || (versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6")) && bookmarksValid) {
                     if (!parseSafeInt(tokens[cursor++], p.textColor) || !parseSafeInt(tokens[cursor++], p.backgroundColor) ||
                         !parseSafeInt(tokens[cursor++], p.paragraphSpacing) || !parseSafeInt(tokens[cursor++], p.indentation) ||
                         !parseSafeInt(tokens[cursor++], p.touchZone) || !parseSafeInt(tokens[cursor++], p.publisherStyles) ||
@@ -505,7 +559,7 @@ bool ProgressStore::load() {
                         p.touchZone < 20 || p.touchZone > 40 || p.publisherStyles < 0 || p.publisherStyles > 1 ||
                         p.pdfColorMode < 0 || p.pdfColorMode > 3 || p.pdfViewMode < 0 || p.pdfViewMode > 2) continue;
                 }
-                if (versionLine == "PAPERNX-5" && bookmarksValid) {
+                if ((versionLine == "PAPERNX-5" || versionLine == "PAPERNX-6") && bookmarksValid) {
                     if (!parseSafeInt(tokens[cursor++], p.readingMode) || !parseSafeInt(tokens[cursor++], p.modeOverride) ||
                         !parseSafeInt(tokens[cursor++], p.scrollSensitivity) || !parseSafeInt(tokens[cursor++], p.scrollInertia) ||
                         !parseSafeInt(tokens[cursor++], p.anchorChapter) || !parseSafeInt(tokens[cursor++], p.anchorCharacter) ||
@@ -514,6 +568,8 @@ bool ProgressStore::load() {
                         p.scrollInertia < 0 || p.scrollInertia > 1 || p.anchorChapter < -1 || p.anchorCharacter < -1 ||
                         !std::isfinite(p.anchorOffset) || p.anchorOffset < -4 || p.anchorOffset > 4) continue;
                 }
+                if (!bookmarksValid) continue;
+                if (versionLine == "PAPERNX-6" && (!parseSafeInt(tokens[cursor++], p.styleOverride) || p.styleOverride < 0 || p.styleOverride > 1)) continue;
                 if (bookmarksValid && id.size() == 16 && p.page >= 0 && std::isfinite(p.fraction)) {
                     restored[id] = p;
                 }
@@ -544,6 +600,8 @@ bool ProgressStore::load() {
             return false;
         }
 
+        migrationSource_ = candidate;
+        migrationVersion_ = versionLine == "PAPERNX-6" ? 0 : versionLine.back() - '0';
         records_.swap(restored);
         return true;
     };
@@ -560,7 +618,10 @@ bool ProgressStore::load() {
 
     fs::path temp = path_;
     temp += ".tmp";
-    return readFile(temp);
+    if (readFile(temp)) return true;
+    for (int version = 5; version >= 1; --version)
+        if (readFile(path_.string() + ".pre-v6-v" + std::to_string(version) + ".bak")) return true;
+    return false;
 }
 
 bool ProgressStore::save() const { return save(SaveOptions{}); }
@@ -629,6 +690,22 @@ bool ProgressStore::save(const SaveOptions &options) const {
     if (int err = injected("create_directories")) return fail("create_directories", path_.parent_path(), err);
     if (!path_.parent_path().empty()) fs::create_directories(path_.parent_path(), ec);
     if (ec) return fail("create_directories", path_.parent_path(), ec.value(), nativeError());
+    // Keep the exact accepted pre-upgrade file forever, independent of rotating backups.
+    // This runs before overwriting any temp/recovery source and aborts migration on failure.
+    if (migrationVersion_ >= 1 && migrationVersion_ <= 5) {
+        const fs::path original = path_.string() + ".pre-v6-v" + std::to_string(migrationVersion_) + ".bak";
+        if (fs::exists(original, ec)) {
+            if (!valid(original)) return fail("migration_backup_verify", original, EIO);
+        } else {
+            const auto originalBytes = read(migrationSource_);
+            if (!valid(migrationSource_) || originalBytes.empty()) return fail("migration_source_verify", migrationSource_, EIO);
+            const fs::path staging = original.string() + ".tmp";
+            if (!writeVerified(staging, originalBytes, "migration_backup")) return false;
+            fs::rename(staging, original, ec);
+            if (ec) return fail("migration_backup_rename", original, ec.value(), nativeError());
+            if (read(original) != originalBytes) return fail("migration_backup_verify", original, EIO);
+        }
+    }
     // Preserve the only recovery copy before truncating a leftover temp file.
     if (!valid(path_) && !valid(backup) && valid(temp)) {
         if (!writeVerified(backup, read(temp), "recovery_copy")) return false;

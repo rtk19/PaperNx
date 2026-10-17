@@ -1,0 +1,19 @@
+# v0.3 baseline integration findings
+
+Baseline HEAD: 069de2c665735650a019bef9084fc28ab56aa0bf. Initial branch main, initially clean. Follow-up branch codex/professional-touch-v03, no commits.
+
+Pinned desktop tests: PASS 3/3 (core 0.36s, MuPDF 0.26s, app 7.80s; total 8.47s). Existing binary baseline only; implementation build/retest must follow changes.
+Docker engine/client 29.8.2 and Compose 5.6.0 available. Existing papernx-desktop and papernx-switch images available. No physical device evidence; Switch behavior UNVERIFIED.
+
+## Integration recommendations
+
+- include/papernx/core.hpp ReaderPreferences currently includes navigation, EPUB and PDF options. Add explicit full-book appearance override flag separate from existing navigation-only modeOverride; do not promote old per-book styling into intentional custom overrides.
+- src/core.cpp payloadV3 currently writes PAPERNX-5. Introduce PAPERNX-6 append-only fields and preserve V1-V5 parsing, logical anchor fields, favorites, metadata, timestamps, bookmarks and PDF settings. Back up an accepted legacy save before first migration write. PAPERNX_DEFAULTS is 16 chars and is accepted by existing loader ID check; can remain global reader record for compatibility. Separate app prefs record/types from reading prefs.
+- src/main.cpp openBook around 540 applies full defaults only to new books; existing books inherit navigation only when modeOverride is false. Replace this with effectivePreferences(global, book) at the boundary, preserving progress and PDF settings independently. saveCurrentPosition around 638 stores all style fields: preserve explicit override flags when persisting, and save global styling whenever global scope controls change.
+- currentStyle/applyStyle/storeDefaults/resetBookStyle around 440 centralize style extraction. Add one authoritative preference mutation path used by touch and controller controls, library and reader settings. Library settings need independent sample, no MuPDF document requirement. reflowEpub currently early returns with no document and thus cannot mutate defaults safely by itself.
+- Existing settings panel render at 2050 and hit testing around 1370 use matched hardcoded 600x460 geometry. Replace both through shared layout rectangles. Quick actions should be topmost input capture before reader page/drag gestures, visible in reader independent of toolbar; close/reset gesture capture whenever modal changes.
+- Cover worker around 371 has own MuPDF documents and safely uploads textures on UI thread at 415. Add CoverRepository for identity keyed RGB cache (id + modification + file bytes + cache format/version), validated dimensions and byte cap, atomic temp/rename writes, LRU disk cap, corrupt-entry deletion/fallback. Read/write/decode in this worker; retain UI-only SDL upload. Queue currently bounded 32 but FIFO can favor offscreen items; cancel queued offscreen work and prioritize visible IDs, bound completed queue too. Keep placeholder card geometry stable.
+- reflowEpub around 744 runs synchronously. First add normalized style equality and debounce with generation IDs plus busy overlay drawing before expensive work. Safe true async requires worker-exclusive document ownership and separate CPU images: do not use same PxDocument concurrently with UI rendering. Main owns SDL textures only. Preserve old valid document until worker prepares replacement and restores character anchor.
+- Current event loop at 220 waits up to 100ms unless scrolling inertia; pending debounce/worker-ready state should reduce timeout. getOrRenderPage is synchronous; prioritize current-page work then limited nearby prefetch with measured byte caps. Existing PageCache already provides texture budget foundation.
+
+Baseline does not establish new v0.3 acceptance. Physical Switch, performance under new UI, generated NRO and package upgrades remain UNVERIFIED until subsequent phases.

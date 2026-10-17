@@ -31,6 +31,7 @@ struct Bookmark {
 };
 
 struct ReaderPreferences {
+    int styleOverride{0}; // Explicit EPUB appearance override; legacy records inherit global style.
     int readingMode{0}; // 0 paginated, 1 continuous
     int modeOverride{0}; // inherit global unless explicitly selected for this book
     int scrollSensitivity{100};
@@ -50,6 +51,9 @@ struct ReaderPreferences {
     int pdfColorMode{0}; // original, dark, sepia, invert (whole-page filters)
     int pdfViewMode{0}; // fit page, fit width, 100%
 };
+
+// Resolves EPUB appearance and navigation independently. PDF settings remain book-specific.
+ReaderPreferences resolveReadingPreferences(const ReaderPreferences &global, const ReaderPreferences &book);
 
 struct Progress : ReaderPreferences {
     int anchorChapter{-1};
@@ -107,6 +111,8 @@ private:
     fs::path path_;
     std::map<std::string, Progress> records_;
     mutable std::string saveDiagnostic_;
+    fs::path migrationSource_;
+    int migrationVersion_{0};
 };
 
 } // namespace papernx
