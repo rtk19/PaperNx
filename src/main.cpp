@@ -32,6 +32,29 @@ using namespace papernx;
 
 namespace {
 
+// devkitPro SDL2's built-in Switch mapping swaps A/B and X/Y. Keep labels
+// consistent with the native pad_mapping_default[] button indices.
+std::string switchControllerMapping(const char *guid) {
+    return std::string(guid) + ",PaperNX Switch,a:b0,b:b1,x:b2,y:b3,"
+        "leftstick:b4,rightstick:b5,leftshoulder:b6,rightshoulder:b7,"
+        "lefttrigger:b8,righttrigger:b9,start:b10,back:b11,"
+        "dpleft:b12,dpup:b13,dpright:b14,dpdown:b15,"
+        "leftx:a0,lefty:a1,rightx:a2,righty:a3,";
+}
+
+void prepareControllerMapping(int index) {
+#ifdef __SWITCH__
+    const char *name = SDL_JoystickNameForIndex(index);
+    if (name && std::string(name) == "Switch Controller") {
+        char guid[33] = {};
+        SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(index), guid, sizeof guid);
+        SDL_GameControllerAddMapping(switchControllerMapping(guid).c_str());
+    }
+#else
+    (void)index;
+#endif
+}
+
 enum class ScreenState {
     Library,
     Reader,
@@ -171,6 +194,7 @@ public:
 
         // Open first available game controller if connected
         for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+            prepareControllerMapping(i);
             if (SDL_IsGameController(i)) {
                 controller_ = SDL_GameControllerOpen(i);
                 if (controller_) {
@@ -835,6 +859,7 @@ private:
 
         // Controller Hotplugging
         if (e.type == SDL_CONTROLLERDEVICEADDED) {
+            prepareControllerMapping(e.cdevice.which);
             if (!controller_) {
                 controller_ = SDL_GameControllerOpen(e.cdevice.which);
                 if (controller_) logMessage("Controller attached dynamically");
@@ -847,6 +872,7 @@ private:
                 controller_ = nullptr;
                 logMessage("Controller detached dynamically");
                 for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+                    prepareControllerMapping(i);
                     if (SDL_IsGameController(i)) {
                         controller_ = SDL_GameControllerOpen(i);
                         if (controller_) {

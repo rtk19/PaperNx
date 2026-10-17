@@ -177,6 +177,37 @@ static uint64_t hashImage(const PxImage &image) {
 int main() {
     assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) == 0);
     assert(TTF_Init() == 0);
+    {
+        const int index = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_UNKNOWN, 4, 28, 0);
+        assert(index >= 0);
+        char guid[33] = {};
+        SDL_JoystickGetGUIDString(SDL_JoystickGetDeviceGUID(index), guid, sizeof guid);
+        assert(SDL_GameControllerAddMapping(switchControllerMapping(guid).c_str()) >= 0);
+        SDL_GameController *pad = SDL_GameControllerOpen(index);
+        assert(pad);
+        SDL_Joystick *joystick = SDL_GameControllerGetJoystick(pad);
+        const std::pair<int, SDL_GameControllerButton> buttons[] = {
+            {0, SDL_CONTROLLER_BUTTON_A}, {1, SDL_CONTROLLER_BUTTON_B},
+            {2, SDL_CONTROLLER_BUTTON_X}, {3, SDL_CONTROLLER_BUTTON_Y},
+            {6, SDL_CONTROLLER_BUTTON_LEFTSHOULDER}, {7, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
+            {10, SDL_CONTROLLER_BUTTON_START}, {11, SDL_CONTROLLER_BUTTON_BACK},
+            {12, SDL_CONTROLLER_BUTTON_DPAD_LEFT}, {13, SDL_CONTROLLER_BUTTON_DPAD_UP},
+            {14, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}, {15, SDL_CONTROLLER_BUTTON_DPAD_DOWN}};
+        for (const auto &button : buttons) {
+            assert(SDL_JoystickSetVirtualButton(joystick, button.first, SDL_PRESSED) == 0);
+            SDL_GameControllerUpdate();
+            assert(SDL_GameControllerGetButton(pad, button.second) == SDL_PRESSED);
+            assert(SDL_JoystickSetVirtualButton(joystick, button.first, SDL_RELEASED) == 0);
+            SDL_GameControllerUpdate();
+        }
+        for (int trigger = 8; trigger <= 9; ++trigger) {
+            assert(SDL_JoystickSetVirtualButton(joystick, trigger, SDL_PRESSED) == 0);
+            SDL_GameControllerUpdate();
+            assert(SDL_GameControllerGetAxis(pad, trigger == 8 ? SDL_CONTROLLER_AXIS_TRIGGERLEFT : SDL_CONTROLLER_AXIS_TRIGGERRIGHT) == 32767);
+        }
+        SDL_GameControllerClose(pad);
+        assert(SDL_JoystickDetachVirtual(index) == 0);
+    }
     const auto root = fs::temp_directory_path() / "papernx-app-regressions";
     fs::remove_all(root); fs::create_directories(root / "books");
     fs::copy_file("tests/fixtures/sample_book.epub", root / "books" / "sample.epub");
