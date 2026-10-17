@@ -5,12 +5,18 @@
 #include "papernx/gestures.hpp"
 #include "papernx/page_cache.hpp"
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,36 +56,86 @@ public:
 
     ~PaperNxApp() {
         closeBook();
-        if (renderer_) SDL_DestroyRenderer(renderer_);
-        if (window_) SDL_DestroyWindow(window_);
+        // Crucial: Release all textures and fonts BEFORE destroying renderer
+        pageCache_.clear();
+        thumbCache_.clear();
+        typography_.reset();
+
+        if (controller_) {
+            SDL_GameControllerClose(controller_);
+            controller_ = nullptr;
+        }
+        if (renderer_) {
+            SDL_DestroyRenderer(renderer_);
+            renderer_ = nullptr;
+        }
+        if (window_) {
+            SDL_DestroyWindow(window_);
+            window_ = nullptr;
+        }
+#ifdef __SWITCH__
+        romfsExit();
+#endif
+    }
+
+    void logMessage(const std::string &msg) {
+        std::error_code ec;
+        fs::path logDir = root_ / "logs";
+        fs::create_directories(logDir, ec);
+        fs::path logFile = logDir / "papernx.log";
+        auto sz = fs::file_size(logFile, ec);
+        std::ofstream out(logFile, (sz > 256 * 1024) ? (std::ios::trunc | std::ios::out) : (std::ios::app | std::ios::out));
+        if (out) {
+            auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            char timeBuf[32];
+            std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+            out << "[" << timeBuf << "] " << msg << "\n";
+        }
     }
 
     bool init() {
+#ifdef __SWITCH__
+        Result rc = romfsInit();
+        if (R_FAILED(rc)) {
+            std::fprintf(stderr, "Warning: romfsInit failed with rc=0x%x\n", rc);
+        }
+#endif
         std::error_code ec;
         fs::create_directories(root_ / "books", ec);
         fs::create_directories(root_ / "data", ec);
         fs::create_directories(root_ / "fonts", ec);
+        fs::create_directories(root_ / "logs", ec);
 
+        logMessage("Starting PaperNX application...");
         progressStore_.load();
         books_ = scan(root_ / "books");
 
         window_ = SDL_CreateWindow("PaperNX", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                    1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-        if (!window_) return false;
+        if (!window_) {
+            logMessage("Failed to create SDL window");
+            return false;
+        }
 
         renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-        if (!renderer_) return false;
+        if (!renderer_) {
+            logMessage("Failed to create SDL renderer");
+            return false;
+        }
 
         typography_ = std::make_unique<Typography>(root_);
         if (!typography_->init()) {
-            std::fprintf(stderr, "Notice: Typography fallback active.\n");
+            logMessage("Warning: Default typography missing, fallback active");
         }
 
         // Open first available game controller if connected
         for (int i = 0; i < SDL_NumJoysticks(); ++i) {
             if (SDL_IsGameController(i)) {
                 controller_ = SDL_GameControllerOpen(i);
-                if (controller_) break;
+                if (controller_) {
+                    logMessage("Primary controller attached");
+                    break;
+                }
             }
         }
 
@@ -358,12 +414,19 @@ private:
     SDL_Texture *getOrRenderPageTexture(int pageIdx) {
         if (!doc_ || pageIdx < 0 || pageIdx >= pageCount_) return nullptr;
 
-        std::string key = PageCache::makeKey(currentBookId_, pageIdx, pdfZoom_, currentFontSize_, currentTheme_);
-        SDL_Texture *tex = pageCache_.get(key);
-        if (tex) return tex;
-
         int w = 1280, h = 720;
         getWindowSize(w, h);
+
+        std::string key;
+        if (px_document_is_epub(doc_)) {
+            key = PageCache::makeEpubKey(currentBookId_, pageIdx, currentFontSize_, currentTheme_,
+                                         currentLineHeight_, currentMargin_, currentTextAlign_, w, h);
+        } else {
+            key = PageCache::makePdfKey(currentBookId_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_, w, h);
+        }
+
+        SDL_Texture *tex = pageCache_.get(key);
+        if (tex) return tex;
 
         PxImage img{};
         char err[256] = {};
@@ -523,6 +586,32 @@ private:
             return;
         }
 
+        // Controller Hotplugging
+        if (e.type == SDL_CONTROLLERDEVICEADDED) {
+            if (!controller_) {
+                controller_ = SDL_GameControllerOpen(e.cdevice.which);
+                if (controller_) logMessage("Controller attached dynamically");
+            }
+            return;
+        }
+        if (e.type == SDL_CONTROLLERDEVICEREMOVED) {
+            if (controller_) {
+                SDL_GameControllerClose(controller_);
+                controller_ = nullptr;
+                logMessage("Controller detached dynamically");
+                for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+                    if (SDL_IsGameController(i)) {
+                        controller_ = SDL_GameControllerOpen(i);
+                        if (controller_) {
+                            logMessage("Switched to secondary controller");
+                            break;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
         // Controller Axis Navigation
         if (e.type == SDL_CONTROLLERAXISMOTION) {
             int dx = 0, dy = 0;
@@ -540,6 +629,11 @@ private:
 
     void handleGesture(const GestureResult &res) {
         if (screen_ == ScreenState::Reader) {
+            if (toolbarVisible_) {
+                toolbarVisible_ = false;
+                dirty_ = true;
+                return;
+            }
             if (res.type == GestureType::SwipeLeft) {
                 turnPage(1);
             } else if (res.type == GestureType::SwipeRight) {
@@ -549,7 +643,7 @@ private:
             } else if (res.type == GestureType::TapRight) {
                 turnPage(1);
             } else if (res.type == GestureType::TapCenter) {
-                toolbarVisible_ = !toolbarVisible_;
+                toolbarVisible_ = true;
                 dirty_ = true;
             }
         } else {
@@ -571,6 +665,7 @@ private:
                     if (px > w - 80) { screen_ = ScreenState::AaModal; dirty_ = true; return; } // Aa
                     if (px > w - 160) { screen_ = ScreenState::BookmarksModal; dirty_ = true; return; } // Bookmarks
                     if (px > w - 240) { screen_ = ScreenState::TocModal; dirty_ = true; return; } // TOC
+                    return;
                 }
                 // Footer scrubber
                 if (py > h - 60) {
@@ -582,11 +677,15 @@ private:
                     }
                     return;
                 }
+                // Tap in middle dismisses toolbar without turning page
+                toolbarVisible_ = false;
+                dirty_ = true;
+                return;
             }
-            // Standard reading tap zones
+            // Standard reading tap zones (when toolbar is not visible)
             if (x < 0.22f) turnPage(-1);
             else if (x > 0.78f) turnPage(1);
-            else { toolbarVisible_ = !toolbarVisible_; dirty_ = true; }
+            else { toolbarVisible_ = true; dirty_ = true; }
         } else if (screen_ == ScreenState::Library) {
             // Header category buttons
             if (py >= 55 && py <= 90) {

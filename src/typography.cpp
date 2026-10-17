@@ -8,10 +8,18 @@ namespace papernx {
 Typography::Typography(const std::filesystem::path &root) : root_(root) {}
 
 Typography::~Typography() {
-    if (titleFont_) TTF_CloseFont(titleFont_);
-    if (uiFont_) TTF_CloseFont(uiFont_);
-    if (smallFont_) TTF_CloseFont(smallFont_);
-    if (readerFont_) TTF_CloseFont(readerFont_);
+    TTF_Font* fonts[] = {titleFont_, uiFont_, smallFont_, readerFont_};
+    for (int i = 0; i < 4; ++i) {
+        if (!fonts[i]) continue;
+        TTF_CloseFont(fonts[i]);
+        for (int j = i + 1; j < 4; ++j) {
+            if (fonts[j] == fonts[i]) {
+                fonts[j] = nullptr;
+            }
+        }
+        fonts[i] = nullptr;
+    }
+    titleFont_ = uiFont_ = smallFont_ = readerFont_ = nullptr;
 }
 
 TTF_Font *Typography::findAndLoad(const std::vector<std::string> &candidates, int ptSize) {
