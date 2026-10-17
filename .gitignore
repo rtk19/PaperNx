@@ -18,3 +18,5 @@ __pycache__/
 
 /third-party-licenses/
 *.nacp
+
+/verification/screenshots/*.bmp

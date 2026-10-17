@@ -1,28 +1,34 @@
-﻿# Fiziksel Switch doğrulama matrisi
+# Fiziksel Switch kabul planı — v0.2.0-rc1
 
-Tüm satırlar **UNVERIFIED**. Konsol bu oturuma bağlı değildir. NRO'nun varlığı veya
-başlık doğrulaması bu satırları PASS yapmaz. Sonuç, tarih, HOS/libnx/hbmenu sürümü,
-cihaz modeli, açılan kitabın SHA256 değeri ve log dosyasıyla kaydedilmelidir.
+Bu oturumda Switch bağlı değildir. Önceki cihaz raporundaki sorunlar gereksinim olarak alınmıştır; yeni NRO için bütün fiziksel sonuçlar **UNVERIFIED**. Docker PASS bu tabloyu değiştirmez.
 
-| Senaryo | Kabul ölçütü | Sonuç |
-|---|---|---|
-| Kurulum/başlatma | SD ZIP doğru dizine açılır; ikon/NACP, RomFS ve Türkçe UI görünür | UNVERIFIED |
-| EPUB3 | Yerel kitap, resim, kapak, nav/NCX ve bütün bölümler açılır | UNVERIFIED |
-| EPUB düzeni | Boyut, serif/sans, satır, kenar ve hizalama değişir; konum aynı bölümde kalır | UNVERIFIED |
-| Altı tema | Metin ve sayfa arka planı değişir; resimler bozulmaz | UNVERIFIED |
-| PDF | Çok sayfalı vektör/tarama PDF, sığdırma, 1–5× zoom ve sınırlı pan | UNVERIFIED |
-| Touch | Tap/swipe ile PDF drag ayrılır; çift mouse olayı oluşmaz | UNVERIFIED |
-| Pinch | SDL çoklu dokunma olayının konsolda oluştuğu ve zoom yaptığı görülür | UNVERIFIED |
-| Joy-Con/Pro | A/B/X/Y, Plus/Minus, L/R, ZL/ZR, çubuk ve yönler tablodaki işlemleri yapar | UNVERIFIED |
-| Bağlantı | İkinci kumandayı ayırmak birinciyi kapatmaz; yeniden bağlantı çalışır | UNVERIFIED |
-| Arama | İ ı I i Ş ş Ğ ğ Ü ü Ö ö Ç ç yazılım klavyesiyle girilir ve aranır | UNVERIFIED |
-| Yeniden başlatma | Kitap kimliği, sayfa, düzen, tema, metadata ve yer imleri geri gelir | UNVERIFIED |
-| Uyku/uyanma | Konum kaydedilir; çizim, kontrol ve worker güvenli devam eder | UNVERIFIED |
-| Handheld/docked | Yerleşim ve viewport çözünürlük değişiminde güncellenir | UNVERIFIED |
-| Application/applet | Gerçek RAM ve büyük kitap davranışı her iki kipte ölçülür | UNVERIFIED |
-| Çıkış | B/Esc kütüphaneden hbmenu'ye güvenli döner | UNVERIFIED |
-| Yazma hatası | Yazılamayan SD'de uyarı/yeniden deneme; geçerli yedek korunur | UNVERIFIED |
+Önce microSD `switch/PaperNX/data/` klasörünü bilgisayara yedekleyin. Yeni ZIP’i klasörleri birleştirerek kurun. Bir resimli EPUB ve iki sayfadan uzun PDF hazırlayın. Cihaz modeli, HOS/hbmenu sürümü, applet/application modu, kitap ve NRO SHA256 değerlerini sonuçla birlikte kaydedin.
 
-Ani güç kesme testi yalnızca yedeklenmiş test SD'siyle yapılmalıdır. Simüle edilmiş
-interrupted-save testi gerçek fiziksel storage arızalarının tümünü kapsamaz.
-Kararlı v1.0 onayı bu matris tamamlanmadan verilmez.
+| # | Test | Kabul ölçütü | Sonuç |
+|---|---|---|---|
+| 1 | Custom icon | Homebrew Menu’de kullanıcı ikonu görünür. | UNVERIFIED |
+| 2 | Başlatma | PaperNX çökmeden açılır. | UNVERIFIED |
+| 3 | Kitaplık | Sekmeler, kapak oranları ve uzun başlıklar okunur. | UNVERIFIED |
+| 4 | EPUB ve resimler | Resimli EPUB3 açılır; TOC ve resimler görünür. | UNVERIFIED |
+| 5 | Dokunmatik sayfa | Joy-Con kullanmadan 10 sayfa ileri ve geri gidilir. | UNVERIFIED |
+| 6 | Yavaş kaydırma | 1–2 saniyelik yatay kaydırma tek sayfa çevirir; hafif kayma dokunmayı bozmaz. | UNVERIFIED |
+| 7 | Aa erişimi | Ortaya dokun → Aa; menü açılır ve X ile kapanır. | UNVERIFIED |
+| 8 | Tipografi | Boyut, Serif/Sans/Yayıncı, satır, paragraf, kenar, hizalama, girinti çalışır. | UNVERIFIED |
+| 9 | Tema/renk | Altı tema ve bağımsız yazı/zemin HEX gerçek EPUB sayfasını değiştirir. | UNVERIFIED |
+| 10 | Ayarları yeniden açma | Kitap ayarları ve yeni kitap varsayılanları yeniden başlatmada korunur. | UNVERIFIED |
+| 11 | PDF görünüm | Sayfaya/genişliğe sığdır ve %100 çalışır. | UNVERIFIED |
+| 12 | PDF yakınlaştır/kaydır | −/+ ve tek parmak sürükleme ile bütün içerik erişilir; yanlış sayfa çevrilmez. | UNVERIFIED |
+| 13 | PDF gece filtresi | Filtre açılır, fotoğrafa etkisi görülür, Orijinal ile geri alınır. | UNVERIFIED |
+| 14 | Kategoriler/arama | Altı kategori, favori dokunması, liste/ızgara ve Türkçe yazılım klavyesi çalışır; boş Bitenler doğru mesajı verir. | UNVERIFIED |
+| 15 | Kayıt güvenilirliği | 10 sayfa ve ayar değişikliğinden sonra Kitaplık’a dönülür; tekrarlanan eski uyarı yoktur. | UNVERIFIED |
+| 16 | Konumu geri alma | Çıkış/başlatma sonrası EPUB ve PDF, iki farklı kitapta doğru konuma döner; yer imleri korunur. | UNVERIFIED |
+| 17 | Kumandalar | Joy-Con/Pro Controller, takma/çıkarma ve dokunmatiğe geçiş çalışır. | UNVERIFIED |
+| 18 | Uyku/uyanma | Açık kitapla uyku/uyanma; kayıt ve giriş çiftlenmez. | UNVERIFIED |
+| 19 | Handheld/docked | 1280×720 ve docked çıktıda araçlar metni kapatmaz; PDF sınırları doğrudur. | UNVERIFIED |
+| 20 | Çıkış | Kitaplıkta B ile Homebrew Menu’ye dönülür; yeniden açılabilir. | UNVERIFIED |
+
+Kısa kayıt testi: EPUB’da 10 sayfa ilerle → Aa ile Sans ve Sepia seç → yer imi ekle → Kitaplık → en az 3 saniye bekle → çık → tekrar açıp aynı kitabı seç. Konum/tema/font/yer imi aynı olmalı. PDF’de ve ikinci kitapta tekrarla. Sonra uygulama kapalıyken bilgisayarda `progress.txt` dosyasını başka yere taşı ve `.bak` yerinde bırak; yeniden açıp yedekten kitap kayıtlarının geri geldiğini kontrol et. Silmek yerine dosyayı taşı ve ilk yedeği sakla. Bu son işlem son kayıttan bir önceki duruma dönmeyi bekler.
+
+Hata sürerse Aa → Kontroller → Dokunmatik günlük aç; birkaç dokunma yapıp kapat. `logs/papernx.log` içindeki save operation/errno/platform_result ve touch satırlarını paylaş. SD çıkarma veya güç kesme deneyini açık uygulamada yapmayın. Yazılamayan yol testleri Docker’da hata enjeksiyonuyla yapılır.
+
+Pinch için ek sonuç: UNVERIFIED. SDL çoklu dokunma olaylarının gerçek cihazda oluşup oluşmadığını kaydet; −/+ her durumda kullanılabilmelidir.

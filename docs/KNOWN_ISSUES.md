@@ -29,3 +29,11 @@ Docker taban imajları ve MuPDF kaynak hash'i sabittir; devkitPro paket kurulumu
 depoya bağlıdır. Kullanılan sürümler loglanır; gelecekte byte düzeyinde aynı toolchain
 kurulumu garanti edilmez. Genel yayımdan önce lisans/kaynak erişimi korunmalı ve cihaz
 matrisi tamamlanmalıdır. [TEST_RESULTS](TEST_RESULTS.md) son yürütme kanıtıdır.
+
+## v0.2.0-rc1 ek sınırlar
+
+- Bütün sayfa PDF filtreleri fotoğrafları da değiştirir; görüntü koruyan metin/zemin ayrıştırması uygulanmadı.
+- EPUB yalnız renk değişiminde de yeniden düzenlenir; mantıksal bölüm/oran konumu yaklaşık korunur.
+- İlk SD kitap taraması eşzamanlıdır. Büyük kitap/gerçek donanım gecikmesi ve RAM tepesi UNVERIFIED.
+- GitHub sosyal önizleme görselinin yüklenmesi README’deki manuel adımdır.
+- Fiziksel Switch’te bildirilen kayıt hatasının rename kaynaklı olduğu kod incelemesine dayalıdır; yeni native Result günlüğüyle cihazda teyit edilmelidir.
