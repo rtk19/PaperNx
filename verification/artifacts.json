@@ -1,7 +1,7 @@
 {
   "source": {
-    "git_revision": "03bbf513d311566245ea3efe6a7a5e85ecbeb98b",
-    "implementation_sha256": "84a03017d6c3d0cef453d6069d3e53b4cf1785574b12db06f306d4474789e869"
+    "git_revision": "2da2b6dbe7247d69093a1400a4d542286038b9e6",
+    "implementation_sha256": "a07ed178289750c8ae7642c3e816f72c361089833c5be7f7d914e8a70b1d3546"
   },
   "elf": {
     "architecture": "AArch64",
@@ -10,38 +10,38 @@
   },
   "nro": {
     "version": 0,
-    "declared_size": 45977600,
-    "actual_size": 47197587,
+    "declared_size": 46137344,
+    "actual_size": 47930323,
     "segments": [
       {
         "name": ".text",
         "offset": 0,
-        "size": 8708096
+        "size": 8851456
       },
       {
         "name": ".rodata",
-        "offset": 8708096,
-        "size": 36737024
+        "offset": 8851456,
+        "size": 36753408
       },
       {
         "name": ".data",
-        "offset": 45445120,
+        "offset": 45604864,
         "size": 532480
       }
     ]
   },
   "assets": {
     "icon": {
-      "offset": 45977656,
+      "offset": 46137400,
       "size": 13795
     },
     "nacp": {
-      "offset": 45991451,
+      "offset": 46151195,
       "size": 16384
     },
     "romfs": {
-      "offset": 46007835,
-      "size": 1189752
+      "offset": 46167579,
+      "size": 1762744
     }
   },
   "icon": {
@@ -54,9 +54,10 @@
   "embedded_icon_identical": true,
   "romfs_files": [
     "fonts/NotoSans-Regular.ttf",
+    "fonts/NotoSans-SemiBold.ttf",
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60",
+  "nro_sha256": "dc67312298a15bc43349815a8cdeb9f08bae91bab06dbd8dcefa5b798c240496",
   "hardware": "UNVERIFIED"
 }

@@ -1,6 +1,6 @@
 {
   "environment": "Docker SDL dummy software renderer; CPU event-to-present-return only; physical visible latency UNVERIFIED",
-  "tap_to_pressed_present": {"p50_ms":8.41782,"p95_ms":9.33512,"worst_ms":10.1828},
-  "tap_to_action_present": {"p50_ms":16.8125,"p95_ms":18.9193,"worst_ms":19.1741},
-  "focus_to_present": {"p50_ms":8.47075,"p95_ms":9.56925,"worst_ms":9.59389}
+  "tap_to_pressed_present": {"p50_ms":8.34737,"p95_ms":9.54021,"worst_ms":12.6546},
+  "tap_to_action_present": {"p50_ms":16.8153,"p95_ms":18.8882,"worst_ms":23.0203},
+  "focus_to_present": {"p50_ms":8.33005,"p95_ms":10.1238,"worst_ms":12.3396}
 }

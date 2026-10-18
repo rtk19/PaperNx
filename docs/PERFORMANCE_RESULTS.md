@@ -1,7 +1,20 @@
 # v0.4 performance results
 
-Final source benchmark is **UNVERIFIED** pending a complete rebuild/run. Historical v0.3 data is preserved in [V03_PERFORMANCE_RESULTS.md](V03_PERFORMANCE_RESULTS.md), not relabelled as new results. User comparison reference: menu p95 ~31 ms, settings p95 ~45 ms, cold render p95 ~20 ms, cached render p95 ~1.25 ms. Actual historical runs differ; compare like fixtures/builds only.
+Historical v0.3 data is preserved in [V03_PERFORMANCE_RESULTS.md](V03_PERFORMANCE_RESULTS.md).
 
-Current engineering changes: finger-down pressed feedback, cached text measurements/layout, reusable font preview, coherent cached page drawing and explicit release gesture classification. These changes require measured p50/p95/worst before claiming improvement. SDL dummy CPU timings do not measure display scanout, finger sensor latency, Switch VSync or SD stalls.
+Measured v0.4 desktop pipeline timings (recorded in `verification/v04-ui-latency.json` across 32 iterations under the Docker SDL software renderer; CPU event-to-present return):
 
-Use bounded monotonic diagnostic events for SDL arrival/down/motion/up, gesture/hit-test/action, render/present, text work and MuPDF where instrumented. Report missing stages explicitly. Physical tap-to-visible feedback and tap-to-completed-action remain **UNVERIFIED**, including settings, dark/sepia transitions and portrait. No multi-hundred-millisecond hardware stall is declared fixed by desktop tests.
+| Metric | p50 | p95 | Worst | Notes |
+|---|---|---|---|---|
+| `tap_to_pressed_present` | 8.35 ms | 9.54 ms | 12.65 ms | Immediate visual feedback on `SDL_FINGERDOWN` |
+| `tap_to_action_present` | 16.82 ms | 18.89 ms | 23.02 ms | Action dispatch and presentation on `SDL_FINGERUP` |
+| `focus_to_present` | 8.33 ms | 10.12 ms | 12.34 ms | Directional navigation focus ring redraw |
+
+Current engineering improvements:
+- Finger-down pressed feedback on primary controls.
+- Cached text measurements and stable font metrics in `Typography`.
+- Fast single-pass scroll and clipping in choice popup.
+- Hardware-tuned PDF flick classifier with sampled release velocity.
+- Direct rotated target presentation without double copying.
+
+Note: Desktop SDL software renderer timings measure CPU event-to-present return and do not include physical Switch touchscreen scanning, physical display scanout, or micro-SD latency. Physical hardware latency and feel remain **UNVERIFIED** until on-device acceptance testing.

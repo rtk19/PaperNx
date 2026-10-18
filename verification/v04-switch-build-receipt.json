@@ -1,0 +1,23 @@
+{
+  "source_before": {
+    "git_revision": "2da2b6dbe7247d69093a1400a4d542286038b9e6",
+    "implementation_sha256": "a07ed178289750c8ae7642c3e816f72c361089833c5be7f7d914e8a70b1d3546"
+  },
+  "source_after": {
+    "git_revision": "2da2b6dbe7247d69093a1400a4d542286038b9e6",
+    "implementation_sha256": "a07ed178289750c8ae7642c3e816f72c361089833c5be7f7d914e8a70b1d3546"
+  },
+  "outputs": {
+    "PaperNX.elf": {
+      "sha256": "07ee716b53090c694ecde89618b6d22fa47a76e00978b8304c656a1a6884713e",
+      "bytes": 67610856,
+      "architecture": "AArch64",
+      "machine": 183,
+      "type": 3
+    },
+    "PaperNX.nro": {
+      "sha256": "dc67312298a15bc43349815a8cdeb9f08bae91bab06dbd8dcefa5b798c240496",
+      "bytes": 47930323
+    }
+  }
+}
