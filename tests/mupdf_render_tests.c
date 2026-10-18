@@ -54,6 +54,42 @@ int main(int argc, char **argv) {
         printf("[PASS] Corrupted PDF rejected safely without crash: %s\n", err);
     }
 
+    // Real OPF metadata: namespace prefixes, EPUB3 refinements, bounded UTF-8,
+    // missing optional fields and malformed numeric values.
+    {
+        char err[256], value[1200];
+        PxDocument *doc = px_document_open("tests/fixtures/metadata_epub3.epub", 720, 1280, 24, "", err, sizeof err);
+        assert(doc);
+        px_document_metadata(doc, "info:Subject", value, sizeof value);
+        assert(strcmp(value, "\xc5\x9e" "iir") == 0);
+        px_document_metadata(doc, "info:Series", value, sizeof value);
+        assert(strcmp(value, "Okuma Dizisi") == 0);
+        px_document_metadata(doc, "info:SeriesIndex", value, sizeof value);
+        assert(strcmp(value, "3") == 0);
+        struct { char value[2]; unsigned char guard; } tiny = {{'x', 'x'}, 0xa5};
+        px_document_metadata(doc, "info:Author", tiny.value, sizeof tiny.value);
+        assert(tiny.value[0] == 0 && tiny.guard == 0xa5); // U+0130 requires two bytes plus NUL.
+        assert(px_document_metadata(doc, "info:Author", value, 1) > 1 && value[0] == 0);
+        px_document_close(doc);
+        doc = px_document_open("tests/fixtures/metadata_bounded.epub", 720, 1280, 24, "", err, sizeof err);
+        assert(doc);
+        px_document_metadata(doc, "info:Subject", value, sizeof value);
+        size_t length = strlen(value);
+        assert(length > 0 && length < 1024 && length % 2 == 0);
+        for (size_t i = 0; i < length; i += 2) assert((unsigned char)value[i] == 0xc4 && (unsigned char)value[i+1] == 0xb1);
+        px_document_metadata(doc, "info:SeriesIndex", value, sizeof value);
+        assert(value[0] == 0);
+        px_document_close(doc);
+        doc = px_document_open("tests/fixtures/metadata_missing.epub", 720, 1280, 24, "", err, sizeof err);
+        assert(doc);
+        px_document_metadata(doc, "info:Subject", value, sizeof value);
+        assert(value[0] == 0);
+        px_document_metadata(doc, "info:Series", value, sizeof value);
+        assert(value[0] == 0);
+        px_document_close(doc);
+        printf("[PASS] Bounded embedded metadata and EPUB3 series refinements\n");
+    }
+
     // 2. Real EPUB Document Verification
     {
         char err[256] = {0};
@@ -74,6 +110,17 @@ int main(int argc, char **argv) {
         px_document_metadata(epub, "info:Title", title, sizeof(title));
         px_document_metadata(epub, "info:Author", author, sizeof(author));
         printf("EPUB Title: '%s', Author: '%s'\n", title, author);
+        assert(strstr(author, "; Yusuf ") != NULL);
+        char subject[1024], series[512], index[64];
+        assert(px_document_metadata(epub, "info:Subject", subject, sizeof subject) > 0);
+        assert(strcmp(subject, "Roman; T\xc3\xbcrk Edebiyat\xc4\xb1") == 0);
+        assert(px_document_metadata(epub, "info:Series", series, sizeof series) > 0);
+        assert(strcmp(series, "Bo\xc4\x9f" "azi\xc3\xa7i") == 0);
+        px_document_metadata(epub, "info:SeriesIndex", index, sizeof index);
+        assert(strcmp(index, "2.5") == 0);
+        struct { unsigned char before; char value[2]; unsigned char after; } tiny = {0x55, {0}, 0xaa};
+        px_document_metadata(epub, "info:Series", tiny.value, sizeof tiny.value);
+        assert(tiny.before == 0x55 && tiny.after == 0xaa && strcmp(tiny.value, "B") == 0);
         assert(strstr(title, "İstanbul") != NULL);
         assert(strstr(author, "Tanpınar") != NULL);
 
@@ -140,6 +187,10 @@ int main(int argc, char **argv) {
         }
 
         assert(px_document_is_epub(pdf) == 0);
+        char pdf_subject[128], pdf_author[128];
+        px_document_metadata(pdf, "info:Subject", pdf_subject, sizeof pdf_subject);
+        px_document_metadata(pdf, "info:Author", pdf_author, sizeof pdf_author);
+        assert(strcmp(pdf_subject, "PDF Genre") == 0 && strcmp(pdf_author, "PDF Author") == 0);
         assert(px_document_has_embedded_cover(pdf) == 0);
         assert(px_document_has_embedded_cover(NULL) == 0);
         int page_count = px_document_pages(pdf);

@@ -16,12 +16,36 @@ struct PxDocument {
     char *path;
     char *css;
     fz_buffer *cover;
+    char embedded_authors[1024];
+    char embedded_subjects[1024];
+    char embedded_series[512];
+    char embedded_series_index[64];
     int nav_count;
     PxTocEntry nav[256];
     char nav_uri[256][2048];
 };
 
 static void load_epub_extras(PxDocument *d);
+
+/* Copy only complete UTF-8 code points, including when the caller supplies a
+ * tiny buffer. Return the required byte count, as fz_lookup_metadata does. */
+static int metadata_copy(char *out, size_t cap, const char *text) {
+    size_t i = 0;
+    while (text[i] && i + 1 < cap) {
+        unsigned char c = (unsigned char)text[i];
+        size_t n = c < 0x80 ? 1 : (c >= 0xc2 && c <= 0xdf ? 2 :
+            (c >= 0xe0 && c <= 0xef ? 3 : (c >= 0xf0 && c <= 0xf4 ? 4 : 0)));
+        if (!n || i + n >= cap) break;
+        size_t k;
+        for (k = 1; k < n; ++k)
+            if (!text[i+k] || ((unsigned char)text[i+k] & 0xc0) != 0x80) break;
+        if (k != n) break;
+        memcpy(out + i, text + i, n);
+        i += n;
+    }
+    out[i] = 0;
+    return (int)strlen(text) + 1;
+}
 
 static void set_background(PxDocument *d, const char *css) {
     unsigned int r = 255, g = 255, b = 255;
@@ -219,6 +243,14 @@ int px_document_relayout(PxDocument *d, int w, int h, float em, const char *css,
 int px_document_metadata(PxDocument *d, const char *key, char *out, int cap) {
     if (!d || !d->ctx || !d->doc || !out || cap <= 0 || !key) return 0;
     out[0] = 0;
+    const char *embedded = NULL;
+    if (d->epub) {
+        if (!strcmp(key, "info:Author")) embedded = d->embedded_authors;
+        else if (!strcmp(key, "info:Subject")) embedded = d->embedded_subjects;
+        else if (!strcmp(key, "info:Series")) embedded = d->embedded_series;
+        else if (!strcmp(key, "info:SeriesIndex")) embedded = d->embedded_series_index;
+    }
+    if (embedded && *embedded) return metadata_copy(out, (size_t)cap, embedded);
     int result = 0;
     fz_var(result);
     fz_try(d->ctx) {
@@ -670,6 +702,75 @@ static void xml_text(fz_xml *node, char *out, size_t cap, int depth) {
     }
 }
 
+static void metadata_value(fz_xml *node, char *out, size_t cap) {
+    char raw[2048] = "", clean[2048];
+    xml_text(node, raw, sizeof raw, 0);
+    size_t n = 0;
+    int space = 0;
+    for (const unsigned char *p = (const unsigned char *)raw; *p; ++p) {
+        if (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') { space = n != 0; continue; }
+        if (space) clean[n++] = ' ';
+        clean[n++] = (char)*p;
+        space = 0;
+    }
+    clean[n] = 0;
+    metadata_copy(out, cap, clean);
+}
+
+static void metadata_append(char *out, size_t cap, fz_xml *node) {
+    char value[1024];
+    metadata_value(node, value, sizeof value);
+    size_t used = strlen(out);
+    if (!value[0] || used + 3 >= cap) return;
+    if (used) { out[used++] = ';'; out[used++] = ' '; out[used] = 0; }
+    metadata_copy(out + used, cap - used, value);
+}
+
+static void metadata_index(char *out, size_t cap, const char *value) {
+    if (!value || !*value || strlen(value) >= cap) return;
+    char *end = NULL;
+    double number = strtod(value, &end);
+    if (!end || *end || !isfinite(number) || number < 0) return;
+    metadata_copy(out, cap, value);
+}
+
+static void read_embedded_metadata(PxDocument *d, fz_xml *metadata) {
+    int entries = 0;
+    for (fz_xml *p = fz_xml_down(metadata); p && entries++ < 512; p = fz_xml_next(p)) {
+        if (xml_tag(p, "creator")) metadata_append(d->embedded_authors, sizeof d->embedded_authors, p);
+        else if (xml_tag(p, "subject")) metadata_append(d->embedded_subjects, sizeof d->embedded_subjects, p);
+        else if (xml_tag(p, "meta")) {
+            const char *value = fz_xml_att(p, "content");
+            if (value && fz_xml_att_eq(p, "name", "calibre:series"))
+                metadata_copy(d->embedded_series, sizeof d->embedded_series, value);
+            if (fz_xml_att_eq(p, "name", "calibre:series_index"))
+                metadata_index(d->embedded_series_index, sizeof d->embedded_series_index, value);
+        }
+    }
+    /* EPUB3 collections can also be sets. Accept only a collection explicitly
+     * refined as a series and bind its index to the same identifier. */
+    entries = 0;
+    for (fz_xml *p = fz_xml_down(metadata); p && entries++ < 512 && !d->embedded_series[0]; p = fz_xml_next(p)) {
+        if (!xml_tag(p, "meta") || !fz_xml_att_eq(p, "property", "belongs-to-collection")) continue;
+        const char *id = fz_xml_att(p, "id");
+        if (!id || !*id || strlen(id) > 256) continue;
+        char ref[258], index[64] = "";
+        int is_series = 0, refinements = 0;
+        snprintf(ref, sizeof ref, "#%s", id);
+        for (fz_xml *q = fz_xml_down(metadata); q && refinements++ < 512; q = fz_xml_next(q)) {
+            if (!xml_tag(q, "meta") || !fz_xml_att_eq(q, "refines", ref)) continue;
+            char value[64];
+            metadata_value(q, value, sizeof value);
+            if (fz_xml_att_eq(q, "property", "collection-type") && !strcmp(value, "series")) is_series = 1;
+            if (fz_xml_att_eq(q, "property", "group-position")) metadata_index(index, sizeof index, value);
+        }
+        if (is_series) {
+            metadata_value(p, d->embedded_series, sizeof d->embedded_series);
+            metadata_copy(d->embedded_series_index, sizeof d->embedded_series_index, index);
+        }
+    }
+}
+
 static void read_nav(PxDocument *d, fz_xml *node, const char *base, int level) {
     if (!node || level > 32 || d->nav_count >= 256) return;
     for (fz_xml *p = fz_xml_down(node); p && d->nav_count < 256; p = fz_xml_next(p)) {
@@ -712,6 +813,7 @@ static void load_epub_extras(PxDocument *d) {
         fz_xml *package = fz_xml_root(opf);
         fz_xml *manifest = xml_child(package, "manifest");
         fz_xml *metadata = xml_child(package, "metadata");
+        read_embedded_metadata(d, metadata);
         const char *cover_id = NULL;
         for (fz_xml *p = fz_xml_down(metadata); p; p = fz_xml_next(p))
             if (xml_tag(p, "meta") && fz_xml_att_eq(p, "name", "cover")) cover_id = fz_xml_att(p, "content");

@@ -47,6 +47,11 @@ def create_valid_epub(output_path: Path):
     <dc:title>İstanbul Masalları ve Şiirler</dc:title>
     <dc:creator>Ahmet Hamdi Tanpınar</dc:creator>
     <dc:language>tr</dc:language>
+    <dc:creator>Yusuf &#x130;nce</dc:creator>
+    <dc:subject>Roman</dc:subject>
+    <dc:subject>T&#xFC;rk Edebiyat&#x131;</dc:subject>
+    <meta name="calibre:series" content="Bo&#x11F;azi&#xE7;i"/>
+    <meta name="calibre:series_index" content="2.5"/>
     <meta property="dcterms:modified">2026-10-17T00:00:00Z</meta>
   </metadata>
   <manifest>
@@ -127,6 +132,34 @@ def create_valid_epub(output_path: Path):
         write_entry(z, "OEBPS/ch1.xhtml", ch1_xhtml, compress_type=zipfile.ZIP_DEFLATED)
         write_entry(z, "OEBPS/ch2.xhtml", ch2_xhtml, compress_type=zipfile.ZIP_DEFLATED)
 
+def create_metadata_variants(source: Path):
+    """Reuse real EPUB content for namespace, bounds and EPUB3-series checks."""
+    with zipfile.ZipFile(source) as archive:
+        entries = [(item.filename, archive.read(item.filename)) for item in archive.infolist()]
+    variants = {
+        "metadata_epub3.epub": '''<metadata xmlns:d="http://purl.org/dc/elements/1.1/">
+          <d:title>Namespace test</d:title><d:creator>&#x130;nce</d:creator>
+          <d:subject>&#x15E;iir</d:subject>
+          <meta property="belongs-to-collection" id="set">Not a series</meta>
+          <meta refines="#set" property="collection-type">set</meta>
+          <meta property="belongs-to-collection" id="series">Okuma Dizisi</meta>
+          <meta refines="#series" property="group-position">3</meta>
+          <meta refines="#series" property="collection-type">series</meta></metadata>''',
+        "metadata_bounded.epub": '<metadata xmlns:d="http://purl.org/dc/elements/1.1/">'
+            '<d:title>Bounded test</d:title><d:creator>&#x130;nce</d:creator>'
+            '<d:subject>' + '&#x131;' * 5000 + '</d:subject>'
+            '<meta name="calibre:series_index" content="NaN"/></metadata>',
+        "metadata_missing.epub": '<metadata><title>Missing optional fields</title></metadata>',
+    }
+    import re
+    for filename, metadata in variants.items():
+        with zipfile.ZipFile(FIXTURES_DIR / filename, "w") as out:
+            for name, data in entries:
+                if name == "OEBPS/content.opf":
+                    data = re.sub(r'<metadata\b.*?</metadata>', metadata,
+                                  data.decode("utf-8"), flags=re.S).encode("utf-8")
+                write_entry(out, name, data)
+
 def create_valid_pdf(output_path: Path):
     """Create a fully compliant multi-page PDF with outlines and Turkish text."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -160,6 +193,7 @@ def create_valid_pdf(output_path: Path):
     pixels = bytes((24, 80, 180)) * (96 * 144)
     compressed = zlib.compress(pixels)
     objects.append(f"11 0 obj\n<< /Type /XObject /Subtype /Image /Width 96 /Height 144 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {len(compressed)} >>\nstream\n".encode("ascii") + compressed + b"\nendstream\nendobj\n")
+    objects.append(b"12 0 obj\n<< /Title (PaperNX PDF Fixture) /Author (PDF Author) /Subject (PDF Genre) >>\nendobj\n")
 
     header = b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"
     body = b""
@@ -176,7 +210,7 @@ def create_valid_pdf(output_path: Path):
     for offset in xref[1:]:
         xref_str += f"{offset:010d} 00000 n \n"
 
-    trailer = f"trailer\n<< /Size {len(xref)} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
+    trailer = f"trailer\n<< /Size {len(xref)} /Root 1 0 R /Info 12 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
 
     pdf_content = header + body + xref_str.encode("latin1") + trailer.encode("latin1")
     output_path.write_bytes(pdf_content)
@@ -186,6 +220,7 @@ def main():
     
     epub_path = FIXTURES_DIR / "sample_book.epub"
     create_valid_epub(epub_path)
+    create_metadata_variants(epub_path)
     print(f"Generated EPUB fixture: {epub_path} ({epub_path.stat().st_size} bytes)")
 
     pdf_path = FIXTURES_DIR / "sample_doc.pdf"
