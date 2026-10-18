@@ -2399,7 +2399,7 @@ private:
         SDL_RenderClear(renderer_);
 
         if (screen_ == ScreenState::ReadingJournal) {
-            journalUI_.render(renderer_,*typography_,pal,journal_,w,h,ui::language==1);
+            journalUI_.render(renderer_,*typography_,pal,journal_,progressStore_,catalog_,w,h,ui::language==1);
         } else if(screen_==ScreenState::JournalPreview) {
             renderReaderScreen(w,h,pal);
             journalUI_.renderPreview(renderer_,*typography_,pal,journal_,currentBookId_,w,h,ui::language==1);
