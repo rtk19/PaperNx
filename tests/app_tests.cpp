@@ -78,6 +78,38 @@ struct AppTest {
         snapshot(app,"v03-reader-toolbar");
         app.openSettings(); settingsTab(app,5); v03Control(app,5); snapshot(app,"v03-application-english");
     }
+    static void captureJournalScreens(const fs::path &root) {
+        // Deterministic test fixture, never bundled as a user journal.
+        PaperNxApp app(root); assert(app.init());
+        assert(!app.books_.empty());
+        const auto book=app.books_.front();
+        app.journal_.registerBookAlias(book.id,"",book.title,book.author);
+        app.journal_.interaction(1000);
+        for(std::uint64_t ms=1000;ms<=121000;ms+=1000){
+            app.journal_.tick(ms,1792367880+std::int64_t(ms/1000),
+                "2026-10-18",book.id,book.title,book.author,0.1+double(ms)/10000000.,true);
+        }
+        app.journal_.pause(122000,1792368003);
+        app.enterJournal(false);
+        snapshot(app,"journal-overview-1280");
+        app.journalUI_.nextTab();snapshot(app,"journal-calendar-1280");
+        app.journalUI_.nextTab();snapshot(app,"journal-books-1280");
+        app.journalUI_.nextTab();snapshot(app,"journal-history-1280");
+        SDL_SetWindowSize(app.window_,1920,1080);
+        app.journalUI_.open();
+        snapshot(app,"journal-overview-1920");
+        SDL_SetWindowSize(app.window_,640,360);
+        snapshot(app,"journal-overview-640");
+        SDL_SetWindowSize(app.window_,1280,720);
+        auto prefs=app.appSettings_.get();
+        prefs.displayOrientation=1;app.appSettings_.put(prefs);
+        app.journalUI_.open();
+        snapshot(app,"journal-overview-portrait-cw");
+        app.journalUI_.nextTab();
+        snapshot(app,"journal-calendar-portrait-cw");
+        prefs.displayOrientation=2;app.appSettings_.put(prefs);
+        snapshot(app,"journal-calendar-portrait-ccw");
+    }
     static void continuousReading(const fs::path &root) {
         PaperNxApp app(root); assert(app.init());
         v03Plus(app); v03MenuItem(app,0); assert(app.globalSettings_ && app.screen_==ScreenState::AaModal);
@@ -568,6 +600,8 @@ int main() {
     AppTest::v04CatalogWorkflow(root);
     std::cout << ">> Starting continuousReading\n" << std::flush;
     AppTest::continuousReading(root);
+    std::cout << ">> Starting captureJournalScreens\n" << std::flush;
+    AppTest::captureJournalScreens(root);
     std::cout << ">> Starting captureV03Screens\n" << std::flush;
     AppTest::captureV03Screens(root);
     std::cout << ">> Starting v03Workflow\n" << std::flush;
