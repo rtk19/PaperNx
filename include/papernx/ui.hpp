@@ -59,6 +59,21 @@ inline void button(SDL_Renderer *r, Typography &type, SDL_Rect rect, const std::
     type.renderText(r,type.buttonFont(),label,rect.x+std::max(12,(rect.w-tw)/2),rect.y+(rect.h-th)/2,
                     disabled?pal.muted:selected?pal.bg:destructive?destructiveColor(pal):pal.fg,rect.w-24);
 }
+// Professional e-reader list action: left-aligned label, separate focus/selection,
+// restrained divider, and consistent typography across modal and quick-action lists.
+inline void menuRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &label,
+                    const ThemePalette &pal,bool selected=false,bool focused=false,bool destructive=false) {
+    if(rect.w<=0||rect.h<=0)return;
+    const auto fill=selected?pal.accent:(pointerDown&&contains(rect,pointerX,pointerY)?pal.cardBorder:pal.card);
+    surface(r,rect,fill,8);
+    SDL_SetRenderDrawColor(r,pal.cardBorder.r,pal.cardBorder.g,pal.cardBorder.b,255);
+    SDL_RenderDrawLine(r,rect.x+14,rect.y+rect.h-1,rect.x+rect.w-14,rect.y+rect.h-1);
+    int textHeight=0;
+    type.measureText(type.buttonFont(),label,nullptr,&textHeight,rect.w-76);
+    const auto color=selected?pal.bg:destructive?destructiveColor(pal):pal.fg;
+    type.renderText(r,type.buttonFont(),label,rect.x+20,rect.y+std::max(0,(rect.h-textHeight)/2),color,rect.w-76);
+    if(focused)focusRing(r,rect,pal);
+}
 struct StepperLayout {
     SDL_Rect label,minus,value,plus;
     explicit StepperLayout(SDL_Rect r) {
