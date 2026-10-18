@@ -110,7 +110,7 @@ std::vector<std::pair<int,std::string>> catalogRows() const {
             if(catalogGroup_==CatalogGroup::Collections){auto found=catalog_.collections().find(g.first);if(found!=catalog_.collections().end())name=found->second;}
             rows.push_back({int(rows.size()),name+"  ·  "+std::to_string(g.second)});}
     }else if(catalogPanel_==CatalogPanel::Hidden){for(const auto &b:books_)if(catalog_.get(b.id).hidden)rows.push_back({int(rows.size()),catLabel("Geri getir: ","Restore: ")+catalog_.apply(b).title});
-    }else if(catalogPanel_==CatalogPanel::Statistics){rows={{0,catLabel("Günlük hedef: ","Daily Goal: ")+std::to_string(readingStats_.dailyGoal())+" min"},{1,catLabel("Hedefi azalt −5","Decrease Goal")},{2,catLabel("Hedefi artır +5","Increase Goal")},{3,catLabel("Hedefi kapat","Disable Goal")}};
+    }else if(catalogPanel_==CatalogPanel::Statistics){rows={{0,catLabel("Günlük hedef: ","Daily Goal: ")+std::to_string(readingStats_.dailyGoal())+" min"},{1,catLabel("Hedefi azalt -5","Decrease Goal")},{2,catLabel("Hedefi artır +5","Increase Goal")},{3,catLabel("Hedefi kapat","Disable Goal")}};
     }else if(catalogPanel_==CatalogPanel::DeleteConfirm){rows={{0,catLabel("Vazgeç","Cancel")},{1,catLabel("Kalıcı olarak sil","Delete this file permanently")}};
     }else if(catalogPanel_==CatalogPanel::Details){rows={{0,catLabel("Bilgileri düzenle","Edit Metadata")},{1,catLabel("Koleksiyonlar","Collections")},{2,catLabel("Okuma geçmişi","Reading history")}};}
     return rows;
@@ -284,7 +284,7 @@ void renderCatalogPanel(int w,int h,const ThemePalette &pal){
     if(catalogPanel_==CatalogPanel::Text){
         typography_->renderWrapped(renderer_,typography_->uiFont(),inputText_+"|",{r.x+20,r.y+80,r.w-40,64},pal.fg);
         const auto keys=catalogKeyboard();const int width=(r.w-40)/10;
-        for(int i=0;i<int(keys.size());++i)ui::button(renderer_,*typography_,{r.x+20+(i%10)*width,r.y+156+(i/10)*48,width-4,44},keys[i]==" "?"␣":keys[i],pal);
+        for(int i=0;i<int(keys.size());++i)ui::button(renderer_,*typography_,{r.x+20+(i%10)*width,r.y+156+(i/10)*48,width-4,44},keys[i]==" "?"_":keys[i],pal);
         ui::button(renderer_,*typography_,{r.x+20,r.y+r.h-76,r.w/2-24,56},catLabel("Kaydet","Save"),pal,true);
         ui::button(renderer_,*typography_,{r.x+r.w/2+4,r.y+r.h-76,r.w/2-24,56},catLabel("Geri sil","Backspace"),pal);return;
     }
