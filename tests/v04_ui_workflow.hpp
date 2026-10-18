@@ -139,19 +139,55 @@ static void v04UiWorkflow(const fs::path &parent) {
         }
         auto a=app.appSettings_.get();a.displayOrientation=0;app.appSettings_.put(a);app.persistAppSettings();
         auto pdf=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Pdf;});app.openBook(pdf);
-        // PDF dark filter is document-only; UI chrome still uses the selected general theme.
+        // The PDF's selected filter defines BOTH its page and surrounding chrome;
+        // the application theme remains unchanged and returns on leaving the book.
         const auto globalBg=app.palette().bg;
-        app.extraStyle_.pdfColorMode=1;app.pageCache_.clear();
-        assert(app.palette().bg.r==globalBg.r && app.palette().bg.g==globalBg.g);
+        app.openChoice(5,app.extraStyle_.pdfColorMode);app.choiceIndex_=1;app.commitChoice();
+        assert(app.extraStyle_.pdfColorMode==1 && app.palette().bg.r==28 && app.palette().bg.g==30);
         app.toolbarVisible_=true;snapshot(app,"v04-dark-pdf-toolbar");
         app.openSettings();snapshot(app,"v04-dark-pdf-settings");closeSettings(app);app.toolbarVisible_=false;
-        app.extraStyle_.pdfColorMode=2;app.pageCache_.clear();snapshot(app,"v04-sepia-pdf-canvas");
-        app.extraStyle_.pdfColorMode=0;app.pageCache_.clear();snapshot(app,"v04-original-pdf");
+        app.openChoice(5,1);app.choiceIndex_=2;app.commitChoice();
+        assert(app.extraStyle_.pdfColorMode==2 && app.palette().bg.r==236 && app.palette().bg.g==224);
+        snapshot(app,"v04-sepia-pdf-canvas");
+        app.closeBook();assert(app.palette().bg.r==globalBg.r && app.palette().bg.g==globalBg.g);
+        app.openBook(pdf);assert(app.extraStyle_.pdfColorMode==2 && app.palette().bg.r==236);
+        app.openChoice(5,2);app.choiceIndex_=0;app.commitChoice();snapshot(app,"v04-original-pdf");
         app.zoomPdf(2);app.currentPage_=0;pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.currentPage_==1 && app.pdfZoom_==2);
         pad(app,SDL_CONTROLLER_BUTTON_DPAD_LEFT);assert(app.currentPage_==0 && app.pdfZoom_==2);
         finger(app,SDL_FINGERDOWN,.8f,.5f);finger(app,SDL_FINGERMOTION,.2f,.5f);finger(app,SDL_FINGERUP,.2f,.5f);assert(app.currentPage_==1);
         finger(app,SDL_FINGERDOWN,.2f,.5f);finger(app,SDL_FINGERMOTION,.8f,.5f);finger(app,SDL_FINGERUP,.8f,.5f);assert(app.currentPage_==0);
         finger(app,SDL_FINGERDOWN,.5f,.7f);app.pdfGestureStart_=SDL_GetTicks()-600;finger(app,SDL_FINGERMOTION,.3f,.7f);finger(app,SDL_FINGERUP,.3f,.7f);assert(app.currentPage_==0);
+        app.closeBook();
+        // + is the touch-only gateway to orientation in both library and reader.
+        {
+            auto actions=app.quickActions();
+            const auto title=app.catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait");
+            auto it=std::find(actions.begin(),actions.end(),title);assert(it!=actions.end());
+            app.quickMenu_=true;int qw,qh;app.getWindowSize(qw,qh);
+            auto sheet=app.quickSheet(qw,qh);
+            app.quickScroll_=app.maxUiScroll();
+            const auto idx=int(it-actions.begin());
+            app.handleQuickMenuTap(sheet.x+24,sheet.y+44+idx*60-int(app.quickScroll_)+24,qw,qh);
+            assert(app.choiceKind_==1 && !app.quickMenu_);
+            app.choiceIndex_=0;app.commitChoice();
+        }
+        // EPUB appearance is book-scoped; old raster and canvas remain visually
+        // synchronized while a new MuPDF layout is being prepared.
+        app.openBook(epub);
+        const auto priorTheme=app.renderedStyle_.theme;
+        const auto defaultsBefore=app.progressStore_.get("PAPERNX_DEFAULTS");
+        app.currentTheme_=(priorTheme==4?2:4);
+        app.extraStyle_.backgroundColor=-1;app.extraStyle_.textColor=-1;
+        app.queueStyleChange();
+        assert(app.extraStyle_.styleOverride==1);
+        assert(app.palette().bg.r==g_palettes[priorTheme].bg.r);
+        v03WaitLayout(app);
+        assert(app.palette().bg.r==g_palettes[app.currentTheme_].bg.r);
+        const int savedBookTheme=app.currentTheme_;
+        app.closeBook();
+        assert(app.progressStore_.get("PAPERNX_DEFAULTS").theme==defaultsBefore.theme);
+        app.openBook(epub);
+        assert(app.currentTheme_==savedBookTheme && app.extraStyle_.styleOverride==1);
         app.closeBook();
         // Opt-in book styling remains isolated when the global palette changes.
         app.openBook(epub);
