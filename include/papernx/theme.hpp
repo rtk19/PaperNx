@@ -66,11 +66,20 @@ inline SDL_Color blendColor(SDL_Color a,SDL_Color b,int percent) {
 // existing call sites and saved legacy settings.
 inline ThemePalette readerChromePalette(const ReaderPreferences &style,bool pdf,int pdfFilter,
                                         int appTheme,int policy=0,int customTheme=0) {
-    (void)pdf; (void)pdfFilter; (void)appTheme; (void)policy; (void)customTheme;
+    (void)appTheme; (void)policy; (void)customTheme;
     auto p=g_palettes[std::clamp(style.theme,0,5)];
     auto rgb=[](int c){return SDL_Color{Uint8(c>>16),Uint8(c>>8),Uint8(c),255};};
-    if(style.backgroundColor>=0) p.bg=rgb(style.backgroundColor);
-    if(style.textColor>=0) p.fg=rgb(style.textColor);
+    if(pdf && pdfFilter>=1 && pdfFilter<=3) {
+        // The raster filter maps WHITE paper to these precise output RGB values.
+        // Match the surrounding canvas to the filtered PDF in the same frame.
+        // These mappings intentionally do not change global library preferences.
+        if(pdfFilter==1) { p=g_palettes[4];p.bg=rgb(0x1c1e20);p.fg=rgb(0xe6e4de); }
+        else if(pdfFilter==2) { p=g_palettes[2];p.bg=rgb(0xece0c6);p.fg=rgb(0x413224); }
+        else { p=g_palettes[5];p.bg=rgb(0x000000);p.fg=rgb(0xffffff); }
+    } else {
+        if(style.backgroundColor>=0) p.bg=rgb(style.backgroundColor);
+        if(style.textColor>=0) p.fg=rgb(style.textColor);
+    }
     p.card=blendColor(p.bg,p.fg,5); p.header=blendColor(p.bg,p.fg,8);
     p.cardBorder=blendColor(p.bg,p.fg,24); p.muted=blendColor(p.bg,p.fg,68);
     // Focus/action accent must remain readable even with custom content colors.
