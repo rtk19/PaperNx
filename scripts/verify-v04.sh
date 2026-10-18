@@ -12,7 +12,7 @@ if [[ "$mode" == switch ]]; then
     # Recompile application objects and regenerate NACP/NRO; retain SDK/MuPDF caches.
     make all -B -j4
     python3 scripts/build_receipt.py finish
-    python3 scripts/verify_artifacts.py --version v0.4.0-rc2
+    python3 scripts/verify_artifacts.py --version v0.4.0-rc3
     exit
 fi
 python3 tests/generate_fixtures.py

@@ -1,6 +1,6 @@
 # PaperNX v0.4 requirement coverage
 
-Release target `v0.4.0-rc2`; source verified against Docker desktop/switch toolchains. Status **PASS** requires linked evidence for this source; **UNVERIFIED** means pending physical hardware validation; **DEFERRED** names an unimplemented scope. No new physical hardware check has passed.
+Release target `v0.4.0-rc3`; source verified against Docker desktop/switch toolchains. Status **PASS** requires linked evidence for this source; **UNVERIFIED** means pending physical hardware validation; **DEFERRED** names an unimplemented scope. No new physical hardware check has passed.
 
 | Requirement | Implementation / evidence route | Status |
 |---|---|---|

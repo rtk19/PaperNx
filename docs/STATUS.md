@@ -1,6 +1,6 @@
 # PaperNX v0.4 status
 
-Baseline: `d6f8e4ead7f448aee7cac70eb110baa270fa796d`; branch `fix/v04-switch-touch-theme-performance`. Target `v0.4.0-rc2`.
+Baseline: `1863c55fc0bf06c506b8b23065d71af55f2bc61c`; branch `fix/v04-book-scoped-appearance-and-pdf-chrome`. Target `v0.4.0-rc3`.
 
 All automated engineering gates (Portable, Native, ASan/UBSan/LSan, Release, Stress, AArch64 NRO compilation, and Distribution Packaging) are **PASS** with linked evidence; see [test results](TEST_RESULTS.md) and [coverage](V04_REQUIREMENT_COVERAGE.md). The previous v0.3 reports are retained as `V03_*` historical documents.
 

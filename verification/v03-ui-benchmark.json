@@ -1,8 +1,8 @@
 {
   "backend": "desktop SDL dummy software; CPU wall time, not physical Switch",
-  "menu_open_render_p95_ms": 20.8224,
-  "settings_tab_render_p95_ms": 28.896,
-  "cold_page_render_p95_ms": 3.42668,
-  "cached_page_render_p95_ms": 1.04203,
+  "menu_open_render_p95_ms": 21.0359,
+  "settings_tab_render_p95_ms": 28.314,
+  "cold_page_render_p95_ms": 3.93499,
+  "cached_page_render_p95_ms": 1.16889,
   "physical_switch": "UNVERIFIED"
 }

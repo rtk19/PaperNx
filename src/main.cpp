@@ -897,7 +897,7 @@ private:
         if(helpMenu_) {
             int y=r.y+58; int metadataLines=0;
             std::vector<std::string> lines={"+ tüm işlemleri açar.","Kitaplarınızı dokunarak açın.","Listeleri parmağınızla sürükleyin.","Sayfalı: Kenarlara dokun / yatay kaydır.","Sürekli: Yukarı / aşağı sürükle.","PDF: İki parmakla yakınlaştır, sürükle.","Okuma ayarları tüm kitaplarda ortaktır.","Bu kitap seçeneği özel ayar oluşturur.","Kitaplarınız ve kayıtlarınız cihazda kalır."};
-            lines.insert(lines.begin(),"PaperNX 0.4.0-rc2");
+            lines.insert(lines.begin(),"PaperNX 0.4.0-rc3");
             if(doc_) {
                 auto b=std::find_if(books_.begin(),books_.end(),[&](const Book &book){return book.id==currentBookId_;});
                 if(b!=books_.end()) { lines.insert(lines.begin(),b->title); ++metadataLines; if(!b->author.empty()) { lines.insert(lines.begin()+1,b->author); ++metadataLines; } }
@@ -2432,7 +2432,7 @@ private:
             SDL_RenderSetClipRect(renderer_,nullptr);
         }
         if(!currentErrorMessage_.empty()) ui::button(renderer_,*typography_,{32,h-96,w-64,56},currentErrorMessage_,pal);
-        typography_->renderText(renderer_,typography_->smallFont(),ui::label(std::to_string(visibleBooks_.size())+" kitap · EPUB ve PDF · Çevrimdışı")+" · v0.4.0-rc2",32,h-25,pal.muted,w-64);
+        typography_->renderText(renderer_,typography_->smallFont(),ui::label(std::to_string(visibleBooks_.size())+" kitap · EPUB ve PDF · Çevrimdışı")+" · v0.4.0-rc3",32,h-25,pal.muted,w-64);
     }
     void renderGrid(int w,int h,const ThemePalette &pal) {
         ui::LibraryLayout l(w);

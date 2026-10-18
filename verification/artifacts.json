@@ -1,7 +1,7 @@
 {
   "source": {
-    "git_revision": "d6f8e4ead7f448aee7cac70eb110baa270fa796d",
-    "implementation_sha256": "22075862deffed04f066f5e9335062ba13fd4bd7be984334522f15f5102072ca"
+    "git_revision": "1863c55fc0bf06c506b8b23065d71af55f2bc61c",
+    "implementation_sha256": "1495b0bd9dd428666ec8868310efaa1a53f317b3233cc7c969331c28c44aaf83"
   },
   "elf": {
     "architecture": "AArch64",
@@ -10,37 +10,37 @@
   },
   "nro": {
     "version": 0,
-    "declared_size": 46137344,
-    "actual_size": 47930323,
+    "declared_size": 46145536,
+    "actual_size": 47938515,
     "segments": [
       {
         "name": ".text",
         "offset": 0,
-        "size": 8851456
+        "size": 8859648
       },
       {
         "name": ".rodata",
-        "offset": 8851456,
+        "offset": 8859648,
         "size": 36753408
       },
       {
         "name": ".data",
-        "offset": 45604864,
+        "offset": 45613056,
         "size": 532480
       }
     ]
   },
   "assets": {
     "icon": {
-      "offset": 46137400,
+      "offset": 46145592,
       "size": 13795
     },
     "nacp": {
-      "offset": 46151195,
+      "offset": 46159387,
       "size": 16384
     },
     "romfs": {
-      "offset": 46167579,
+      "offset": 46175771,
       "size": 1762744
     }
   },
@@ -58,6 +58,6 @@
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "d45e45327b99da7bb9b4b1bcb9387e609650c47cee9f0405f6aed9a0d7004634",
+  "nro_sha256": "0e77206a3dc18f171b79df7b293bc89dbcf39ab73b9d63c442463f85cc13a0b5",
   "hardware": "UNVERIFIED"
 }
