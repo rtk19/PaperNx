@@ -1,15 +1,19 @@
 <p align="center"><img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX" width="160"></p>
 
-| **English** | [Türkçe](README.tr.md) |
+| **English** | [TÃ¼rkÃ§e](README.tr.md) |
 |:---:|:---:|
 
 # PaperNX
 
 A **native, fully offline EPUB/PDF reader for Nintendo Switch**, built with C++17, SDL2, and MuPDF. Designed with a touchscreen-first interface for comfortable reading with the Joy-Con controllers detached. Books, covers, and reading records stay on your microSD card; no account, cloud service, or browser engine is required.
 
-**v0.3.0-rc1 — candidate for device acceptance testing.** All desktop and Docker engineering gates (Core, Native, MuPDF, ASan/UBSan/LSan, and Release builds) have achieved **PASS (6/6)**. Physical Nintendo Switch hardware acceptance of this build is **UNVERIFIED**. Please consult the [release report](docs/RELEASE_REPORT.md) and [test results](docs/TEST_RESULTS.md) for full engineering evidence.
+**v0.4.0-rc1 - development release candidate.** Final desktop, sanitizer, Release and Switch artifact gates are tracked in [test results](docs/TEST_RESULTS.md). New physical Switch acceptance, including portrait, is **UNVERIFIED**. Previous v0.3 test results do not validate this candidate.
 
 ---
+
+## v0.4 changes
+
+Shared typography/stepper components, reader-coordinated chrome, explicit settings editing, zoomed PDF flick/page controls, portrait rotation, nine paper presets and visual swatches extend the existing reader. Library catalog actions, author/genre groups, collections and offline reading statistics are tracked precisely in the [requirement matrix](docs/V04_REQUIREMENT_COVERAGE.md); pending acceptance is not advertised as passed. [Controls](docs/TOUCH_CONTROLS_V04.md), [data model](docs/V04_LIBRARY_DATA_MODEL.md), [known limits](docs/KNOWN_ISSUES.md).
 
 ## Key Capabilities in v0.3
 
@@ -17,7 +21,7 @@ A **native, fully offline EPUB/PDF reader for Nintendo Switch**, built with C++1
 - **Reading Preferences & Live Preview:** Comprehensive 6-section settings modal (Reading, Page Layout, Appearance, Navigation, PDF, Application) featuring an interactive live preview reflecting font family, size, line height, margins, alignment, paragraph spacing, and indentation.
 - **Global & Per-Book Customization:** Shared global typography defaults apply to all books. Individual books can optionally be customized or reset to inherit global settings.
 - **Genuine Continuous EPUB Scrolling:** Real pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, seamless chapter boundary transitions, and logical reading anchor preservation. Paginated horizontal reading mode remains fully supported.
-- **Persistent Bounded Cover Cache:** Fast 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries on disk, with stat invalidation, checksum protection, automatic recovery, and immediate vector fallback artwork.
+- **Persistent Bounded Cover Cache:** Fast 150Ã—210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries on disk, with stat invalidation, checksum protection, automatic recovery, and immediate vector fallback artwork.
 - **Curated Theme Palettes:** Paper, Ivory, Sepia, Slate, Dark, and OLED Black palettes tailored for Nintendo Switch LCD and OLED screens.
 - **Bilingual Interface:** Real Turkish and English interface localization. Book metadata, TOC titles, and reading contents remain authentic and untranslated.
 - **PDF Navigation:** Fit page, fit width, zoom, touch pan, and whole-page filters (Original, Dark, Sepia, Invert).
@@ -25,42 +29,44 @@ A **native, fully offline EPUB/PDF reader for Nintendo Switch**, built with C++1
 
 ---
 
-## Desktop Test Screenshots
+## Actual v0.4 desktop screenshots
 
 Captured from the actual native application using SDL:
 
-![PaperNX Library](verification/screenshots/v03-library-final.png)
-*Professional library view with category chips, vector favorite controls, and reading progress.*
+![PaperNX Library](verification/screenshots/v04-library-1920.png)
+*Native library capture; desktop rendering does not establish physical Switch acceptance.*
 
-![Contextual Quick Actions](verification/screenshots/v03-plus-menu.png)
-*Discoverable contextual quick-action menu accessible by touch on any screen.*
+![Book actions](verification/screenshots/v04-book-context.png)
+*Long press or controller X opens book actions.*
 
-![Reading Settings & Live Preview](verification/screenshots/v03-settings-final.png)
-*Generous settings panel with typography controls and real-time live preview.*
+![Reading Settings & Live Preview](verification/screenshots/v04-settings-focus-landscape.png)
+*Separate label/value controls and visible controller focus.*
 
-![Continuous Navigation Settings](verification/screenshots/v03-navigation-final.png)
-*Navigation controls: paginated mode vs. continuous vertical scroll mode.*
+![Sepia reader settings](verification/screenshots/v04-sepia-epub-settings.png)
+*Reading colors coordinate with settings chrome.*
 
-![Reader Toolbar](verification/screenshots/v03-reader-toolbar.png)
-*Distraction-free reading view with touch-activated top and bottom toolbars.*
+![Dark PDF settings](verification/screenshots/v04-dark-pdf-settings.png)
+*PDF filter and chrome share a coherent dark appearance.*
+
+Both software portrait rotations are captured in [clockwise](verification/screenshots/v04-portrait-cw-library.png) and [counterclockwise](verification/screenshots/v04-portrait-ccw-library.png) physical output screenshots. Rotate the screen image as you would hold the Switch; the application output itself is rotated once.
 
 ---
 
 ## Installation & Upgrade
 
-1. Download the release package from `dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip`.
+1. Download the release package from `dist/v0.4.0-rc1/PaperNX-switch-v0.4.0-rc1.zip`.
 2. Extract and merge the `switch/` directory into the root of your Switch microSD card.
 3. Place your EPUB and PDF files in `switch/PaperNX/books/` or browse existing folders using **Browse SD**.
 4. Launch PaperNX from the Homebrew Menu.
 
 ```text
 sdmc:/switch/PaperNX/
-├── PaperNX.nro
-├── books/
-├── data/
-├── fonts/     (NotoSans-Regular.ttf, NotoSerif-Regular.ttf, OFL.txt)
-├── licenses/
-└── docs/
+â”œâ”€â”€ PaperNX.nro
+â”œâ”€â”€ books/
+â”œâ”€â”€ data/
+â”œâ”€â”€ fonts/     (NotoSans-Regular.ttf, NotoSans-SemiBold.ttf, NotoSerif-Regular.ttf, OFL.txt)
+â”œâ”€â”€ licenses/
+â””â”€â”€ docs/
 ```
 
 > [!IMPORTANT]
@@ -79,15 +85,15 @@ Every essential action has a touch route. Physical controller bindings are optio
 | **Page Turns (Paginated EPUB)** | Tap left/right 30% zones or swipe horizontally | L / R, D-pad Left / Right |
 | **Continuous EPUB Scroll** | Drag vertically up/down | Right stick / D-pad Up / Down |
 | **Toggle Reader Toolbar** | Tap center reading zone | A |
-| **Reading Settings (Aa)** | Tap `+` → Okuma ayarları / Reading settings | X |
-| **Library Settings** | Tap `+` → Okuma ayarları (no book required) | X |
-| **Application Appearance** | Tap `+` → Uygulama görünümü (Theme & Language) | Y |
-| **PDF Zoom & Pan** | Tap −/+ in toolbar; drag zoomed page | ZL / ZR; Left stick |
-| **Table of Contents** | Tap `+` → İçindekiler / Contents → select chapter | Minus (-) |
-| **Bookmarks** | Tap `+` → Yer imleri / Bookmarks | Left shoulder click |
+| **Reading Settings (Aa)** | Tap `+` â†’ Okuma ayarlarÄ± / Reading settings | X |
+| **Library Settings** | Tap `+` â†’ Okuma ayarlarÄ± (no book required) | X |
+| **Application Appearance** | Tap `+` â†’ Uygulama gÃ¶rÃ¼nÃ¼mÃ¼ (Theme & Language) | Y |
+| **PDF Zoom & Pan** | Tap âˆ’/+ in toolbar; drag zoomed page | ZL / ZR; Left stick |
+| **Table of Contents** | Tap `+` â†’ Ä°Ã§indekiler / Contents â†’ select chapter | Minus (-) |
+| **Bookmarks** | Tap `+` â†’ Yer imleri / Bookmarks | Left shoulder click |
 | **Favorite Book** | Tap star icon on library book card | Left stick click |
-| **Return to Library** | Tap `+` → Kitaplığa dön / Return to library | B |
-| **Exit Application** | Tap `+` → PaperNX’ten çık / Exit PaperNX | Home / B (in root) |
+| **Return to Library** | Tap `+` â†’ KitaplÄ±ÄŸa dÃ¶n / Return to library | B |
+| **Exit Application** | Tap `+` â†’ PaperNXâ€™ten Ã§Ä±k / Exit PaperNX | Home / B (in root) |
 
 ---
 

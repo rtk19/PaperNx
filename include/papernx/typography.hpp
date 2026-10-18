@@ -9,12 +9,21 @@
 
 namespace papernx {
 
+// Fixed-size aggregate diagnostics; steady clock nanoseconds, no storage I/O.
+struct TypographyMetrics {
+    struct Timing { std::uint64_t count{0},totalNs{0},worstNs{0}; };
+    Timing textMeasure,textRaster,textureCreate,paragraphLayout;
+    std::uint64_t textCacheHits{0},measureCacheHits{0};
+};
+
 class Typography {
 public:
     explicit Typography(const std::filesystem::path &root);
     ~Typography();
 
     bool init();
+    const TypographyMetrics &metrics() const { return metrics_; }
+    void resetMetrics() { metrics_={}; }
 
     TTF_Font *titleFont() const { return titleFont_; }
     TTF_Font *uiFont() const { return uiFont_; }
@@ -37,6 +46,8 @@ public:
     void drawProgressBar(SDL_Renderer *r, int x, int y, int w, int h, float progress, SDL_Color bg, SDL_Color fg);
 
 private:
+    TypographyMetrics metrics_;
+    int timedMeasure(TTF_Font *font,const char *text,int *width,int *height);
     std::filesystem::path root_;
     TTF_Font *titleFont_{nullptr};
     TTF_Font *uiFont_{nullptr};

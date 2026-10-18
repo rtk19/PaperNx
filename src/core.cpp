@@ -414,6 +414,7 @@ bool AppSettingsStore::load() {
         preferences.customUiTheme=display.theme;
         preferences.displayOrientation=display.pdfViewMode;
         preferences.preservePdfZoom=display.scrollInertia!=0;
+        preferences.shoulderPageTurns=display.publisherStyles==0;
         preferences.paperTexture=display.pdfColorMode;
     }
     put(std::move(preferences));
@@ -434,6 +435,7 @@ bool AppSettingsStore::save() const {
     display.theme=preferences_.customUiTheme;
     display.pdfViewMode=preferences_.displayOrientation;
     display.scrollInertia=preferences_.preservePdfZoom?1:0;
+    display.publisherStyles=preferences_.shoulderPageTurns?0:1;
     display.pdfColorMode=preferences_.paperTexture;
     store_.put("APP_DISPLAY_V04_",std::move(display));
     return store_.save();

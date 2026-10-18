@@ -7,11 +7,15 @@
 
 Nintendo Switch için C++17, SDL2 ve MuPDF ile geliştirilmiş, **native ve tamamen çevrimdışı EPUB/PDF okuyucu**. Joy-Con kumandaları konsoldan ayrılmış durumdayken rahatça kitap okuyabilmeniz için dokunmatik odaklı olarak tasarlanmıştır. Kitaplarınız, kapak önbelleğiniz ve okuma kayıtlarınız doğrudan microSD kartınızda saklanır; hesap, bulut servisi veya web tarayıcı motoru gerektirmez.
 
-**v0.3.0-rc1 — cihaz kabul testine aday.** Masaüstü ve Docker mühendislik testlerinin tamamı (Çekirdek, Native, MuPDF, ASan/UBSan/LSan ve Release derlemeleri) **PASS (6/6)** olarak tamamlanmıştır. Yeni yapının fiziksel Nintendo Switch donanımında kabulü **UNVERIFIED** durumdadır. Tüm test kanıtları için [sürüm raporunu](docs/RELEASE_REPORT.md) ve [test sonuçlarını](docs/TEST_RESULTS.md) inceleyebilirsiniz.
+**v0.4.0-rc1 — geliştirme sürüm adayı.** Güncel masaüstü, sanitizer, Release ve Switch çıktı kontrolleri [test sonuçlarında](docs/TEST_RESULTS.md) izlenir. Portre dahil yeni fiziksel Switch kabulü **UNVERIFIED** durumundadır. v0.3 sonuçları yeni adayı doğrulamaz.
 
 ---
 
-## v0.3 Sürümünün Önemli Özellikleri
+## v0.4 değişiklikleri
+
+Ortak tipografi ve ayrı ayar kontrolleri, okuma temasıyla uyumlu menüler, açık düzenleme modu, yakınlaştırılmış PDF sayfa hareketleri, portre döndürme, dokuz kâğıt önayarı ve görsel renk paleti eklendi. Kitaplık işlemleri, yazar/tür grupları, koleksiyonlar ve çevrimdışı istatistiklerin kapsamı [gereksinim tablosunda](docs/V04_REQUIREMENT_COVERAGE.md) izlenir. [Kontroller](docs/TOUCH_CONTROLS_V04.md), [veri modeli](docs/V04_LIBRARY_DATA_MODEL.md), [bilinen sınırlar](docs/KNOWN_ISSUES.md).
+
+## Korunan v0.3 özellikleri
 
 - **Dokunmatik Odaklı Ergonomi:** Kitaplık, okuyucu ve dosya tarayıcıda sağ üstte her zaman keşfedilebilir `+` hızlı işlem menüsü. 56px minimum dokunmatik hedef boyutu ve görsel basılma geri bildirimi. Kumandalar isteğe bağlı kısayollar olarak desteklenmeye devam eder.
 - **Okuma Tercihleri ve Canlı Önizleme:** Yazı tipi, boyutu, satır aralığı, kenar boşlukları, hizalama, paragraf boşluğu ve girintiyi anlık yansıtan canlı Türkçe metin önizlemeli 6 sekmeli ayar paneli (Okuma, Sayfa Düzeni, Görünüm, Navigasyon, PDF, Uygulama).
@@ -25,30 +29,32 @@ Nintendo Switch için C++17, SDL2 ve MuPDF ile geliştirilmiş, **native ve tama
 
 ---
 
-## Masaüstü Test Ekran Görüntüleri
+## Gerçek v0.4 masaüstü ekran görüntüleri
 
 Doğrudan SDL uygulamasından alınmış gerçek ekran görüntüleri:
 
-![PaperNX Kitaplık](verification/screenshots/v03-library-final.png)
-*Kategori butonları, vektörel favori işaretleri ve okuma ilerleme çubuklarıyla profesyonel kitaplık görünümü.*
+![PaperNX Kitaplık](verification/screenshots/v04-library-1920.png)
+*Native kitaplık görünümü; masaüstü çizimi fiziksel Switch kabulü anlamına gelmez.*
 
-![Hızlı İşlemler Menüsü](verification/screenshots/v03-plus-menu.png)
-*Her ekranda sağ üstten dokunarak açılabilen bağlamsal hızlı işlem menüsü.*
+![Kitap işlemleri](verification/screenshots/v04-book-context.png)
+*Kitaba uzun basarak veya kumandada X ile açılan kitap işlemleri.*
 
-![Okuma Ayarları ve Canlı Önizleme](verification/screenshots/v03-settings-final.png)
-*Geniş tipografi denetimleri ve canlı metin önizleme paneli.*
+![Okuma Ayarları ve Canlı Önizleme](verification/screenshots/v04-settings-focus-landscape.png)
+*Ayrı etiket/değer kontrolleri ve görünür kumanda odağı.*
 
-![Sürekli Kaydırma Ayarları](verification/screenshots/v03-navigation-final.png)
-*Navigasyon tercihleri: sayfalı mod veya sürekli dikey kaydırma modu.*
+![Sepya okuma ayarları](verification/screenshots/v04-sepia-epub-settings.png)
+*Okuma renkleriyle uyumlu ayar yüzeyleri.*
 
-![Okuyucu Araç Çubuğu](verification/screenshots/v03-reader-toolbar.png)
-*Ortaya dokunulduğunda beliren üst ve alt okuyucu araç çubukları.*
+![Koyu PDF ayarları](verification/screenshots/v04-dark-pdf-settings.png)
+*PDF filtresiyle uyumlu koyu arayüz.*
+
+Portre çıktıları: [saat yönü](verification/screenshots/v04-portrait-cw-library.png), [saat yönünün tersi](verification/screenshots/v04-portrait-ccw-library.png). Görüntüyü konsolu tutacağınız yönde çevirin; uygulama çıktısı yazılımda bir kez döndürülür. Fiziksel portre testi **UNVERIFIED** durumundadır.
 
 ---
 
 ## SD Kurulumu ve Güncelleme
 
-1. Sürüm paketini `dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip` konumundan edinin.
+1. Sürüm paketini `dist/v0.4.0-rc1/PaperNX-switch-v0.4.0-rc1.zip` konumundan edinin.
 2. Arşiv içindeki `switch/` klasörünü Switch microSD kartınızın ana dizinine kopyalayıp birleştirin.
 3. EPUB ve PDF dosyalarınızı `switch/PaperNX/books/` altına ekleyin veya **SD Gözat** ile mevcut klasörlerden açın.
 4. Homebrew Menu üzerinden PaperNX'i başlatın.
@@ -58,7 +64,7 @@ sdmc:/switch/PaperNX/
 ├── PaperNX.nro
 ├── books/
 ├── data/
-├── fonts/     (NotoSans-Regular.ttf, NotoSerif-Regular.ttf, OFL.txt)
+├── fonts/     (NotoSans-Regular.ttf, NotoSans-SemiBold.ttf, NotoSerif-Regular.ttf, OFL.txt)
 ├── licenses/
 └── docs/
 ```

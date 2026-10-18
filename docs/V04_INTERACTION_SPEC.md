@@ -1,0 +1,17 @@
+# v0.4 interaction specification
+
+Source is authoritative; full automated/hardware coverage is recorded separately. No physical v0.4 acceptance is claimed.
+
+Reader D-pad Left/Right turns paginated EPUB/PDF pages, including zoomed PDF. Continuous EPUB Up/Down scrolls; Left/Right performs the implemented chapter/page-equivalent route. PDF Up/Down pans vertically when zoomed; left analog pans; ZL/ZR adjusts zoom. Shoulder page turns remain compatibility shortcuts, never the sole route. Center tap toggles reader tools; toolbar and + menu expose settings, navigation and library return to touch.
+
+Settings navigation and editing are distinct. Directional navigation must move the visible target without changing a numeric value. A enters numeric editing, Left/Right adjusts, A commits and B restores the captured value. Editing uses an additional underline. Binary actions activate on A. Touch steppers use independent minus and plus hit areas. Tab focus and selected tab are distinct concepts; audit complete per-control focus through the test matrix. B closes the frontmost modal before navigating the underlying screen.
+
+PDF release classification uses distance ≥max(90 logical pixels, 12% viewport width), horizontal dominance ≥2.4, average horizontal speed ≥0.65 pixels/ms and duration ≤440 ms. These are configurable engineering defaults in `PdfGestureThresholds`, **not hardware-tuned claims**. Slower drag remains pan. Multi-touch/pinch and UI interaction never cause a page flick. Short displacement ≤12 pixels remains a tap. The implementation currently uses average velocity, rather than independently sampled release velocity. Preserve Zoom Between Pages keeps zoom and clamps position; disabling it resets the page view.
+
+Library long press opens book actions; drag cancels hold, X opens the focused book context and desktop right click is the development equivalent. Synthesized touch mouse events must be suppressed. Open/continue, favorite, reading status, hide/restore, metadata/details, collections and permanent deletion are separate actions. Remove from Library hides only. Delete File Permanently opens a confirmation showing the source; cancelling never deletes. Use disposable files for device testing.
+
+Application → Display Orientation persists Landscape (default), Portrait clockwise or Portrait counterclockwise. `DisplayTransform` shares logical dimensions and inverse touch mapping; rotated output uses one SDL render target, never automatic physical rotation detection. EPUB viewport and PDF fits must recalculate without losing logical book position. Landscape is preserved until explicitly changed.
+
+Appearance → Paper & Colors provides nine presets and visual background/text swatches with live preview and confirm/cancel. Advanced HEX is optional; keyboard entry is not the primary color route. Contrast is evaluated using linearized luminance; warnings do not substitute for Switch readability tests. Paper texture is optional and applies to the EPUB canvas, not PDF illustration pixels. Chrome defaults to Follow Reading Theme; application/custom policies remain explicit and library uses the app palette.
+
+Pressed feedback begins on finger down; safe actions commit on release. Modal touch routing precedes book gestures. Touch and controller must coexist; neither a controller reconnect nor a touch action should reset reading position.

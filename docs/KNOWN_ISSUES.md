@@ -1,37 +1,15 @@
-# PaperNX v0.3.0-rc1 — Bilinen Durumlar ve Açık Sınırlar
+# v0.4 known issues and release limits
 
-## 1. P1-HW: Fiziksel Nintendo Switch Doğrulaması
+All new Switch hardware checks, including both portrait rotations, sleep/resume, touch latency, SD errors and controller reconnect, are **UNVERIFIED**. Previous physical recordings are v0.3 defect evidence. Use [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md); no stable release before new acceptance.
 
-- Joy-Con'suz (çıkarılmış) kullanım, libnx yazılım klavyesi, donanım çoklu dokunma, uyku/uyanma (`sleep/resume`), Homebrew Menu'ye temiz çıkış, docked/handheld geçişi ve gerçek microSD okuma/yazma gecikmeleri **UNVERIFIED** (doğrulanmamış) durumdadır.
-- Masaüstü SDL simülasyonları ve Docker testleri bu donanım doğrulamalarının yerine geçemez.
-- İlgili prosedür [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md) içerisinde tanımlanmıştır.
+- Final automated/source/package gates are recorded in [TEST_RESULTS.md](TEST_RESULTS.md). Pure helper tests do not prove every focus target or small-window layout.
+- PDF flick defaults are a conservative displacement/duration/average-velocity heuristic. They are not physical Switch tuned, release-velocity sampled or fully edge-aware. Ordinary slow pan takes precedence; real thresholds require hardware retest.
+- PDF Dark/Sepia/Invert filters affect raster illustrations as well as text. Reader chrome matching is separate. Crop, column-aware navigation, OCR and reflow are **DEFERRED**.
+- Catalog identity is existing path plus file size. Moving/renaming/replacing a book can create a new identity; automatic progress/metadata reconciliation is **DEFERRED**. OPF subjects and Calibre/EPUB3 series indices are extracted on opening; independently normalized multiple author/genre entities and pre-open full-library extraction remain limited.
+- Confirmed deletion is limited to scanned regular EPUB/PDF files beneath the allowed root. There is no undo/trash, arbitrary file manager or race-immune descriptor-based deletion claim. Device tests must use disposable copies. Shelf deletion never deletes files.
+- Stats are conservative measured activity, not eye tracking. Idle cutoff can count a short pause and exclude a long reading interval without input. ETA needs evidence; chapter ETA and full annual/calendar visualization are **DEFERRED** unless explicitly implemented in the final report.
+- Progress anchors retain the prior fallback for malformed EPUB markup; geometric restoration may differ slightly after relayout. Keep backups and original books.
+- FAT/SD interruption durability differs from desktop. Flushed replacement/backup recovery reduces risk but cannot prove power-loss guarantees.
+- External fonts, full gesture remapping, dictionary datasets, annotations, in-book search, CBZ/CBR, OCR, AI recaps and optional wireless services are **DEFERRED** under the [roadmap gates](PRODUCT_ROADMAP_2026.md). No supported-format claim is made for comic archives.
 
----
-
-## 2. P2: Konum Hassasiyeti ve Geometrik Fallback
-
-- Mantıksal EPUB konumları bölüm ve karakter/offset bazlıdır (`px_document_anchor`).
-- İç etiket veya karakter bilgisi bulunmayan sıra dışı/bozuk XHTML bölümlerinde, geometrik bölüm yüksekliği oranına (1/8191 hassasiyet) geri düşülür.
-- Çok uzun (on binlerce piksel) tek parça bölümlerde geometrik geri düşüş durumunda 1-2 piksel sapma görülebilir.
-
----
-
-## 3. P2: Bütün Sayfa PDF Renk Filtreleri
-
-- PDF Koyu, Sepya ve Ters renk modları tüm sayfayı raster piksel düzeyinde filtreler.
-- Sayfa içindeki fotoğraflar ve renkli illüstrasyonlar da bu filtrelerden etkilenir. Vektör/metin ve görsel ayrıştırmalı PDF reflow bu sürümün kapsamında değildir.
-
----
-
-## 4. Kapsam Dışı Bırakılan (Gelecek Yol Haritası) Özellikler
-
-Aşağıdaki özellikler v0.3.0-rc1 kapsamında **kasıtlı olarak yer almamaktadır** ve [PRODUCT_ROADMAP_2026.md](PRODUCT_ROADMAP_2026.md) içerisinde planlanan sürümlere devredilmiştir:
-- Kitap içi tam metin araması (v0.5)
-- Metin seçimi, notlar ve altını çizme (v0.5)
-- Çevrimdışı sözlük (v0.5)
-- Okuma istatistikleri ve tahmini bitirme süresi (ETA) (v0.4)
-- PDF OCR ve reflow (v0.7)
-- Bulut / Calibre kablosuz senkronizasyonu (v0.6+)
-- Sesli okuma (TTS) (Araştırma)
-
-Arayüzde bu özellikler için tıklanabilir sahte/ölü butonlar yer almaz.
+Historical limitations are preserved in [V03_KNOWN_ISSUES.md](V03_KNOWN_ISSUES.md); they are not automatically closed by this update.

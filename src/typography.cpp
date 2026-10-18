@@ -3,8 +3,28 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <chrono>
 
 namespace papernx {
+namespace {
+struct MetricScope {
+    TypographyMetrics::Timing &metric;
+    bool active{true};
+    std::chrono::steady_clock::time_point start{std::chrono::steady_clock::now()};
+    explicit MetricScope(TypographyMetrics::Timing &m):metric(m) {}
+    void finish() {
+        if(!active) return;
+        active=false;
+        auto ns=std::uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-start).count());
+        ++metric.count;metric.totalNs+=ns;metric.worstNs=std::max(metric.worstNs,ns);
+    }
+    ~MetricScope() { finish(); }
+};
+}
+int Typography::timedMeasure(TTF_Font *font,const char *text,int *width,int *height) {
+    MetricScope timer(metrics_.textMeasure);
+    return TTF_SizeUTF8(font,text,width,height);
+}
 
 Typography::Typography(const std::filesystem::path &root) : root_(root) {}
 
@@ -106,6 +126,7 @@ TTF_Font *Typography::previewFont(int family,int size) {
 int Typography::renderParagraph(SDL_Renderer *r,TTF_Font *font,const std::string &str,
                                 SDL_Rect area,SDL_Color color,int lineHeight,bool left,int indent) {
     if(!font || area.w<24) return 0;
+    MetricScope layoutTimer(metrics_.paragraphLayout);
     std::istringstream input(str); std::vector<std::vector<std::string>> lines;
     std::vector<std::string> line; std::string word; int width=indent,space=0,height=0;
     measureText(font," ",&space,&height);
@@ -116,6 +137,7 @@ int Typography::renderParagraph(SDL_Renderer *r,TTF_Font *font,const std::string
         line.push_back(word); width+=ww;
     }
     if(!line.empty()) lines.push_back(std::move(line));
+    layoutTimer.finish();
     for(std::size_t i=0;i<lines.size();++i) {
         int x=area.x+(i?0:indent), y=area.y+int(i)*lineHeight,total=0;
         if(y>=area.y+area.h) break;
@@ -136,6 +158,7 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
     auto key=textKey(r,font,str,color,maxWidth,false);
     auto cached=textCache_.find(key);
     if(cached!=textCache_.end()) {
+        ++metrics_.textCacheHits;
         cached->second.tick=++textTick_;
         int width=maxWidth>0?std::min(maxWidth,cached->second.width):cached->second.width;
         SDL_Rect src{0,0,width,cached->second.height},dst{x,y,width,cached->second.height};
@@ -145,10 +168,10 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
     std::string textToRender = str;
     if (maxWidth > 0) {
         int w = 0, h = 0;
-        if (TTF_SizeUTF8(font, textToRender.c_str(), &w, &h) == 0 && w > maxWidth) {
+        if (timedMeasure(font, textToRender.c_str(), &w, &h) == 0 && w > maxWidth) {
             std::string ellipsis = "...";
             int ellW = 0;
-            TTF_SizeUTF8(font, ellipsis.c_str(), &ellW, nullptr);
+            timedMeasure(font, ellipsis.c_str(), &ellW, nullptr);
             int budgetW = maxWidth - ellW;
 
             std::vector<std::size_t> boundaries{0};
@@ -158,7 +181,7 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
             while(low<high) {
                 auto middle=(low+high+1)/2;
                 auto candidate=textToRender.substr(0,boundaries[middle]);
-                if(TTF_SizeUTF8(font,candidate.c_str(),&w,nullptr)==0 && w<=budgetW) low=middle; else high=middle-1;
+                if(timedMeasure(font,candidate.c_str(),&w,nullptr)==0 && w<=budgetW) low=middle; else high=middle-1;
             }
             textToRender.resize(boundaries[low]); textToRender+=ellipsis;
         }
@@ -166,10 +189,12 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
 
     if (textToRender.empty()) return;
 
-    SDL_Surface *surface = TTF_RenderUTF8_Blended(font, textToRender.c_str(), color);
+    SDL_Surface *surface=nullptr;
+    { MetricScope timer(metrics_.textRaster); surface=TTF_RenderUTF8_Blended(font,textToRender.c_str(),color); }
     if (!surface) return;
 
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(r, surface);
+    SDL_Texture *texture=nullptr;
+    { MetricScope timer(metrics_.textureCreate); texture=SDL_CreateTextureFromSurface(r,surface); }
     if (texture) {
         int width=maxWidth>0?std::min(maxWidth,surface->w):surface->w;
         SDL_Rect src{0,0,width,surface->h},dst{x,y,width,surface->h};
@@ -202,13 +227,16 @@ void Typography::renderWrapped(SDL_Renderer *r,TTF_Font *font,const std::string 
     if(!r || !font || str.empty() || rect.w<1 || rect.h<1) return;
     auto key=textKey(r,font,str,color,rect.w,true); auto found=textCache_.find(key);
     if(found==textCache_.end()) {
-        auto *surface=TTF_RenderUTF8_Blended_Wrapped(font,str.c_str(),color,rect.w); if(!surface) return;
-        auto *texture=SDL_CreateTextureFromSurface(r,surface);
+        SDL_Surface *surface=nullptr;
+        { MetricScope timer(metrics_.textRaster);surface=TTF_RenderUTF8_Blended_Wrapped(font,str.c_str(),color,rect.w); }
+        if(!surface) return;
+        SDL_Texture *texture=nullptr;
+        { MetricScope timer(metrics_.textureCreate);texture=SDL_CreateTextureFromSurface(r,surface); }
         int width=surface->w,height=surface->h; SDL_FreeSurface(surface); if(!texture) return;
         // Very long metadata is clipped before caching; avoid huge intermediate textures persisting.
         if(std::size_t(width)*height*4>8u*1024u*1024u) { SDL_DestroyTexture(texture); return; }
         storeText(key,texture,width,height); found=textCache_.find(key); if(found==textCache_.end()) return;
-    }
+    } else ++metrics_.textCacheHits;
     auto &entry=found->second; entry.tick=++textTick_;
     SDL_Rect src{0,0,std::min(rect.w,entry.width),std::min(rect.h,entry.height)};
     SDL_Rect dst{rect.x,rect.y,src.w,src.h}; SDL_RenderCopy(r,entry.texture,&src,&dst);
@@ -224,10 +252,10 @@ void Typography::measureText(TTF_Font *font, const std::string &str, int *outW, 
     auto found=metricsCache_.find(key);
     if(found==metricsCache_.end()) {
         int width=0,height=0;
-        TTF_SizeUTF8(font,str.c_str(),&width,&height);
+        timedMeasure(font,str.c_str(),&width,&height);
         if(metricsCache_.size()>=2048) metricsCache_.clear();
         found=metricsCache_.emplace(std::move(key),std::make_pair(width,height)).first;
-    }
+    } else ++metrics_.measureCacheHits;
     if(outW) *outW=found->second.first;
     if(outH) *outH=found->second.second;
     if (maxWidth > 0 && outW && *outW > maxWidth) {

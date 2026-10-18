@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 from zipfile import ZipFile
 
-from artifact_validation import validate_assets, read_romfs, validate_elf
+from artifact_validation import validate_assets, read_romfs, validate_elf, source_identity
 from package_release import validate_nro
 
 if not __debug__:
@@ -24,6 +24,14 @@ assert hashlib.sha256(archive.read_bytes()).hexdigest() == manifest["sha256"]
 nro = (args.dist / "PaperNX.nro").read_bytes()
 assert nro == Path("PaperNX.nro").read_bytes()
 assert hashlib.sha256(nro).hexdigest() == manifest["nro"]["sha256"]
+if args.version.removeprefix("v").startswith("0.4."):
+    receipt = manifest.get("build_receipt")
+    assert receipt, "v0.4 distribution requires a build receipt"
+    identity = source_identity(Path.cwd())["implementation_sha256"]
+    for stage in ("source_before", "source_after"):
+        assert receipt[stage]["implementation_sha256"] == identity, "Source changed since build"
+    for filename in ("PaperNX.nro", "PaperNX.elf"):
+        assert hashlib.sha256(Path(filename).read_bytes()).hexdigest() == receipt["outputs"][filename]["sha256"], "Build output changed"
 assets = validate_assets(nro, validate_nro(nro)["declared_size"])
 version = nro[assets["nacp"]["offset"] + 0x3060:assets["nacp"]["offset"] + 0x3070].split(b"\0")[0].decode()
 assert version == args.version.removeprefix("v"), version
@@ -34,7 +42,10 @@ with ZipFile(archive) as zipped:
     assert zipped.testzip() is None
     assert zipped.read("switch/PaperNX/PaperNX.nro") == nro
     assert not any(name.startswith(("switch/PaperNX/books/", "switch/PaperNX/data/")) and not name.endswith("/") for name in zipped.namelist()), "Package overwrites user data"
-    for name in ("PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md"):
+    required_docs = ["PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md"]
+    if args.version.removeprefix("v").startswith("0.4."):
+        required_docs += ["SWITCH_V04_UX_AUDIT.md", "V04_INTERACTION_SPEC.md", "V04_LIBRARY_DATA_MODEL.md", "V04_REQUIREMENT_COVERAGE.md", "TOUCH_CONTROLS_V04.md"]
+    for name in required_docs:
         assert zipped.read("switch/PaperNX/docs/" + name) == (Path("docs") / name).read_bytes()
     for name in ("NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
         assert zipped.read("switch/PaperNX/fonts/" + name) == (Path("fonts") / name).read_bytes()

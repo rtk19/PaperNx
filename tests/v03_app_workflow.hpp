@@ -33,7 +33,7 @@ static void v03Control(PaperNxApp &app,int row,bool right=true) {
         if(r.y>=layout.content.y && r.y+r.h<=layout.content.y+layout.content.h) {
             app.aaRow_=row;
             if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
-            v03RectTap(app,r,right?.75f:.25f); return;
+            v03RectTap(app,r,right?.75f:.25f); if(app.choiceKind_>=0){app.choiceIndex_=(app.choiceIndex_+1)%int(app.choiceOptions().size());pad(app,SDL_CONTROLLER_BUTTON_A);} return;
         }
         float x=float(layout.content.x+layout.content.w/2)/w;
         float top=float(layout.content.y+12)/h,bottom=float(layout.content.y+layout.content.h-12)/h;

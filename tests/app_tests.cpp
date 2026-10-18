@@ -32,6 +32,7 @@ struct AppTest {
         app.aaRow_=row;
         if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
         tap(app,float(r.x+int(r.w*(right?.75:.25)))/w,float(r.y+28)/h);
+        if(app.choiceKind_>=0){app.choiceIndex_=(app.choiceIndex_+1)%int(app.choiceOptions().size());pad(app,SDL_CONTROLLER_BUTTON_A);}
     }
     static void settingsTab(PaperNxApp &app,int tab) {
         int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).tab(tab);
@@ -45,6 +46,7 @@ struct AppTest {
     #include "v03_app_workflow.hpp"
     #include "v03_stress_workflow.hpp"
     #include "v04_ui_workflow.hpp"
+    #include "v04_catalog_workflow.hpp"
     static void snapshot(PaperNxApp &app, const char *name) {
         for (int i = 0; i < 15; ++i) { app.render(); SDL_Delay(10); app.processCompletedThumbnails(); }
         app.render(); int w, h; SDL_GetRendererOutputSize(app.renderer_, &w, &h);
@@ -283,7 +285,7 @@ struct AppTest {
         hotplug.cdevice.which = secondaryId; app.handleEvent(hotplug, keepRunning);
         assert(!app.controller_);
         app.render();
-        key(app, SDLK_x);
+        app.toggleSearch();
         assert(app.searchActive_);
         SDL_Event text{}; text.type = SDL_TEXTINPUT;
         std::strcpy(text.text.text, "İıI iŞşĞğÜüÖöÇç");
@@ -313,14 +315,14 @@ struct AppTest {
         pad(app, SDL_CONTROLLER_BUTTON_START); assert(app.screen_ == ScreenState::AaModal);
         const auto original=app.currentStyle();
         pad(app,SDL_CONTROLLER_BUTTON_DPAD_DOWN);assert(app.aaRow_==1 && app.currentFontFamily_==original.fontFamily);
-        pad(app,SDL_CONTROLLER_BUTTON_A);assert(app.currentFontFamily_==(original.fontFamily+1)%3);
+        pad(app,SDL_CONTROLLER_BUTTON_A);assert(app.choiceKind_==0);pad(app,SDL_CONTROLLER_BUTTON_DPAD_DOWN);pad(app,SDL_CONTROLLER_BUTTON_A);assert(app.currentFontFamily_==(original.fontFamily+1)%3);
         pad(app,SDL_CONTROLLER_BUTTON_DPAD_UP);assert(app.aaRow_==0);
         pad(app,SDL_CONTROLLER_BUTTON_A);assert(app.settingsEditing_);
         pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.currentFontSize_==original.fontSize+2);
         pad(app,SDL_CONTROLLER_BUTTON_B);assert(!app.settingsEditing_ && app.currentFontSize_==original.fontSize);
         pad(app,SDL_CONTROLLER_BUTTON_A);pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);pad(app,SDL_CONTROLLER_BUTTON_A);
         assert(!app.settingsEditing_ && app.currentFontSize_==original.fontSize+2);
-        pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.aaTab_==1);
+        pad(app,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);assert(app.aaTab_==1);
         assert(app.currentMargin_==original.margin && app.currentLineHeight_==original.lineHeight);
         int page = app.currentPage_;
         pad(app, SDL_CONTROLLER_BUTTON_B); assert(app.currentPage_ == page);
@@ -544,6 +546,7 @@ int main() {
     fs::create_directory_symlink(fs::absolute("fonts"),root / "fonts");
     fs::copy("tests/fixtures/sample_book.epub",root / "books" / "scroll.epub");
     AppTest::v04UiWorkflow(root);
+    AppTest::v04CatalogWorkflow(root);
     AppTest::continuousReading(root);
     AppTest::captureV03Screens(root);
     AppTest::v03Workflow(root);

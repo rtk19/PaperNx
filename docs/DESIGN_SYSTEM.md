@@ -1,51 +1,17 @@
-# PaperNX native design system — v0.3
+# PaperNX native design system — v0.4
 
-Implementation sources: `include/papernx/ui.hpp`, `include/papernx/theme.hpp`, `src/typography.cpp` and application screen composition in `src/main.cpp`. This is SDL drawing and SDL_ttf text; no HTML, WebView or external UI runtime. Existing open-book branding is preserved.
+SDL2 drawing, SDL_ttf typography and MuPDF document rendering remain native. Sources: `ui.hpp`, `theme.hpp`, `orientation.hpp`, `focus.hpp`, `typography.cpp`, `main.cpp` and screen include fragments. No web engine/framework.
 
-## Geometry and touch tokens
+Shared geometry: 56-pixel touch target, 16 gap, 12 radius, 64 settings cadence. `ui::Tokens` provides title30, section24, label22, metadata18, description17; spacing8/16/24, border1/focus3, header80/footer64, dialog maximum920 and portrait cover154×218. These are logical output pixels; inspect clipping at 640×480 and portrait rather than assuming density-independent scaling.
 
-| Token | Actual implementation | Purpose |
-|---|---|---|
-| `ui::touch` | 56 output pixels | Practical button hit-height at 1280×720 |
-| `ui::gap` | 16 pixels | Shared spacing increment |
-| `ui::radius` | 12 pixels | Rounded native surfaces |
-| `ui::row` | 64 pixels | Control row cadence, 56-pixel control plus spacing |
-| Settings sheet | 24-pixel horizontal inset, 8 below 800 output width; top/bottom 16 | Use handheld space efficiently |
-| Settings sidebar | 190 pixels, 142 below 800 output width | Six readable sections |
-| Settings preview | 280 pixels when width ≥1100, omitted below | Sample remains separate from controls |
-| Settings footer | 56-pixel controls at sheet bottom | Close/reset/save routes remain discoverable |
-| Library grid | Adaptive columns using `(width−48)/224`, minimum one | Preserve card geometry |
-| Library card | 330-pixel height, 350-pixel vertical cadence | Stable cover/title/author/progress region |
-| Library content origin | 174 pixels from top, 32 left | Distinguish header, filters and content |
-| Quick action rows | 56-pixel buttons on 60-pixel cadence | Comfortable contextual menu |
+Noto Sans Regular and OFL Noto Sans SemiBold supply actual distinct UI weights. Noto Serif remains for reading. Button font metrics drive vertical placement; UTF-8 truncation avoids broken Turkish characters. Reader typography is independent of UI size. Text measurement and raster texture caches must be bounded and reused; renderer-thread texture upload only.
 
-These are output-pixel tokens, not a blanket claim of density-independent scaling. Smaller desktop windows need clipping/scrolling tests. Use the shared `SettingsLayout` for hit testing and drawing so visible controls and touch targets agree.
+`ThemePalette` centralizes background, foreground, muted, accent, card, border and header. `readerChromePalette` follows content colors by default; Follow Application and Custom UI are explicit policies. Dark/Invert PDF uses dark chrome; Sepia uses warm chrome. Library restores global app palette. UI controls are never filtered as document pixels. Nine paper presets use RGB overrides without renumbering existing six-theme persistence identifiers.
 
-## Typography
+`ui::button`, `ui::settingsRow`, `StepperLayout`, surfaces and focus rings share geometry for hit testing. Numeric rows have left label and independent right decrement/value/increment. Focus adds a three-pixel outline; editing adds an underline; selected and pressed states remain separate. Destructive text uses contrast-aware red. New components must not implement focus solely by hue or by toggling the preference.
 
-The implementation loads Noto Sans for UI and Noto Serif for reading/preview, with platform fallback fonts. UI hierarchy is 32 px title, 22 px primary UI and 18 px secondary UI; base reader preview is 24 px. Selected reader font size uses a separately cached preview font bounded to 14–44 px. Turkish Unicode text must be truncated only on UTF-8 boundaries. Long titles need a two-line title region and restrained secondary author text. Font fallback does not authorize copying unlicensed font files.
+`FocusManager` stores logical context/item IDs, geometric movement and per-context memory. Modal context isolates focus. Settings navigation and editing have separate states. Screen composition must register every actionable control, reveal it when focused and restore prior context on close; final per-screen completeness is verified independently of the helper.
 
-## Palette
+`DisplayTransform` owns physical/logical dimensions and inverse touch rotation. The app draws to a logical portrait target and rotates once. Reflow/fit changes must preserve logical position. Fallback book artwork remains original native vectors, deterministic palette and stable portrait dimensions; cover loading never changes card size.
 
-`ThemePalette` provides `bg`, `fg`, `muted`, `accent`, `card`, `cardBorder` and `header`. The six existing curated palettes remain available:
-
-| Palette | Background | Foreground | Accent |
-|---|---|---|---|
-| Paper | `#F8F6F0` | `#222222` | `#8B5A2B` |
-| Ivory | `#FEFCF3` | `#2D2823` | `#915F2D` |
-| Sepia | `#ECE0C6` | `#413224` | `#8C552D` |
-| Slate | `#DAE0E4` | `#263038` | `#305C82` |
-| Dark | `#1C1E20` | `#E6E4DE` | `#C3A06E` |
-| OLED Black | `#000000` | `#EBEBEB` | `#D2B482` |
-
-Application appearance and reading appearance have separate preference scopes. EPUB custom text/background colors are reader preferences, not UI palette mutations. Contrast calculations use linearized relative luminance in `readingContrast`; a preview warning cannot replace device readability checks. Avoid claims of measured battery savings for OLED Black without measurements.
-
-## Components and states
-
-`ui::surface` draws restrained rounded native surfaces. `ui::button` handles label placement and selected/pressed palette treatment: selected uses accent, pressed uses card border, ordinary uses header. Library covers keep an intentional format-specific vector fallback while artwork is not ready; successful artwork is aspect-fitted without changing card dimensions. The cover state model distinguishes not-requested, loading, loaded, no embedded cover, failed and cached. Only renderer-thread code uploads SDL textures.
-
-Touch routing must give the frontmost modal or quick action sheet exclusive access before reader page zones. A captured drag cannot become a page turn on release. Long press, dragging and pinch need distinct gesture state. No required action is represented only by a controller glyph. Do not advertise future statistics, sync, annotations or search features unless an actual action exists.
-
-## Validation
-
-Capture actual application screenshots at 1280×720, 1920×1080 and a smaller supported desktop size. Check Turkish titles, no cover, loading/failed cover, empty categories, all six themes, sheet scrolling and dialog stacking. Physical LCD/OLED contrast, finger target comfort and docked scaling remain UNVERIFIED until the new hardware session.
+Validate actual screenshots for library, context, groups/shelves, metadata, delete confirmation, settings/focus, dark/sepia EPUB/PDF, landscape and both portraits. A screenshot proves drawing, not finger comfort or display latency; hardware remains UNVERIFIED until retested.

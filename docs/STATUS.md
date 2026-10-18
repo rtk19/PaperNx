@@ -1,19 +1,7 @@
-# PaperNX v0.3.0-rc1
+# PaperNX v0.4 status
 
-Dal: `fix/v03-final-verification`. Başlangıç main: `03bbf513d311566245ea3efe6a7a5e85ecbeb98b`.
+Baseline: final v0.3 verification `28f2e0035f876ff1b86af0651e9124d19ad92c5c`; verified foundation `e788e87`; branch `feat/v04-professional-reader-ux`. Target `v0.4.0-rc1`.
 
-- **Yerel ve Docker Mühendislik Doğrulaması:**
-  - Bağımsız C++17 taşınabilir çekirdek testleri: **PASS** (3/3).
-  - Pinned MuPDF 1.23.11 tam native masaüstü testleri: **PASS** (6/6).
-  - Tam kaynak AddressSanitizer (ASan) + UndefinedBehaviorSanitizer (UBSan) + LeakSanitizer (LSan): **PASS** (6/6).
-  - Native Release optimizasyonlu build ve CTest: **PASS** (6/6).
-  - Taşınabilir Release build ve CTest: **PASS** (3/3).
-  - Gerçek Nintendo Switch devkitA64 cross-compilation (AArch64 ELF64, NRO0, NACP v0.3.0-rc1, 256x256 gömülü ikon, RomFS fontları): **PASS**.
-  - Sürüm paketleme ve SD bütünlük doğrulaması (`dist/v0.3.0-rc1/`): **PASS**.
+Implementation and verification are in progress. Final release gates are **UNVERIFIED** until this source is rebuilt; see [test results](TEST_RESULTS.md) and [coverage](V04_REQUIREMENT_COVERAGE.md). The previous v0.3 reports are retained as `V03_*` historical documents.
 
-- **Fiziksel Switch Kabulü:**
-  - **UNVERIFIED**. Cihazsız geliştirme ortamında gerçek donanım doğrulaması üretilemez; [26 maddelik donanım test planı](DEVICE_TEST_PLAN.md) kullanıcı tarafından fiziki konsolda yürütülmelidir.
-
-- **Dağıtım Paketi:**
-  - Yerel: `dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip`. Kullanıcı `books/` ve `data/` klasörleri korunur.
-  - Sürüm durumu: Fiziksel donanım kabulü tamamlanana kadar **CANDIDATE / UNVERIFIED**.
+New physical acceptance is **UNVERIFIED** for every item in [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md). No stable release is authorized by a desktop test or generated NRO alone. The ten prior recordings are defect evidence for v0.3, not new candidate acceptance.

@@ -1,42 +1,43 @@
-# Physical Nintendo Switch acceptance — v0.3.0-rc1
+# PaperNX v0.4 device acceptance
 
-All results below are **UNVERIFIED** until a new device session is recorded. Desktop simulation, component tests and successful AArch64 linking do not change physical results. The six earlier videos are acceptance input, not acceptance of this new build.
+Candidate: `v0.4.0-rc1`. Record NRO SHA256, Switch model, firmware/homebrew launch mode, language and book names. Every item below is **UNVERIFIED** until this candidate is tested physically. The supplied v0.3 recordings establish prior app operation and defects; they do not validate these changes.
 
-Back up `switch/PaperNX/data/` and preserve `books/`. Install only the new package application assets from `dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip`, merging directories.
-Target NRO SHA256: `faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60`.
-Record installed NRO SHA256, package version, Switch LCD/OLED model, HOS/hbmenu version, applet/application mode and test-book names. Start with both controllers detached. Keep a text-heavy EPUB, an image-heavy EPUB and a multi-hundred-page PDF available if possible. Never remove SD or cut power while the app is writing.
+| # | Check | Result |
+|---|---|---|
+| 1 | Launch with Joy-Con detached; complete library → reader → settings → exit by touch | UNVERIFIED |
+| 2 | Professional library layout, long Turkish titles, empty state | UNVERIFIED |
+| 3 | Button font weights, baseline alignment, readable labels/descenders | UNVERIFIED |
+| 4 | Visible focus on every menu, tab, list and confirmation | UNVERIFIED |
+| 5 | D-pad navigation; A edit/adjust/confirm; B cancel restores; no accidental changes | UNVERIFIED |
+| 6 | D-pad Left/Right paginated EPUB turns | UNVERIFIED |
+| 7 | D-pad Left/Right PDF turns while zoomed | UNVERIFIED |
+| 8 | Slow zoomed PDF drag pans without changing page | UNVERIFIED |
+| 9 | Deliberate fast horizontal PDF swipe changes page while zoomed | UNVERIFIED |
+| 10 | Pinch, zoom limits, viewport boundaries and fit modes | UNVERIFIED |
+| 11 | Dark PDF with matching canvas, toolbar and modal | UNVERIFIED |
+| 12 | Sepia PDF with matching canvas and modal | UNVERIFIED |
+| 13 | Sepia EPUB settings, Dark TOC, OLED quick menu match | UNVERIFIED |
+| 14 | Immediate pressed feedback; rapid taps and menu transition timings | UNVERIFIED |
+| 15 | Long press context; movement cancels hold; no duplicate mouse action | UNVERIFIED |
+| 16 | X context on focused book | UNVERIFIED |
+| 17 | Favorite and read/unread/completed state survive restart without losing position | UNVERIFIED |
+| 18 | Edit author/genre; Turkish keyboard; metadata leaves source unchanged | UNVERIFIED |
+| 19 | Author/genre groups, search and sort within filter | UNVERIFIED |
+| 20 | Create/rename/delete shelves, multi-membership, remove membership | UNVERIFIED |
+| 21 | Hide/remove preserves file; rescan does not re-add; restore works | UNVERIFIED |
+| 22 | Cancel permanent deletion; file remains | UNVERIFIED |
+| 23 | Confirm deletion of a deliberately disposable copy inside books root; test failure error | UNVERIFIED |
+| 24 | Stable fallback cover and aspect-fitted real artwork | UNVERIFIED |
+| 25 | Global/per-book preferences survive restart; reset inheritance | UNVERIFIED |
+| 26 | Restore progress/bookmarks; Page Flip returns exact logical location | UNVERIFIED |
+| 27 | Stats exclude idle/menu/sleep; goal persists; ETA absent until real evidence | UNVERIFIED |
+| 28 | Continuous EPUB vertical scroll and chapter boundaries | UNVERIFIED |
+| 29 | Large EPUB/PDF, image-heavy chapter, cold/warm covers and memory | UNVERIFIED |
+| 30 | Clean exit, sleep/resume, disconnect/reconnect; no white flash/data loss | UNVERIFIED |
+| 31 | Clockwise portrait: correct rotation, all touch targets, menus and PDF/EPUB fit | UNVERIFIED |
+| 32 | Counterclockwise portrait: inverse touch alignment, pagination, continuous scroll | UNVERIFIED |
+| 33 | Orientation restart persistence and explicit return to landscape, docked resolution | UNVERIFIED |
+| 34 | All nine paper presets, background/text swatches, cancel/defaults, contrast warning | UNVERIFIED |
+| 35 | Off/Soft/Natural texture readability; images unaffected | UNVERIFIED |
 
-| # | Short procedure | Acceptance | Result |
-|---|---|---|---|
-| 1 | Launch with no controller connected | Opens and accepts touch; branding/icon correct | UNVERIFIED |
-| 2 | Tap library top-right plus | Readable contextual sheet; every action reachable by touch | UNVERIFIED |
-| 3 | Open global settings before opening any book; repeat with empty library | No document required; Turkish sample preview visible; no crash | UNVERIFIED |
-| 4 | Select Sepia and 26px globally; close settings | Immediate feedback; selection persists | UNVERIFIED |
-| 5 | Open previously-read EPUB A, then previously-read B | Both inherit new global settings; original positions retained | UNVERIFIED |
-| 6 | Customize B only, change theme/font, reopen A; remove B override | A/global unchanged by B; B inherits after override removal; restart repeats correctly | UNVERIFIED |
-| 7 | Drag a long library in grid and list views | Finger tracking, bounded inertia, readable categories and no accidental book open | UNVERIFIED |
-| 8 | Cold launch library with many uncached covers | Intentional covers immediately; stable card size; no raw loading blocks | UNVERIFIED |
-| 9 | Allow covers to load, exit and relaunch | Warm covers reuse disk cache; no long sequential regeneration; book changes invalidate artwork | UNVERIFIED |
-| 10 | Open EPUB; turn 20 pages forward/back with taps and horizontal swipes | Each intended gesture turns once; record latency/frame gaps | UNVERIFIED |
-| 11 | Open Aa using plus while reading | Large panel appears promptly, controls readable without guessing center tap | UNVERIFIED |
-| 12 | Rapidly change font, spacing, themes and tabs; close/reopen | UI remains responsive; latest settings win; position preserved; no stale result replaces new state | UNVERIFIED |
-| 13 | Open PDF; select fit-width; zoom and drag | Readable width, entire page reachable, pan does not turn page; filters reversible | UNVERIFIED |
-| 14 | Search library with Turkish characters | Switch software keyboard appears; correct search/cancel and no double input | UNVERIFIED |
-| 15 | Browse SD, enter folder, return parent, open book, return library | All operations touch-only; no stuck gesture or required controller | UNVERIFIED |
-| 16 | Open TOC; jump chapter; add/open/delete bookmark | Correct location, touch-only routes; previous-location return works | UNVERIFIED |
-| 17 | Read, bookmark, exit by touch, restart and reopen EPUB/PDF | Logical location and bookmarks restored; test two already-read books | UNVERIFIED |
-| 18 | Change preferences/turn pages repeatedly and return library | No recurring save error; logs show successful save or useful diagnostic | UNVERIFIED |
-| 19 | Library plus → exit; relaunch | Clean touch-only return to hbmenu and successful relaunch | UNVERIFIED |
-| 20 | Inspect Paper/Dark/Sepia on LCD/OLED and handheld/docked | Labels, contrast, covers, focus/pressed states and margins readable | UNVERIFIED |
-| 21 | Sleep/resume during EPUB, PDF and open settings; disconnect/reconnect controller | No crash, stale texture, lost position, double activation or disabled touch | UNVERIFIED |
-| 22 | Read large/image-heavy EPUB and large PDF; repeatedly switch books/settings | Record steady/peak memory; no unbounded growth, allocation crash or UI freeze | UNVERIFIED |
-| 23 | Settings → Navigation → Continuous Scroll Mode; close and drag vertically | Genuine finger-tracked content scroll; no menu/page turn on drag; horizontal swipe does not paginate | UNVERIFIED |
-| 24 | Scroll across chapters; change sensitivity and momentum; switch paginated/continuous; restart | Coherent chapter transition and accurate logical position; preference persists globally and with explicit book override | UNVERIFIED |
-| 25 | Open plus/TOC/bookmarks/settings and tap/drag over reader underneath | Frontmost overlay owns input; no behind-dialog page turns or stuck gesture on dismissal | UNVERIFIED |
-| 26 | TOC/bookmark/progress jump then plus → previous location | Original logical location restored, including after a reflow | UNVERIFIED |
-
-Record PASS/FAIL/UNVERIFIED per row, installed NRO hash and book identity. For latency record tap-to-first-visible-feedback and full-render latency separately; use median/p95/worst frame gaps where possible. Record continuous-scroll cold/warm behavior separately from paginated turns. Warm-cover comparison must use a real restart.
-
-Safe recovery check: with the app closed and the original data backed up, copy the current progress file aside, leave the known-good backup, then relaunch to verify recovery. Never delete the only saved copy. Corruption/write failures are primarily covered by deterministic desktop fault injection rather than deliberate power-loss experiments on a personal SD card.
-
-The user's earlier report of missing continuous scrolling is not closed by desktop tests. Film the settings route and actual vertical drag on the new installed build. Stable publication and merge acceptance remain pending explicit hardware results; do not relabel this candidate as hardware verified without evidence.
+Never use a valuable original for deletion testing. First back up `books/` and `data/`; copy a disposable EPUB/PDF into the allowed books root. Test cancel first, then explicit confirmation. Shelf deletion must leave book files intact. Do not publish a stable release until new device acceptance and remaining P0 checks are resolved.

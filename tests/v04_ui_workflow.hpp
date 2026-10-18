@@ -21,8 +21,26 @@ static void v04UiWorkflow(const fs::path &parent) {
         pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);pad(app,SDL_CONTROLLER_BUTTON_B);assert(!app.settingsEditing_ && app.currentFontSize_==old.fontSize);
         pad(app,SDL_CONTROLLER_BUTTON_A);pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);pad(app,SDL_CONTROLLER_BUTTON_A);
         assert(app.currentFontSize_==old.fontSize+2 && !app.settingsEditing_);
+        std::vector<double> pressedMs,actionMs,focusMs;
+        auto elapsed=[](auto started){return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();};
+        app.render();
+        int bw,bh;app.getWindowSize(bw,bh);auto tab=ui::SettingsLayout(bw,bh).tab(0);
+        for(int i=0;i<32;++i) {
+            const float x=float(tab.x+tab.w/2)/bw,y=float(tab.y+tab.h/2)/bh;
+            auto started=std::chrono::steady_clock::now();finger(app,SDL_FINGERDOWN,x,y);app.render();pressedMs.push_back(elapsed(started));
+            finger(app,SDL_FINGERUP,x,y);app.render();actionMs.push_back(elapsed(started));
+            started=std::chrono::steady_clock::now();app.handleDirectional(0,i%2?1:-1);app.render();focusMs.push_back(elapsed(started));
+        }
+        auto percentile=[](std::vector<double> samples,double fraction){std::sort(samples.begin(),samples.end());return samples[std::min(samples.size()-1,std::size_t(fraction*samples.size()))];};
+        fs::create_directories("verification");std::ofstream bench("verification/v04-ui-latency.json");
+        bench<<"{\n  \"environment\": \"Docker SDL dummy software renderer; CPU event-to-present-return only; physical visible latency UNVERIFIED\",\n";
+        auto metric=[&](const char *name,const std::vector<double>&samples,bool last){bench<<"  \""<<name<<"\": {\"p50_ms\":"<<percentile(samples,.5)<<",\"p95_ms\":"<<percentile(samples,.95)<<",\"worst_ms\":"<<*std::max_element(samples.begin(),samples.end())<<"}"<<(last?"\n":",\n");};
+        metric("tap_to_pressed_present",pressedMs,false);metric("tap_to_action_present",actionMs,false);metric("focus_to_present",focusMs,true);bench<<"}\n";
         snapshot(app,"v04-settings-focus-landscape");
         app.editColor(1);pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.extraStyle_.backgroundColor==app.swatchColors_[app.swatchFocus_]);
+        {auto panel=app.colorPanel(bw,bh);float sx=float(panel.x+panel.w-40)/bw,sy=float(panel.y+376)/bh;
+            finger(app,SDL_FINGERUP,sx,sy);assert(app.colorEditing_>=0);
+            finger(app,SDL_FINGERDOWN,sx,sy,81);finger(app,SDL_FINGERDOWN,sx,sy,82);finger(app,SDL_FINGERUP,sx,sy,81);finger(app,SDL_FINGERUP,sx,sy,82);assert(app.colorEditing_>=0);}
         snapshot(app,"v04-color-swatches");pad(app,SDL_CONTROLLER_BUTTON_B);assert(app.extraStyle_.backgroundColor==old.backgroundColor);
         closeSettings(app);
         auto epub=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Epub;});
@@ -41,6 +59,17 @@ static void v04UiWorkflow(const fs::path &parent) {
             tap(app,point.first/1280,point.second/720);assert(app.quickMenu_);app.quickMenu_=false;
             app.openBook(epub);assert(app.layoutWidth_<=720);app.render();
             snapshot(app,orientation==1?"v04-portrait-cw-epub":"v04-portrait-ccw-epub");app.closeBook();
+            app.openBook(epub);app.extraStyle_.readingMode=1;app.reflowEpub(app.currentFontSize_);assert(app.continuous());
+            auto physicalFinger=[&](Uint32 type,float x,float y,SDL_FingerID id=61){auto physical=transform.toPhysical(x*w,y*h);finger(app,type,physical.first/1280,physical.second/720,id);};
+            float oldY=app.scrollY_;physicalFinger(SDL_FINGERDOWN,.5f,.7f);physicalFinger(SDL_FINGERMOTION,.5f,.4f);physicalFinger(SDL_FINGERUP,.5f,.4f);assert(app.scrollY_>oldY || app.currentPage_>0);
+            snapshot(app,orientation==1?"v04-portrait-cw-scroll":"v04-portrait-ccw-scroll");app.closeBook();
+            auto portraitPdf=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Pdf;});app.openBook(portraitPdf);app.zoomPdf(2);
+            app.currentPage_=0;pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.currentPage_==1);pad(app,SDL_CONTROLLER_BUTTON_DPAD_LEFT);assert(app.currentPage_==0);
+            physicalFinger(SDL_FINGERDOWN,.5f,.7f);physicalFinger(SDL_FINGERMOTION,.5f,.4f);physicalFinger(SDL_FINGERUP,.5f,.4f);assert(app.pdfPanY_>0);
+            SDL_Event pinch{};pinch.type=SDL_MULTIGESTURE;pinch.mgesture.numFingers=2;pinch.mgesture.dDist=.05f;auto physical=transform.toPhysical(w*.25f,h*.7f);pinch.mgesture.x=physical.first/1280;pinch.mgesture.y=physical.second/720;bool running=true;app.handleEvent(pinch,running);assert(app.pdfZoom_>2);
+            snapshot(app,orientation==1?"v04-portrait-cw-pdf":"v04-portrait-ccw-pdf");app.closeBook();
+            assert(app.appSettings_.save());{PaperNxApp resumed(root);assert(resumed.init());assert(resumed.appSettings_.get().displayOrientation==orientation);int rw,rh;resumed.getWindowSize(rw,rh);assert(rw==720 && rh==1280);}
+
         }
         auto a=app.appSettings_.get();a.displayOrientation=0;app.appSettings_.put(a);app.persistAppSettings();
         auto pdf=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Pdf;});app.openBook(pdf);
