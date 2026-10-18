@@ -316,12 +316,12 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
             char dateBuf[32];
             std::snprintf(dateBuf, sizeof dateBuf, "%04d-%02d-%02d", today.tm_year + 1900, today.tm_mon + 1, today.tm_mday);
             if (x >= px + 24 && x <= px + 244) {
-                auto outPath = fs::path("data") / "reading_journal" / "export" / ("reading_journal_" + std::string(dateBuf) + ".json");
+                auto outPath = journal.exportDirectory() / ("reading_journal_" + std::string(dateBuf) + ".json");
                 if (journal.exportJson(outPath)) exportMessage_ = "JSON: " + outPath.string();
                 else exportMessage_ = "Hata: JSON aktarılamadı";
                 return Action::None;
             } else if (x >= px + 260 && x <= px + 480) {
-                auto outPath = fs::path("data") / "reading_journal" / "export" / ("reading_journal_" + std::string(dateBuf) + ".csv");
+                auto outPath = journal.exportDirectory() / ("reading_journal_" + std::string(dateBuf) + ".csv");
                 if (journal.exportCsv(outPath)) exportMessage_ = "CSV: " + outPath.string();
                 else exportMessage_ = "Hata: CSV aktarılamadı";
                 return Action::None;
