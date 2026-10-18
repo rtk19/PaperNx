@@ -32,7 +32,14 @@ struct AppTest {
         app.aaRow_=row;
         if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
         tap(app,float(r.x+int(r.w*(right?.75:.25)))/w,float(r.y+28)/h);
-        if(app.choiceKind_>=0){app.choiceIndex_=(app.choiceIndex_+1)%int(app.choiceOptions().size());pad(app,SDL_CONTROLLER_BUTTON_A);}
+        if(app.choiceKind_>=0){
+            // The real choice sheet confirms focused (not stale selected) controls.
+            // Keep the helper's historical next-option semantics for all fixtures.
+            const auto count=int(app.choiceOptions().size());
+            assert(count>0);
+            app.choiceFocusedIndex_=(app.choiceFocusedIndex_+1)%count;
+            pad(app,SDL_CONTROLLER_BUTTON_A);
+        }
     }
     static void settingsTab(PaperNxApp &app,int tab) {
         int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).tab(tab);
