@@ -504,7 +504,25 @@ private:
                 LoadedThumb lt; lt.id=b.id; lt.w=cached->width; lt.h=cached->height;
                 lt.stride=cached->stride; lt.rgb=std::move(cached->rgb);
                 lt.state=CoverState::Cached;
-                std::lock_guard<std::mutex> lock(completedMutex_); completedThumbs_.push_back(std::move(lt));
+                {std::lock_guard<std::mutex> lock(completedMutex_);completedThumbs_.push_back(std::move(lt));}
+                // Migrated cover caches may predate catalog metadata. Read only
+                // when the displayed title is still a filename; this work
+                // remains asynchronous and never blocks the first reader frame.
+                if(b.title==defaultTitle(fs::u8path(b.path))) {
+                    char metadataError[256]{};
+                    PxDocument *metaDoc=px_document_open_limited(b.path.c_str(),160,220,16.f,"",
+                                                                 metadataError,sizeof metadataError,16u*1024u*1024u);
+                    if(metaDoc){
+                        char title[512]{},author[512]{};
+                        px_document_metadata(metaDoc,"info:Title",title,sizeof title);
+                        px_document_metadata(metaDoc,"info:Author",author,sizeof author);
+                        if(title[0] || author[0]){
+                            std::lock_guard<std::mutex> lock(completedMutex_);
+                            completedMetadata_.push_back({b.id,title,author});
+                        }
+                        px_document_close(metaDoc);
+                    }
+                }
                 continue;
             }
             char err[256] = {};
