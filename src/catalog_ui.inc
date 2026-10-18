@@ -88,9 +88,9 @@ std::vector<std::pair<int,std::string>> catalogRows() const {
         const auto p=progressStore_.get(actionBook_.id);
         rows={{0,p.lastRead?catLabel("Okumaya devam","Continue Reading"):catLabel("Kitabı aç","Open Book")},
             {1,p.favorite?catLabel("Favoriden çıkar","Remove Favorite"):catLabel("Favori","Favorite")},
-            {2,std::string(e.status==ReadingStatus::Reading?"✓ ":"")+catLabel("Okunuyor","Currently Reading")},
-            {3,std::string(e.status==ReadingStatus::NotStarted?"✓ ":"")+catLabel("Okunmadı","Unread")},
-            {4,std::string(e.status==ReadingStatus::Completed?"✓ ":"")+catLabel("Okundu / Tamamlandı","Read / Finished")},
+            {2,catLabel("Okunuyor","Currently Reading")},
+            {3,catLabel("Okunmadı","Unread")},
+            {4,catLabel("Okundu / Tamamlandı","Read / Finished")},
             {5,catLabel("Koleksiyonlar","Collections")},
             {6,catLabel("Bilgileri düzenle","Edit Metadata")},{7,catLabel("Kitap bilgisi","Book Details")},{10,catLabel("Okuma geçmişi","Reading history")},
             {8,catLabel("Kitaplıktan gizle","Remove from Library")},{9,catLabel("Dosyayı sil","Delete File Permanently")}};
@@ -161,7 +161,23 @@ void activateCatalogRow(int index){
         if(action==1){auto p=progressStore_.get(actionBook_.id);p.favorite=!p.favorite;progressStore_.put(actionBook_.id,p);progressDirty_=true;updateVisibleBooks();}
         if(action>=2&&action<=4){
             const auto newStatus=action==2?ReadingStatus::Reading:action==3?ReadingStatus::NotStarted:ReadingStatus::Completed;
-            if(saveCatalogChange([&]{auto e=catalog_.get(actionBook_.id);e.status=newStatus;catalog_.put(actionBook_.id,e);})){catalogFocus_=action;}
+            // Status and progress are one user intent. Catalog label alone is not
+            // sufficient: unread=0%, completed=100%, reading=real position.
+            // Do not erase bookmarks, per-book appearance, or journal sessions.
+            auto updated=progressStore_.get(actionBook_.id);
+            applyManualReadingStatus(updated,newStatus,std::time(nullptr));
+            if(saveCatalogChange([&]{
+                    auto e=catalog_.get(actionBook_.id);
+                    e.status=newStatus;catalog_.put(actionBook_.id,e);
+               })) {
+                progressStore_.put(actionBook_.id,updated);
+                progressDirty_=true;
+                if(!progressStore_.save()) {
+                    currentErrorMessage_="Reading status changed; progress could not be saved.";
+                } else progressDirty_=false;
+                catalogFocus_=action;
+                updateVisibleBooks();
+            }
         }
         if(action==5)setCatalogPanel(CatalogPanel::Collections);
         if(action==6)setCatalogPanel(CatalogPanel::Metadata);
