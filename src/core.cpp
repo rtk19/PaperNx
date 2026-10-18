@@ -390,7 +390,10 @@ void AppSettingsStore::put(AppPreferences preferences) {
     preferences.libraryLayout = std::clamp(preferences.libraryLayout, 0, 1);
     preferences.sort = std::clamp(preferences.sort, 0, 4);
     preferences.toolbar = std::clamp(preferences.toolbar, 0, 1);
-    preferences.chromePolicy = std::clamp(preferences.chromePolicy, 0, 2);
+    // Migrate old independent UI-theme policies to a single global reading theme.
+    // Keep the legacy fields on disk for file compatibility, but never reactivate
+    // conflicting application/custom chrome after upgrading or restarting.
+    preferences.chromePolicy = 0;
     preferences.customUiTheme = std::clamp(preferences.customUiTheme, 0, 5);
     preferences.displayOrientation = std::clamp(preferences.displayOrientation, 0, 2);
     preferences.paperTexture = std::clamp(preferences.paperTexture, 0, 2);
