@@ -922,7 +922,7 @@ private:
         auto r=quickSheet(w,h); ui::surface(renderer_,r,pal.card,16);
         typography_->renderText(renderer_,typography_->smallFont(),helpMenu_?"DOKUNMA REHBERİ · Kapatmak için dokun":"HIZLI İŞLEMLER",r.x+20,r.y+12,pal.muted,r.w-200);
         if(!helpMenu_)ui::button(renderer_,*typography_,{r.x+r.w-164,r.y+4,148,36},
-                                 catLabel("↻ Yatay/Dikey","↻ Rotate"),pal);
+                                 catLabel("Yatay / Dikey","Rotate"),pal);
         if(helpMenu_) {
             int y=r.y+58; int metadataLines=0;
             std::vector<std::string> lines={"+ tüm işlemleri açar.","Kitaplarınızı dokunarak açın.","Listeleri parmağınızla sürükleyin.","Sayfalı: Kenarlara dokun / yatay kaydır.","Sürekli: Yukarı / aşağı sürükle.","PDF: İki parmakla yakınlaştır, sürükle.","Okuma ayarları tüm kitaplarda ortaktır.","Bu kitap seçeneği özel ayar oluşturur.","Kitaplarınız ve kayıtlarınız cihazda kalır."};
