@@ -232,9 +232,16 @@ struct AppTest {
             app.openBook(pdf); pdfId = pdf.id;
             assert(app.currentFontFamily_ == 1); // New book inherits global defaults.
             tap(app, .5f, .5f); tap(app, .89f, .04f);
+            // A PDF opens the very same Appearance tab as EPUB.
+            assert(app.aaTab_==2);
+            settingsControl(app,1,true); // Select "Cool Paper" in Appearance.
+            assert(app.extraStyle_.backgroundColor==0xe9ebe8);
+            assert(app.extraStyle_.styleOverride==1);
+            const auto pdfChrome=app.palette();
+            assert(pdfChrome.bg.r==0xe9 && pdfChrome.bg.g==0xeb && pdfChrome.bg.b==0xe8);
+            settingsTab(app,4); // PDF-only page fit/zoom remains separate.
             settingsControl(app,1); assert(app.extraStyle_.pdfViewMode == 1 && app.pdfZoom_ > 1);
-            settingsControl(app,3); assert(app.extraStyle_.pdfColorMode == 1);
-            snapshot(app, "pdf-settings");
+            snapshot(app, "pdf-shared-appearance-settings");
             closeSettings(app); tap(app, .5f, .5f); // Hide toolbar.
             const int page = app.currentPage_;
             finger(app, SDL_FINGERDOWN, .5f, .6f); finger(app, SDL_FINGERMOTION, .5f, .3f); finger(app, SDL_FINGERUP, .5f, .3f);
@@ -257,7 +264,10 @@ struct AppTest {
             assert(restart.currentTheme_ == 5 && restart.currentFontFamily_ == 1);
             assert(restart.progressStore_.get(epubId).bookmarks.size() == 1);
             auto pdf = *std::find_if(restart.books_.begin(), restart.books_.end(), [&](const Book &b) { return b.id == pdfId; });
-            restart.openBook(pdf); assert(restart.currentPage_ == 1 && restart.extraStyle_.pdfColorMode == 1);
+            restart.openBook(pdf);
+            assert(restart.currentPage_==1 && restart.extraStyle_.styleOverride==1);
+            assert(restart.extraStyle_.backgroundColor==0xe9ebe8);
+            assert(restart.palette().bg.r==0xe9 && restart.palette().bg.g==0xeb);
         }
         std::cout << "[PASS] Touch-only workflow elapsed_ms=" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() << "\n";
     }
