@@ -139,19 +139,29 @@ static void v04UiWorkflow(const fs::path &parent) {
         }
         auto a=app.appSettings_.get();a.displayOrientation=0;app.appSettings_.put(a);app.persistAppSettings();
         auto pdf=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Pdf;});app.openBook(pdf);
-        // The PDF's selected filter defines BOTH its page and surrounding chrome;
-        // the application theme remains unchanged and returns on leaving the book.
+        // The PDF uses EPUB's Appearance palette; the former independent
+        // PDF filter is legacy data and may not change reader chrome.
         const auto globalBg=app.palette().bg;
-        app.openChoice(5,app.extraStyle_.pdfColorMode);app.choiceIndex_=1;app.commitChoice();
-        assert(app.extraStyle_.pdfColorMode==1 && app.palette().bg.r==28 && app.palette().bg.g==30);
+        app.openSettings();
+        assert(app.aaTab_==2);
+        settingsControl(app,2,false); // Charcoal Night via same preset grid as EPUB.
+        assert(app.extraStyle_.backgroundColor==0x252522);
+        assert(app.palette().bg.r==0x25 && app.palette().bg.g==0x25);
         app.toolbarVisible_=true;snapshot(app,"v04-dark-pdf-toolbar");
-        app.openSettings();snapshot(app,"v04-dark-pdf-settings");closeSettings(app);app.toolbarVisible_=false;
-        app.openChoice(5,1);app.choiceIndex_=2;app.commitChoice();
-        assert(app.extraStyle_.pdfColorMode==2 && app.palette().bg.r==236 && app.palette().bg.g==224);
+        snapshot(app,"v04-dark-pdf-settings");
+        closeSettings(app);app.toolbarVisible_=false;
+        app.openSettings();settingsTab(app,2);
+        settingsControl(app,1,false); // Vintage Sepia.
+        assert(app.extraStyle_.backgroundColor==0xe8d6b3);
+        assert(app.palette().bg.r==0xe8 && app.palette().bg.g==0xd6);
         snapshot(app,"v04-sepia-pdf-canvas");
+        closeSettings(app);
         app.closeBook();assert(app.palette().bg.r==globalBg.r && app.palette().bg.g==globalBg.g);
-        app.openBook(pdf);assert(app.extraStyle_.pdfColorMode==2 && app.palette().bg.r==236);
-        app.openChoice(5,2);app.choiceIndex_=0;app.commitChoice();snapshot(app,"v04-original-pdf");
+        app.openBook(pdf);
+        assert(app.extraStyle_.styleOverride==1 && app.extraStyle_.backgroundColor==0xe8d6b3);
+        assert(app.palette().bg.r==0xe8);
+        app.openSettings();settingsTab(app,2);settingsControl(app,0,false); // Pure Paper.
+        closeSettings(app);snapshot(app,"v04-original-pdf");
         app.zoomPdf(2);app.currentPage_=0;pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.currentPage_==1 && app.pdfZoom_==2);
         pad(app,SDL_CONTROLLER_BUTTON_DPAD_LEFT);assert(app.currentPage_==0 && app.pdfZoom_==2);
         finger(app,SDL_FINGERDOWN,.8f,.5f);finger(app,SDL_FINGERMOTION,.2f,.5f);finger(app,SDL_FINGERUP,.2f,.5f);assert(app.currentPage_==1);
