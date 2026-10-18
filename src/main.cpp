@@ -662,8 +662,7 @@ private:
         if(screen_==ScreenState::ReadingJournal)
             return readerChromePalette(progressStore_.get("PAPERNX_DEFAULTS"),false,0,0);
         if(doc_ && !globalSettings_)
-            return readerChromePalette(presentedStyle(),!px_document_is_epub(doc_),
-                                       extraStyle_.pdfColorMode,0);
+            return readerChromePalette(presentedStyle(),false,0,0);
         return readerChromePalette(progressStore_.get("PAPERNX_DEFAULTS"),false,0,0);
     }
     int globalPaperPresetIndex() const {
@@ -739,7 +738,9 @@ private:
         if(screen_!=ScreenState::AaModal) settingsReturn_=screen_;
         globalSettings_=global;
         if(global && !doc_) applyStyle(progressStore_.get("PAPERNX_DEFAULTS"));
-        aaTab_=doc_ && !px_document_is_epub(doc_) && tab==0?4:tab; aaRow_=0;settingsEditing_=false;settingsScroll_=0; screen_=ScreenState::AaModal; dirty_=true;
+        // PDF opens the SAME appearance tab that EPUB uses; PDF-only tab
+        // contains layout and zoom controls, never a second color source.
+        aaTab_=doc_ && !px_document_is_epub(doc_) && tab==0?2:tab; aaRow_=0;settingsEditing_=false;settingsScroll_=0; screen_=ScreenState::AaModal; dirty_=true;
     }
     void dismissSettings() {
         screen_=globalSettings_ ? settingsReturn_ : ScreenState::Reader;
@@ -754,6 +755,10 @@ private:
             static_cast<ReaderPreferences&>(progress)=currentStyle();
             progressStore_.put(currentBookId_,progress);progressDirty_=true;
         } else storeDefaults();
+        // PDFs use the same appearance settings, without EPUB re-layout.
+        // Invalidate old PDF textures immediately; render recolored paper
+        // and chrome together from the resolved current ReaderPreferences.
+        if(doc_ && !px_document_is_epub(doc_)) pageCache_.clear();
         // Debounced preparation is off-thread, but the old EPUB page and its
         // chrome remain on the same palette until the new layout is published.
         if(doc_ && px_document_is_epub(doc_)) {
@@ -1453,7 +1458,10 @@ private:
             key = PageCache::makeEpubKey(currentBookId_,pageIdx,style.fontSize,style.theme,
                                          style.lineHeight,style.margin,style.textAlign,w,h,style.fontFamily);
         } else {
-            key = PageCache::makePdfKey(currentBookId_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_, w, h) + ":filter:" + std::to_string(extraStyle_.pdfColorMode);
+            const auto color=palette();
+            key = PageCache::makePdfKey(currentBookId_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_, w, h)
+                + ":paper:" + std::to_string((int(color.bg.r)<<16)|(int(color.bg.g)<<8)|color.bg.b)
+                + ":ink:" + std::to_string((int(color.fg.r)<<16)|(int(color.fg.g)<<8)|color.fg.b);
         }
 
         if(px_document_is_epub(doc_))key+=":paper:"+std::to_string(appSettings_.get().paperTexture);
@@ -1477,8 +1485,12 @@ private:
         }
 
         if (ok && img.rgb) {
-            if (!px_document_is_epub(doc_)) px_image_filter(&img, extraStyle_.pdfColorMode);
-            else {const auto style=presentedStyle();auto bg=readingColor(style.backgroundColor,g_palettes[style.theme].bg);applyPaperTexture(img.rgb,img.width,img.height,img.stride,(bg.r<<16)|(bg.g<<8)|bg.b,appSettings_.get().paperTexture);}
+            if (!px_document_is_epub(doc_)) {
+                const auto color=palette();
+                const unsigned paper=(unsigned(color.bg.r)<<16)|(unsigned(color.bg.g)<<8)|color.bg.b;
+                const unsigned ink=(unsigned(color.fg.r)<<16)|(unsigned(color.fg.g)<<8)|color.fg.b;
+                px_image_apply_reading_colors(&img,paper,ink);
+            } else {const auto style=presentedStyle();auto bg=readingColor(style.backgroundColor,g_palettes[style.theme].bg);applyPaperTexture(img.rgb,img.width,img.height,img.stride,(bg.r<<16)|(bg.g<<8)|bg.b,appSettings_.get().paperTexture);}
             tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, img.width, img.height);
             if (tex) {
                 if (SDL_UpdateTexture(tex, nullptr, img.rgb, img.stride) != 0) {
@@ -2031,7 +2043,7 @@ private:
                     persistAppSettings(); updateVisibleBooks(); return;
                 }
                 if(aaTab_==4) {
-                    extraStyle_.pdfViewMode=0; extraStyle_.pdfColorMode=0;
+                    extraStyle_.pdfViewMode=0; // appearance remains on the shared Appearance tab
                     if(doc_ && !px_document_is_epub(doc_)) { setPdfView(0); pageCache_.clear(); saveCurrentPosition(); }
                     else storeDefaults();
                     dirty_=true; return;
@@ -2083,9 +2095,8 @@ private:
                 extraStyle_.pdfViewMode=row;
                 if(doc_ && !px_document_is_epub(doc_)) setPdfView(row);
             }
-            if(row==3) { openChoice(5,extraStyle_.pdfColorMode);return; }
-            if(row==4 && doc_ && !px_document_is_epub(doc_)) zoomPdf(pdfZoom_+(right?.25f:-.25f));
-            if(row==5) { auto a=appSettings_.get();a.preservePdfZoom=!a.preservePdfZoom;appSettings_.put(a);persistAppSettings(); }
+            if(row==3 && doc_ && !px_document_is_epub(doc_)) zoomPdf(pdfZoom_+(right?.25f:-.25f));
+            if(row==4) { auto a=appSettings_.get();a.preservePdfZoom=!a.preservePdfZoom;appSettings_.put(a);persistAppSettings(); }
             if(globalSettings_ || !doc_) storeDefaults(); else saveCurrentPosition();
             dirty_=true; return;
         } else if(aaTab_==5) {
@@ -2113,9 +2124,9 @@ private:
             pdfPanX_+=dx*40; pdfPanY_+=dy*40; clampPdfPan(); dirty_=true;
         } else handleDirectional(dx,dy);
     }
-    int settingsRows() const { const int rows[]={6,4,8,6,6,8}; return rows[aaTab_]; }
+    int settingsRows() const { const int rows[]={6,4,8,6,5,8}; return rows[aaTab_]; }
     bool numericSetting() const { return (aaTab_==0 && (aaRow_==0 || aaRow_==2 || aaRow_==3)) ||
-        (aaTab_==1 && (aaRow_==0 || aaRow_==3)) || (aaTab_==3 && (aaRow_==2 || aaRow_==4)) || (aaTab_==4 && aaRow_==4); }
+        (aaTab_==1 && (aaRow_==0 || aaRow_==3)) || (aaTab_==3 && (aaRow_==2 || aaRow_==4)) || (aaTab_==4 && aaRow_==3); }
     void settingsActivate(int direction=1) {
         int w,h; getWindowSize(w,h); ui::SettingsLayout l(w,h);
         if(settingsColumn_==-1) { settingsColumn_=0; dirty_=true; return; }
@@ -2666,10 +2677,11 @@ private:
             row(0,"Sayfaya sığdır",extraStyle_.pdfViewMode==0);
             row(1,"Genişliğe sığdır",extraStyle_.pdfViewMode==1);
             row(2,"Gerçek boyut · 100%",extraStyle_.pdfViewMode==2);
-            const char *filters[]={"Orijinal","Koyu","Sepya","Ters renkler"};
-            row(3,std::string("PDF filtresi: ")+filters[extraStyle_.pdfColorMode]);
-            row(5,appSettings_.get().preservePdfZoom?"Sayfalar aras\u0131 yak\u0131nla\u015ft\u0131rma: A\u00e7\u0131k":"Sayfalar aras\u0131 yak\u0131nla\u015ft\u0131rma: Kapal\u0131");
-            if(doc_ && !px_document_is_epub(doc_)) row(4,"-    Yakınlaştırma: %"+std::to_string(int(pdfZoom_*100))+"    +");
+            row(4,appSettings_.get().preservePdfZoom?"Sayfalar aras\u0131 yak\u0131nla\u015ft\u0131rma: A\u00e7\u0131k":"Sayfalar aras\u0131 yak\u0131nla\u015ft\u0131rma: Kapal\u0131");
+            if(doc_ && !px_document_is_epub(doc_)) row(3,"-    Yakınlaştırma: %"+std::to_string(int(pdfZoom_*100))+"    +");
+            typography_->renderText(renderer_,typography_->smallFont(),
+                 catLabel("PDF renkleri Görünüm sekmesinden ayarlanır.","PDF colors are adjusted in Appearance."),
+                 l.content.x+16,l.content.y+320,pal.muted,l.content.w-32);
         } else {
             auto p=appSettings_.get();
             const int globalPreset=globalPaperPresetIndex();
