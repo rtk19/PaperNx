@@ -108,6 +108,7 @@ public:
     ~PaperNxApp() {
         exportTimings();
         if(appSavePending_)appSettings_.save();
+        if(catalogSavePending_)catalog_.save();
         if(layoutWorker_.joinable()) layoutWorker_.join();
         if(preparedDoc_) { px_document_close(preparedDoc_); preparedDoc_=nullptr; }
         // 1. Stop background thumbnail worker thread safely
@@ -289,6 +290,11 @@ public:
                 dirty_ = false;
             } else if(!receivedEvent && running) idlePrefetch();
             if(appSavePending_ && !dirty_ && SDL_GetTicks()>=appSaveRetryAt_) {appSavePending_=!appSettings_.save();if(appSavePending_){appSaveRetryAt_=SDL_GetTicks()+3000;currentErrorMessage_="Settings could not be saved";dirty_=true;}}
+            // Persist newly extracted metadata only after the first responsive reader frame.
+            if(catalogSavePending_ && !dirty_ && SDL_GetTicks()>=catalogSaveRetryAt_) {
+                catalogSavePending_=!catalog_.save();
+                if(catalogSavePending_) {catalogSaveRetryAt_=SDL_GetTicks()+3000;currentErrorMessage_="Book metadata could not be saved";dirty_=true;}
+            }
 
         }
         closeBook();
@@ -427,7 +433,7 @@ private:
         if(e.type==SDL_FINGERDOWN){if(modalFingers_.empty()){modalOwner_=e.tfinger.fingerId;modalOwned_=true;modalCancelled_=false;modalStartX_=e.tfinger.x;modalStartY_=e.tfinger.y;}
             modalFingers_.insert(e.tfinger.fingerId);if(modalFingers_.size()>1){modalCancelled_=true;catalogTouchOwned_=false;catalogFingers_.clear();ui::pointer(0,0,false);dirty_=true;return true;}return false;}
         if(e.type==SDL_FINGERMOTION){if(!modalOwned_ || modalCancelled_ || e.tfinger.fingerId!=modalOwner_)return true;
-            int w,h;getWindowSize(w,h);if(catalogPanel_==CatalogPanel::None && std::hypot((e.tfinger.x-modalStartX_)*w,(e.tfinger.y-modalStartY_)*h)>12)modalCancelled_=true;return modalCancelled_;}
+            int w,h;getWindowSize(w,h);if(catalogPanel_==CatalogPanel::None && choiceKind_<0 && std::hypot((e.tfinger.x-modalStartX_)*w,(e.tfinger.y-modalStartY_)*h)>12)modalCancelled_=true;return modalCancelled_;}
         if(e.type==SDL_FINGERUP){if(libraryHoldConsumed_){libraryHoldConsumed_=false;activeFingers_.clear();modalOwned_=false;modalFingers_.erase(e.tfinger.fingerId);return true;}
             const bool valid=modalOwned_ && !modalCancelled_ && e.tfinger.fingerId==modalOwner_;modalFingers_.erase(e.tfinger.fingerId);
             if(e.tfinger.fingerId==modalOwner_)modalOwned_=false;
@@ -540,7 +546,10 @@ private:
         {
             std::lock_guard<std::mutex> lock(completedMutex_);
             if (completedThumbs_.empty()) return;
-            toUpload.swap(completedThumbs_);
+            // Cap renderer-thread texture uploads to two covers per frame.
+            const auto count=std::min<std::size_t>(2,completedThumbs_.size());
+            toUpload.insert(toUpload.end(),std::make_move_iterator(completedThumbs_.begin()),std::make_move_iterator(completedThumbs_.begin()+count));
+            completedThumbs_.erase(completedThumbs_.begin(),completedThumbs_.begin()+count);
         }
         for (const auto &lt : toUpload) {
             {
@@ -578,7 +587,12 @@ private:
     ThemePalette palette() const {
         const auto &a=appSettings_.get();
         if(doc_ && !globalSettings_) return readerChromePalette(currentStyle(),!px_document_is_epub(doc_),extraStyle_.pdfColorMode,a.uiTheme,a.chromePolicy,a.customUiTheme);
-        return g_palettes[std::clamp(a.uiTheme,0,g_paletteCount-1)];
+        // The library and application settings follow the persisted global reading palette.
+        if(a.chromePolicy==0) {
+            const auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
+            return readerChromePalette(defaults,false,0,a.uiTheme,0,a.customUiTheme);
+        }
+        return g_palettes[std::clamp(a.chromePolicy==2?a.customUiTheme:a.uiTheme,0,g_paletteCount-1)];
     }
     std::string buildEpubCss() const { return generateEpubCss(currentStyle()); }
     void storeDefaults() {
@@ -967,12 +981,16 @@ private:
         }
         {
             auto entry=catalog_.get(b.id);char subject[512]{},series[512]{},seriesIndex[64]{};
-            entry.sourceTitle=title;entry.sourceAuthor=author;
-            px_document_metadata(doc_,"info:Subject",subject,sizeof subject);entry.sourceGenre=subject;
-            px_document_metadata(doc_,"info:Series",series,sizeof series);entry.sourceSeries=series;
-            px_document_metadata(doc_,"info:SeriesIndex",seriesIndex,sizeof seriesIndex);entry.sourceSeriesIndex=seriesIndex;
-            entry.metadataFingerprint=std::to_string(b.bytes)+":"+std::to_string(b.modified);
-            catalog_.put(b.id,entry);if(!catalog_.save())currentErrorMessage_=catLabel("Kitap bilgileri kaydedilemedi","Book metadata could not be saved");
+            px_document_metadata(doc_,"info:Subject",subject,sizeof subject);
+            px_document_metadata(doc_,"info:Series",series,sizeof series);
+            px_document_metadata(doc_,"info:SeriesIndex",seriesIndex,sizeof seriesIndex);
+            const std::string fingerprint=std::to_string(b.bytes)+":"+std::to_string(b.modified);
+            if(entry.sourceTitle!=title || entry.sourceAuthor!=author || entry.sourceGenre!=subject ||
+               entry.sourceSeries!=series || entry.sourceSeriesIndex!=seriesIndex || entry.metadataFingerprint!=fingerprint) {
+                entry.sourceTitle=title;entry.sourceAuthor=author;entry.sourceGenre=subject;
+                entry.sourceSeries=series;entry.sourceSeriesIndex=seriesIndex;entry.metadataFingerprint=fingerprint;
+                catalog_.put(b.id,entry);catalogSavePending_=true;
+            }
         }
 
         documentMode_=extraStyle_.readingMode; renderedStyle_=currentStyle();
@@ -994,9 +1012,13 @@ private:
             scrollY_ = anchorY;
         if (!px_document_is_epub(doc_)) setPdfView(extraStyle_.pdfViewMode);
 
-        // Load TOC
+        // Load TOC. Skip the additional expensive bookmark/anchor traversal
+        // before the first reader frame; regular page changes still persist anchors.
         loadToc();
-        saveCurrentPosition();
+        auto opened=progressStore_.get(b.id);
+        opened.bookPath=b.path;opened.bookTitle=b.title;opened.bookAuthor=b.author;
+        opened.lastRead=std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        progressStore_.put(b.id,opened);progressDirty_=true;
 
         screen_ = ScreenState::Reader;
         toolbarVisible_ = false;
