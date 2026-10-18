@@ -625,7 +625,7 @@ private:
         prefs.chromePolicy=0;
         appSettings_.put(prefs);
         persistAppSettings();
-        if(!doc_ || globalSettings_) {
+        if(!doc_) {
             applyStyle(defaults);
         } else if(!extraStyle_.styleOverride) {
             // Existing books inherit global changes without losing their anchors.
