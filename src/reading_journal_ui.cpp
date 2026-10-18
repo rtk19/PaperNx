@@ -532,7 +532,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         auto stats = journal.calculatePeriodStats(period_, 0, en);
         // Hero row: Eyebrow + Title & Segmented Period Toggle
         text(r, font, label(en, "OKUMA ÖZETİ", "READING SUMMARY"), px, py - 4, pal.accent);
-        text(r, font, stats.title, px, py + 16, pal.fg, 260, true);
+        text(r, font, stats.title, px, py + 27, pal.fg, 260, true);
 
         int segW = 90, segX = px + cw - 3 * segW;
         const char *pTr[] = {"Hafta", "Ay", "Yıl"};
@@ -543,8 +543,9 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         }
 
         // Top Grid: Left Chart Panel & Right Goal Panel
-        int wide = cw >= 700 ? (cw * 62 / 100) : cw;
-        int gridY = py + 62;
+        const bool portraitStack = (h >= 900 && cw < 900);
+        int wide = (!portraitStack && cw >= 700) ? (cw * 62 / 100) : cw;
+        int gridY = py + 70;
         int topCardH = 224;
 
         // Panel 1: Active Reading Time & Chart
@@ -581,12 +582,13 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         text(r, font, stats.range, chartRc.x + 20, chartRc.y + topCardH - 20, pal.muted, wide - 40);
 
         // Panel 2: Goal Widget
-        if (wide < cw) {
-            SDL_Rect goalRc{px + wide + 14, gridY, cw - wide - 14, topCardH};
+        if (wide < cw || portraitStack) {
+            SDL_Rect goalRc = portraitStack ? SDL_Rect{px,gridY+topCardH+12,cw,topCardH}
+                                            : SDL_Rect{px+wide+14,gridY,cw-wide-14,topCardH};
             panel(r, pal, goalRc);
             text(r, font, label(en, "Günlük okuma hedefim", "Daily reading goal"), goalRc.x + 18, goalRc.y + 12, pal.muted, goalRc.w - 36);
             std::string goalBadge = journal.dailyGoalMinutes() ? (std::to_string(journal.dailyGoalMinutes()) + (en ? " min/day" : " dk/gün")) : label(en, "Kapalı", "Disabled");
-            text(r, font, goalBadge, goalRc.x + goalRc.w - 120, goalRc.y + 12, pal.accent, 110);
+            text(r, font, goalBadge, goalRc.x + goalRc.w - 120, goalRc.y + 42, pal.accent, 110);
 
             // Ring
             int cx = goalRc.x + goalRc.w / 2, cy = goalRc.y + 92, radius = 48, thickness = 9;
@@ -613,8 +615,9 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         }
 
         // Mid Row: 4 Stat Tiles
-        int tileY = gridY + topCardH + 12;
-        int tileW = (cw - 36) / 4;
+        int tileY = gridY + topCardH + (portraitStack ? topCardH + 24 : 12);
+        const int tileColumns = portraitStack ? 2 : 4;
+        int tileW = (cw - (tileColumns - 1) * 12) / tileColumns;
         int tileH = 88;
         const std::string sLabels[] = {
             label(en, "Okunan gün", "Days read"),
@@ -629,16 +632,17 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             std::to_string(stats.streakDays) + (en ? " days" : " gün")
         };
         for (int i = 0; i < 4; ++i) {
-            SDL_Rect tRc{px + i * (tileW + 12), tileY, tileW, tileH};
+            SDL_Rect tRc{px + (i % tileColumns) * (tileW + 12),
+                         tileY + (i / tileColumns) * (tileH + 12), tileW, tileH};
             panel(r, pal, tRc);
             text(r, font, sLabels[i], tRc.x + 14, tRc.y + 10, pal.muted, tileW - 20);
             text(r, font, sValues[i], tRc.x + 14, tRc.y + 40, pal.fg, tileW - 20, true);
         }
 
         // Bottom Row: Currently Reading & Recent Activities
-        int botY = tileY + tileH + 12;
-        int botH = std::min(160, h - botY - 16);
-        int halfW = (cw - 14) / 2;
+        int botY = tileY + (portraitStack ? 2 : 1) * (tileH + 12);
+        int botH = portraitStack ? std::min(164,std::max(112,(h-botY-34)/2)) : std::min(160, h - botY - 16);
+        int halfW = portraitStack ? cw : (cw - 14) / 2;
 
         // Card 1: Currently Reading
         SDL_Rect cRc{px, botY, halfW, botH};
@@ -661,7 +665,8 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         }
 
         // Card 2: Recent Activity
-        SDL_Rect rRc{px + halfW + 14, botY, halfW, botH};
+        SDL_Rect rRc{portraitStack ? px : px + halfW + 14,
+                    portraitStack ? botY + botH + 12 : botY, halfW, botH};
         panel(r, pal, rRc);
         text(r, font, label(en, "Son etkinlikler", "Recent activity"), rRc.x + 16, rRc.y + 10, pal.fg, halfW - 140, true);
         ui::button(r, font, {rRc.x + halfW - 130, rRc.y + 8, 118, 40}, label(en, "Tümünü gör ↗", "See all ↗"), pal);
@@ -678,10 +683,11 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
     } else if (tab_ == 1) {
         // Tab 1: Takvim (Calendar)
         text(r, font, label(en, "OKUMA TAKVİMİM", "READING CALENDAR"), px, py - 4, pal.accent);
-        text(r, font, label(en, "Hangi günler okuduğunu ve sürelerini gör", "Track your active reading days"), px, py + 16, pal.muted, cw - 200);
+        text(r, font, label(en, "Hangi günler okuduğunu ve sürelerini gör", "Track your active reading days"), px, py + 23, pal.muted, cw - 200);
 
-        int calW = cw >= 700 ? (cw * 62 / 100) : cw;
-        int gridH = h - py - 50;
+        const bool tallCalendar=(h>=900 && cw<900);
+        int calW = (cw >= 700 && !tallCalendar) ? (cw * 62 / 100) : cw;
+        int gridH = tallCalendar ? 500 : h - py - 50;
         SDL_Rect calRc{px, py + 48, calW, gridH};
         panel(r, pal, calRc);
 
@@ -731,9 +737,12 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         text(r, font, label(en, "Çok  0/30/60/90+ dk", "More  0/30/60/90+ min"), calRc.x + 154, legY, pal.muted, 180);
 
         // Daily Detail Panel (Right Side)
-        if (calW < cw) {
-            int detX = px + calW + 14, detW = cw - calW - 14;
-            SDL_Rect detRc{detX, py + 48, detW, gridH};
+        if (calW < cw || tallCalendar) {
+            int detX = tallCalendar ? px : px + calW + 14;
+            int detW = tallCalendar ? cw : cw - calW - 14;
+            SDL_Rect detRc = tallCalendar ? SDL_Rect{detX,calRc.y+gridH+16,detW,
+                                                  std::max(200,h-(calRc.y+gridH+16)-24)}
+                                          : SDL_Rect{detX,py+48,detW,gridH};
             panel(r, pal, detRc);
 
             int dDay = selectedDay_ ? selectedDay_ : (monthDelta_ == 0 ? now.tm_mday : 1);
@@ -768,7 +777,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
     } else if (tab_ == 2) {
         // Tab 2: Kitaplarım (Books)
         text(r, font, label(en, "KİTAPLARA GÖRE", "BOOKS READING TIME"), px, py - 4, pal.accent);
-        text(r, font, label(en, "İlerleme, aktif süre ve oturum geçmişi", "Progress, active time and sessions"), px, py + 16, pal.muted, cw - 200);
+        text(r, font, label(en, "İlerleme, aktif süre ve oturum geçmişi", "Progress, active time and sessions"), px, py + 23, pal.muted, cw - 200);
 
         const auto bList = journal.books();
         int n = 0;
@@ -793,7 +802,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
     } else {
         // Tab 3: Geçmiş (History / Journal)
         text(r, font, label(en, "OKUMA GEÇMİŞİM", "SESSION HISTORY"), px, py - 4, pal.accent);
-        text(r, font, label(en, "Kronolojik okuma oturumları ve kayıt silme", "Chronological reading sessions log"), px, py + 16, pal.muted, cw - 360);
+        text(r, font, label(en, "Kronolojik okuma oturumları ve kayıt silme", "Chronological reading sessions log"), px, py + 23, pal.muted, cw - 360);
 
         int n = 0;
         const auto &sList = journal.sessions();
