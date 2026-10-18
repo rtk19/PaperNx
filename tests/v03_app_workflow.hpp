@@ -33,7 +33,13 @@ static void v03Control(PaperNxApp &app,int row,bool right=true) {
         if(r.y>=layout.content.y && r.y+r.h<=layout.content.y+layout.content.h) {
             app.aaRow_=row;
             if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
-            v03RectTap(app,r,right?.75f:.25f); if(app.choiceKind_>=0){app.choiceIndex_=(app.choiceIndex_+1)%int(app.choiceOptions().size());pad(app,SDL_CONTROLLER_BUTTON_A);} return;
+            v03RectTap(app,r,right?.75f:.25f);
+            if(app.choiceKind_>=0){
+                const auto count=int(app.choiceOptions().size());assert(count>0);
+                app.choiceFocusedIndex_=(app.choiceFocusedIndex_+1)%count;
+                pad(app,SDL_CONTROLLER_BUTTON_A);
+            }
+            return;
         }
         float x=float(layout.content.x+layout.content.w/2)/w;
         float top=float(layout.content.y+12)/h,bottom=float(layout.content.y+layout.content.h-12)/h;
@@ -76,7 +82,7 @@ static void v03Workflow(const fs::path &parent) {
     fs::create_directory_symlink(fs::absolute("fonts"),root/"fonts");
     for(int i=0;i<16;++i)
         fs::copy_file("tests/fixtures/sample_book.epub",root/"books"/("book-"+std::to_string(i)+".epub"));
-    std::string firstId,secondId; int bookBPage=0; float bookBY=0; std::size_t bookmarkCount=0;
+    std::string firstId,secondId; int bookBPage=0,globalThemeAfterSelection=0; float bookBY=0; std::size_t bookmarkCount=0;
     std::vector<double> menuMs,tabMs,cachedMs,coldMs;
     auto milliseconds=[](auto start) { return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count(); };
     {
@@ -182,16 +188,22 @@ static void v03Workflow(const fs::path &parent) {
         app.saveCurrentPosition(); assert(app.flushProgress());
         bookBPage=app.currentPage_; bookBY=app.scrollY_; bookmarkCount=app.progressStore_.get(secondId).bookmarks.size();
         v03BackLibrary(app); v03OpenLibraryBook(app,firstId); assert(app.currentTheme_==2 && app.currentFontSize_==26);
-        // App appearance has its own persistent scope.
+        // Unified General Theme replaces the old independent application chrome.
         v03BackLibrary(app); v03Plus(app); v03MenuItem(app,1); assert(app.aaTab_==5);
-        const int previousUi=app.appSettings_.get().uiTheme; v03Control(app,0);
-        assert(app.appSettings_.get().uiTheme==(previousUi+1)%6 && app.progressStore_.get("PAPERNX_DEFAULTS").theme==2);
+        const int previousPreset=std::max(0,app.globalPaperPresetIndex());
+        v03Control(app,0);
+        const auto chosen=g_paperPresets[(previousPreset+1)%9];
+        globalThemeAfterSelection=chosen.theme;
+        auto globalStyle=app.progressStore_.get("PAPERNX_DEFAULTS");
+        assert(globalStyle.theme==chosen.theme && globalStyle.backgroundColor==chosen.background);
+        assert(app.appSettings_.get().uiTheme==chosen.theme && app.appSettings_.get().chromePolicy==0);
+        assert(app.palette().bg.r==Uint8(chosen.background>>16));
         v03Control(app,5); assert(app.appSettings_.get().language==1);
         v03CloseSettings(app); snapshot(app,"v03-professional-library");
     }
     {
         PaperNxApp app(root); assert(app.init() && !app.controller_);
-        assert(app.appSettings_.get().uiTheme==1);
+        assert(app.appSettings_.get().uiTheme==globalThemeAfterSelection);
         assert(app.appSettings_.get().language==1);
         v03OpenLibraryBook(app,secondId);
         assert(app.currentTheme_==4 && app.extraStyle_.styleOverride==1 && app.continuous());
@@ -199,7 +211,7 @@ static void v03Workflow(const fs::path &parent) {
         assert(app.progressStore_.get(secondId).bookmarks.size()==bookmarkCount);
         v03Plus(app); v03MenuItem(app,1);
         int w,h; app.getWindowSize(w,h); v03RectTap(app,ui::SettingsLayout(w,h).scope);
-        assert(!app.extraStyle_.styleOverride && app.currentTheme_==2 && app.currentFontSize_==26);
+        assert(!app.extraStyle_.styleOverride && app.currentTheme_==globalThemeAfterSelection && app.currentFontSize_==26);
         v03WaitLayout(app); v03CloseSettings(app); v03BackLibrary(app);
         // Each geometry is the actual SDL application; lower settings rows remain touch reachable.
         for(const auto &size:{std::pair<int,int>{1920,1080},{640,480},{1280,720}}) {
