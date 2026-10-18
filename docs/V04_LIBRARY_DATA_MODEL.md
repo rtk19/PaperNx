@@ -39,7 +39,7 @@ are not yet separately indexed.
 ## Removal and permanent deletion
 
 Hiding a book changes only its catalog hidden flag, persists across scans and can
-be reversed in Browse Library â†’ Hidden Books. It never deletes the source.
+be reversed in Browse Library → Hidden Books. It never deletes the source.
 
 Permanent deletion requires a separate confirmation showing the filename and
 source path. Cancellation is the initial focused action. The backend refuses an
@@ -65,7 +65,7 @@ acceptance. All new hardware deletion checks are **UNVERIFIED**.
 `PAPERNX-STATS-1` stores per-book active milliseconds, sessions, last reading date,
 measured forward fraction, evidence sample count and furthest observed fraction.
 Local ISO dates index an offline reading calendar. A daily minute goal is optional
-(0 disables; supported range 0â€“720). The statistics screen shows real recorded
+(0 disables; supported range 0–720). The statistics screen shows real recorded
 time and a configurable goal.
 
 The application supplies monotonic elapsed timestamps. Menus, background state,

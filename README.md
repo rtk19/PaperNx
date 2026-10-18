@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX" width="160"></p>
 
-| **English** | [TÃ¼rkÃ§e](README.tr.md) |
+| **English** | [Türkçe](README.tr.md) |
 |:---:|:---:|
 
 # PaperNX
@@ -21,7 +21,7 @@ Shared typography/stepper components, reader-coordinated chrome, explicit settin
 - **Reading Preferences & Live Preview:** Comprehensive 6-section settings modal (Reading, Page Layout, Appearance, Navigation, PDF, Application) featuring an interactive live preview reflecting font family, size, line height, margins, alignment, paragraph spacing, and indentation.
 - **Global & Per-Book Customization:** Shared global typography defaults apply to all books. Individual books can optionally be customized or reset to inherit global settings.
 - **Genuine Continuous EPUB Scrolling:** Real pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, seamless chapter boundary transitions, and logical reading anchor preservation. Paginated horizontal reading mode remains fully supported.
-- **Persistent Bounded Cover Cache:** Fast 150Ã—210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries on disk, with stat invalidation, checksum protection, automatic recovery, and immediate vector fallback artwork.
+- **Persistent Bounded Cover Cache:** Fast 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries on disk, with stat invalidation, checksum protection, automatic recovery, and immediate vector fallback artwork.
 - **Curated Theme Palettes:** Paper, Ivory, Sepia, Slate, Dark, and OLED Black palettes tailored for Nintendo Switch LCD and OLED screens.
 - **Bilingual Interface:** Real Turkish and English interface localization. Book metadata, TOC titles, and reading contents remain authentic and untranslated.
 - **PDF Navigation:** Fit page, fit width, zoom, touch pan, and whole-page filters (Original, Dark, Sepia, Invert).
@@ -61,12 +61,12 @@ Both software portrait rotations are captured in [clockwise](verification/screen
 
 ```text
 sdmc:/switch/PaperNX/
-â”œâ”€â”€ PaperNX.nro
-â”œâ”€â”€ books/
-â”œâ”€â”€ data/
-â”œâ”€â”€ fonts/     (NotoSans-Regular.ttf, NotoSans-SemiBold.ttf, NotoSerif-Regular.ttf, OFL.txt)
-â”œâ”€â”€ licenses/
-â””â”€â”€ docs/
+├── PaperNX.nro
+├── books/
+├── data/
+├── fonts/     (NotoSans-Regular.ttf, NotoSans-SemiBold.ttf, NotoSerif-Regular.ttf, OFL.txt)
+├── licenses/
+└── docs/
 ```
 
 > [!IMPORTANT]
@@ -85,15 +85,15 @@ Every essential action has a touch route. Physical controller bindings are optio
 | **Page Turns (Paginated EPUB)** | Tap left/right 30% zones or swipe horizontally | L / R, D-pad Left / Right |
 | **Continuous EPUB Scroll** | Drag vertically up/down | Right stick / D-pad Up / Down |
 | **Toggle Reader Toolbar** | Tap center reading zone | A |
-| **Reading Settings (Aa)** | Tap `+` â†’ Okuma ayarlarÄ± / Reading settings | X |
-| **Library Settings** | Tap `+` â†’ Okuma ayarlarÄ± (no book required) | X |
-| **Application Appearance** | Tap `+` â†’ Uygulama gÃ¶rÃ¼nÃ¼mÃ¼ (Theme & Language) | Y |
-| **PDF Zoom & Pan** | Tap âˆ’/+ in toolbar; drag zoomed page | ZL / ZR; Left stick |
-| **Table of Contents** | Tap `+` â†’ Ä°Ã§indekiler / Contents â†’ select chapter | Minus (-) |
-| **Bookmarks** | Tap `+` â†’ Yer imleri / Bookmarks | Left shoulder click |
+| **Reading Settings (Aa)** | Tap `+` → Okuma ayarları / Reading settings | X |
+| **Library Settings** | Tap `+` → Okuma ayarları (no book required) | X |
+| **Application Appearance** | Tap `+` → Uygulama görünümü (Theme & Language) | Y |
+| **PDF Zoom & Pan** | Tap −/+ in toolbar; drag zoomed page | ZL / ZR; Left stick |
+| **Table of Contents** | Tap `+` → İçindekiler / Contents → select chapter | Minus (-) |
+| **Bookmarks** | Tap `+` → Yer imleri / Bookmarks | Left shoulder click |
 | **Favorite Book** | Tap star icon on library book card | Left stick click |
-| **Return to Library** | Tap `+` â†’ KitaplÄ±ÄŸa dÃ¶n / Return to library | B |
-| **Exit Application** | Tap `+` â†’ PaperNXâ€™ten Ã§Ä±k / Exit PaperNX | Home / B (in root) |
+| **Return to Library** | Tap `+` → Kitaplığa dön / Return to library | B |
+| **Exit Application** | Tap `+` → PaperNX’ten çık / Exit PaperNX | Home / B (in root) |
 
 ---
 

@@ -1,4 +1,4 @@
-# PaperNX product roadmap â€” 2026
+# PaperNX product roadmap — 2026
 
 Updated 18 October 2026. This is an offline native C++17/SDL2/MuPDF reader. Inspiration describes broad product capabilities, not licensed access to competitor assets, services or proprietary data. Implementation and physical acceptance are separate; see [coverage](V04_REQUIREMENT_COVERAGE.md).
 
