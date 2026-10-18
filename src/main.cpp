@@ -775,13 +775,14 @@ private:
             if(!tocEntries_.empty()) { result.push_back("Önceki bölüm"); result.push_back("Sonraki bölüm"); }
             result.push_back(pageFlipPosition_?catLabel("Saklanan konuma dön","Return to saved place"):catLabel("Bu konumu sakla · Sayfa gezintisi","Keep this place · Page Flip"));
             result.push_back("Kitap bilgisi / yardım");
+            result.push_back(catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"));
             return result;
         }
-        if(screen_==ScreenState::FileBrowser) return {"Kitaplığa dön","Üst klasör","Okuma ayarları","Görünümü yenile","Yardım","PaperNX’ten çık"};
+        if(screen_==ScreenState::FileBrowser) return {"Kitaplığa dön","Üst klasör","Okuma ayarları","Görünümü yenile","Yardım","PaperNX’ten çık",catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait")};
         const char *sorts[]={"Başlık","Yazar","Dosya adı","Değiştirilme","Son okunan"};
         return {"Okuma ayarları","Uygulama görünümü","SD’ye gözat / kitap aç","Kitaplıkta ara",
             std::string("Sırala: ")+sorts[static_cast<int>(sort_)],viewMode_==ViewMode::Grid?"Liste görünümüne geç":"Kapak ızgarasına geç",
-            "Kitaplığı yenile","Yardım / dokunma rehberi","PaperNX’ten çık",catLabel("Yazarlar, türler ve koleksiyonlar","Authors, genres and collections")};
+            "Kitaplığı yenile","Yardım / dokunma rehberi","PaperNX’ten çık",catLabel("Yazarlar, türler ve koleksiyonlar","Authors, genres and collections"),catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait")};
     }
     SDL_Rect quickSheet(int w,int h) const {
         int width=std::min(460,w-32),height=std::min(h-96,56+int(quickActions().size())*60);
@@ -795,6 +796,10 @@ private:
         auto actions=quickActions();
         if(py<r.y+44 || index<0 || index>=int(actions.size())) return;
         std::string action=actions[index]; quickMenu_=false;
+        if(action==catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait")) {
+            openChoice(1,appSettings_.get().displayOrientation);
+            return;
+        }
         if(doc_) {
             if(index==0) closeBook();
             else if(index==1) openSettings();
