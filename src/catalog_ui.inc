@@ -3,6 +3,7 @@ static std::string catLabel(const std::string &tr,const std::string &en){return 
 enum class CatalogPanel { None, Actions, Details, Metadata, Collections, CollectionActions,
     Browse, Values, Hidden, Statistics, DeleteConfirm, Text };
 CatalogStore catalog_{root_/"data"/"catalog.txt"};
+bool catalogSavePending_{false};
 ReadingStatsStore readingStats_{root_/"data"/"reading-stats.txt"};
 CatalogPanel catalogPanel_{CatalogPanel::None}, textReturn_{CatalogPanel::None};
 Book actionBook_;
@@ -68,6 +69,7 @@ void tickLibraryHold(){
 }
 bool saveCatalogChange(const std::function<void()> &change){
     auto previous=catalog_;change();if(!catalog_.save()){currentErrorMessage_="Catalog could not be saved: "+catalog_.diagnostic();catalog_=std::move(previous);dirty_=true;return false;}
+    catalogSavePending_=false;
     updateVisibleBooks();dirty_=true;return true;
 }
 std::vector<std::pair<int,std::string>> catalogRows() const {
@@ -77,8 +79,10 @@ std::vector<std::pair<int,std::string>> catalogRows() const {
         const auto p=progressStore_.get(actionBook_.id);
         rows={{0,p.lastRead?catLabel("Okumaya devam","Continue Reading"):catLabel("Kitabı aç","Open Book")},
             {1,p.favorite?catLabel("Favoriden çıkar","Remove Favorite"):catLabel("Favori","Favorite")},
-            {2,catLabel("Okunuyor olarak işaretle","Mark as Read")},{3,catLabel("Okunmadı","Mark as Unread")},
-            {4,catLabel("Tamamlandı","Mark as Finished")},{5,catLabel("Koleksiyonlar","Collections")},
+            {2,std::string(e.status==ReadingStatus::Reading?"✓ ":"")+catLabel("Okunuyor","Currently Reading")},
+            {3,std::string(e.status==ReadingStatus::NotStarted?"✓ ":"")+catLabel("Okunmadı","Unread")},
+            {4,std::string(e.status==ReadingStatus::Completed?"✓ ":"")+catLabel("Okundu / Tamamlandı","Read / Finished")},
+            {5,catLabel("Koleksiyonlar","Collections")},
             {6,catLabel("Bilgileri düzenle","Edit Metadata")},{7,catLabel("Kitap bilgisi","Book Details")},
             {8,catLabel("Kitaplıktan gizle","Remove from Library")},{9,catLabel("Dosyayı sil","Delete File Permanently")}};
     }else if(catalogPanel_==CatalogPanel::Metadata){
@@ -146,7 +150,10 @@ void activateCatalogRow(int index){
     if(catalogPanel_==CatalogPanel::Actions){
         if(action==0){setCatalogPanel(CatalogPanel::None);openBook(actionBook_);return;}
         if(action==1){auto p=progressStore_.get(actionBook_.id);p.favorite=!p.favorite;progressStore_.put(actionBook_.id,p);progressDirty_=true;updateVisibleBooks();}
-        if(action>=2&&action<=4)saveCatalogChange([&]{auto e=catalog_.get(actionBook_.id);e.status=action==2?ReadingStatus::Reading:action==3?ReadingStatus::NotStarted:ReadingStatus::Completed;catalog_.put(actionBook_.id,e);});
+        if(action>=2&&action<=4){
+            const auto newStatus=action==2?ReadingStatus::Reading:action==3?ReadingStatus::NotStarted:ReadingStatus::Completed;
+            if(saveCatalogChange([&]{auto e=catalog_.get(actionBook_.id);e.status=newStatus;catalog_.put(actionBook_.id,e);})){catalogFocus_=action;}
+        }
         if(action==5)setCatalogPanel(CatalogPanel::Collections);
         if(action==6)setCatalogPanel(CatalogPanel::Metadata);
         if(action==7)setCatalogPanel(CatalogPanel::Details);
@@ -267,7 +274,9 @@ void renderCatalogPanel(int w,int h,const ThemePalette &pal){
         const bool danger=(catalogPanel_==CatalogPanel::Actions&&rows[i].first==9)||(catalogPanel_==CatalogPanel::DeleteConfirm&&rows[i].first==1);
         const bool manage=catalogPanel_==CatalogPanel::Values&&catalogGroup_==CatalogGroup::Collections;
         if(manage)row.w-=132;
-        ui::button(renderer_,*typography_,row,rows[i].second,pal,false,false,false,false,false,false,danger);
+        const auto status=catalog_.get(actionBook_.id).status;
+        const bool statusSelected=catalogPanel_==CatalogPanel::Actions && ((rows[i].first==2&&status==ReadingStatus::Reading)||(rows[i].first==3&&status==ReadingStatus::NotStarted)||(rows[i].first==4&&status==ReadingStatus::Completed));
+        ui::button(renderer_,*typography_,row,rows[i].second,pal,statusSelected,false,false,i==catalogFocus_ && catalogPanel_==CatalogPanel::Actions,false,false,danger);
         if(manage)ui::button(renderer_,*typography_,{row.x+row.w+8,row.y,124,56},catLabel("Düzenle","Manage"),pal);}
     if(rows.empty())typography_->renderText(renderer_,typography_->uiFont(),catLabel("Henüz öğe yok","No items"),r.x+24,top+24,pal.muted,r.w-48);
     SDL_RenderSetClipRect(renderer_,nullptr);
