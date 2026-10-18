@@ -101,7 +101,7 @@ std::vector<std::pair<int,std::string>> catalogRows() const {
     }else if(catalogPanel_==CatalogPanel::Collections){
         rows.push_back({-1,catLabel("Koleksiyon oluştur","Create Collection")});
         for(const auto &c:catalog_.collections()){const bool member=std::find(e.collections.begin(),e.collections.end(),c.first)!=e.collections.end();
-            rows.push_back({int(rows.size()),std::string(member?"✓ ":"+ ")+c.second});}
+            rows.push_back({int(rows.size()),std::string(member?"[x] ":"[ ] ")+c.second});}
         rows.push_back({-2,catLabel("Koleksiyonları yönet","Manage Collections")});
     }else if(catalogPanel_==CatalogPanel::CollectionActions){rows={{0,catLabel("Yeniden adlandır","Rename Collection")},{1,catLabel("Koleksiyonu kaldır","Delete Collection")}};
     }else if(catalogPanel_==CatalogPanel::Browse){rows={{0,catLabel("Tüm kitaplar","All Books")},{1,catLabel("Yazarlar","Authors")},{2,catLabel("Türler","Genres")},{3,catLabel("Koleksiyonlar","Collections")},{4,catLabel("Seriler","Series")},{5,catLabel("Gizlenen kitaplar","Hidden Books")},{6,catLabel("Okuma istatistikleri","Reading Statistics")},{7,catLabel("Koleksiyon oluştur","Create Collection")},{8,catLabel("Dosya t\u00fcr\u00fc","File Format")}};
