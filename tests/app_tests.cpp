@@ -407,8 +407,8 @@ struct AppTest {
         app.handleEvent(pinch, running); assert(app.pdfZoom_ > 1);
         pad(app, SDL_CONTROLLER_BUTTON_RIGHTSTICK);
         pad(app, SDL_CONTROLLER_BUTTON_START);
-        int w, h; app.getWindowSize(w, h);
-        settingsControl(app,4);
+        settingsTab(app, 4);
+        settingsControl(app, 3);
         assert(app.pdfZoom_ == 1.25f);
         pad(app, SDL_CONTROLLER_BUTTON_Y); assert(app.pdfZoom_ == 1);
         pad(app, SDL_CONTROLLER_BUTTON_B);

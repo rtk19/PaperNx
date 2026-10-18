@@ -49,7 +49,7 @@ ELF Header:
   Version:                           0x1
   Entry point address:               0x0
   Start of program headers:          64 (bytes into file)
-  Start of section headers:          70794992 (bytes into file)
+  Start of section headers:          70849864 (bytes into file)
   Flags:                             0x0
   Size of this header:               64 (bytes)
   Size of program headers:           56 (bytes)
@@ -59,8 +59,8 @@ ELF Header:
   Section header string table index: 36
 {
   "source": {
-    "git_revision": "5cdb829203928529f5513cfb718a95a021ad23c8",
-    "implementation_sha256": "500300d4229a504e6aae0f6b2702635277c5007e531c7890157934846f7fb408"
+    "git_revision": "142bf362c3887b4c6f64ebf3e282869885eb4e06",
+    "implementation_sha256": "caa58f005e904051a9c8532276c3b006fb7c4bcdbd8a4d7ae6ab8b837c7e0504"
   },
   "elf": {
     "architecture": "AArch64",
@@ -117,15 +117,15 @@ ELF Header:
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "4e8891c4d227369741162d22ac3e01fa99a71eb4be14d95993309422854a7d02",
+  "nro_sha256": "26cad3e4c87b297d76b84dcd844b6b949c71725d94d7ef381c63664481b3c27b",
   "hardware": "UNVERIFIED"
 }
 [OK] Release package created: dist/v0.4.0-journal/PaperNX-switch-v0.4.0-journal.zip
-[OK] SHA256: 932797dac5b9167400a2d8c9f8d43a7868218922f697ffbfbc6df0b9c959dbde
+[OK] SHA256: 75cbbc2b7c024ccfb4f45220ebe3236ac24e100b1fe046549aeefaa19ce824e4
 {
   "result": "PASS",
-  "zip_sha256": "932797dac5b9167400a2d8c9f8d43a7868218922f697ffbfbc6df0b9c959dbde",
-  "nro_sha256": "4e8891c4d227369741162d22ac3e01fa99a71eb4be14d95993309422854a7d02",
+  "zip_sha256": "75cbbc2b7c024ccfb4f45220ebe3236ac24e100b1fe046549aeefaa19ce824e4",
+  "nro_sha256": "26cad3e4c87b297d76b84dcd844b6b949c71725d94d7ef381c63664481b3c27b",
   "nacp_version": "0.4.0-journal",
   "license_files": 59,
   "zip_members": 86,

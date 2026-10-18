@@ -56,6 +56,11 @@ void text(SDL_Renderer *r, Typography &font, const std::string &s, int x, int y,
     font.renderText(r, large ? font.titleFont() : font.uiFont(), s, x, y, color, maxw);
 }
 
+void textSmall(SDL_Renderer *r, Typography &font, const std::string &s, int x, int y,
+               SDL_Color color, int maxw = 0) {
+    font.renderText(r, font.smallFont(), s, x, y, color, maxw);
+}
+
 void line(SDL_Renderer *r, SDL_Color color, int x, int y, int w) {
     SDL_SetRenderDrawColor(r, color.r, color.g, color.b, 255);
     SDL_RenderDrawLine(r, x, y, x + w, y);
@@ -120,11 +125,12 @@ void drawCover(SDL_Renderer *r, const ThemePalette &pal, Typography &font, SDL_R
 void header(SDL_Renderer *r, Typography &font, const ThemePalette &pal, int w, int tab, bool en) {
     ui::surface(r, {0, 0, w, 76}, pal.card, 0);
     ui::button(r, font, {16, 10, 150, 56}, label(en, "Kitaplık", "Library"), pal);
-    text(r, font, label(en, "Kütüphane / Günlüğüm", "Library / Journal"), 180, 12, pal.muted, w - 420);
-    text(r, font, label(en, "Okuma Günlüğüm", "My Reading Journal"), 180, 36, pal.fg, w - 420, true);
-    ui::button(r, font, {w - 176, 10, 160, 56}, label(en, "Hedeflerim", "Goals"), pal);
+    text(r, font, label(en, "Kütüphane / Günlüğüm", "Library / Journal"), 180, 12, pal.muted, w - 440);
+    text(r, font, label(en, "Okuma Günlüğüm", "My Reading Journal"), 180, 36, pal.fg, w - 440, true);
+    // Position header actions to the left of the global Quick Menu '+' button at {w - 80, 8, 64, 64}
+    ui::button(r, font, {w - 240, 10, 150, 56}, label(en, "Hedeflerim", "Goals"), pal);
     if (tab == 3) {
-        ui::button(r, font, {w - 350, 10, 164, 56}, label(en, "Dışa aktar", "Export"), pal);
+        ui::button(r, font, {w - 400, 10, 150, 56}, label(en, "Dışa aktar", "Export"), pal);
     }
     line(r, pal.cardBorder, 0, 76, w);
 }
@@ -138,7 +144,7 @@ void sidebar(SDL_Renderer *r, Typography &font, const ThemePalette &pal, int w, 
         ui::surface(r, brandMark, blendColor(pal.card, pal.accent, 25), 10);
         text(r, font, "P", brandMark.x + 12, brandMark.y + 6, pal.accent, 24, true);
         text(r, font, "PaperNx", 74, 102, pal.fg, 140, true);
-        text(r, font, label(en, "OKUMA ALANI", "READING SPACE"), 74, 142, pal.muted, 140);
+        textSmall(r, font, label(en, "OKUMA ALANI", "READING SPACE"), 74, 144, pal.muted, 140);
         line(r, pal.cardBorder, 24, 174, 194);
 
         const char *tr[] = {"Genel Bakış", "Takvim", "Kitaplarım", "Geçmiş"};
@@ -159,9 +165,9 @@ void sidebar(SDL_Renderer *r, Typography &font, const ThemePalette &pal, int w, 
         SDL_Rect foot{24, h - 90, 194, 68};
         panel(r, pal, foot);
         SDL_Color dotCol{78, 125, 98, 255};
-        ui::surface(r, {foot.x + 12, foot.y + 14, 8, 8}, dotCol, 4);
-        text(r, font, label(en, "Çevrimdışı kayıt", "Offline journal"), foot.x + 26, foot.y + 10, pal.fg, foot.w - 32);
-        text(r, font, label(en, "microSD kartında", "Saved on microSD"), foot.x + 12, foot.y + 36, pal.muted, foot.w - 24);
+        ui::surface(r, {foot.x + 12, foot.y + 16, 8, 8}, dotCol, 4);
+        textSmall(r, font, label(en, "Çevrimdışı kayıt", "Offline journal"), foot.x + 26, foot.y + 12, pal.fg, foot.w - 32);
+        textSmall(r, font, label(en, "microSD kartında", "Saved on microSD"), foot.x + 12, foot.y + 38, pal.muted, foot.w - 24);
     } else {
         // Horizontal top tabs
         const char *tr[] = {"Genel", "Takvim", "Kitaplar", "Geçmiş"};
@@ -170,13 +176,6 @@ void sidebar(SDL_Renderer *r, Typography &font, const ThemePalette &pal, int w, 
         for (int i = 0; i < 4; ++i) {
             SDL_Rect rc{16 + i * tw, 86, tw - 4, 56};
             ui::button(r, font, rc, en ? eng[i] : tr[i], pal, i == active, false, false, focus == i + 1);
-            const auto ink=i==active?pal.bg:pal.fg;
-            SDL_SetRenderDrawColor(r,ink.r,ink.g,ink.b,255);
-            const int bx=rc.x+12,by=rc.y+18;
-            if(i==0){for(int k=0;k<4;++k){SDL_Rect q{bx+(k%2)*9,by+(k/2)*9,6,6};SDL_RenderDrawRect(r,&q);}}
-            else if(i==1){SDL_Rect q{bx,by,20,19};SDL_RenderDrawRect(r,&q);SDL_RenderDrawLine(r,bx,by+6,bx+19,by+6);}
-            else if(i==2){SDL_Rect q{bx,by,9,18};SDL_RenderDrawRect(r,&q);q.x+=10;SDL_RenderDrawRect(r,&q);}
-            else{SDL_Rect q{bx,by,17,19};SDL_RenderDrawRect(r,&q);for(int k=0;k<3;++k)SDL_RenderDrawLine(r,bx+4,by+5+5*k,bx+13,by+5+5*k);}
         }
     }
 }
@@ -364,8 +363,8 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
             if (!detailId_.empty()) { detailId_.clear(); return Action::None; }
             return Action::Back;
         }
-        if (x >= w - 176) { openGoals(); return Action::None; }
-        if (tab_ == 3 && x >= w - 350 && x < w - 180) { openExport(); return Action::None; }
+        if (x >= w - 240 && x < w - 90) { openGoals(); return Action::None; }
+        if (tab_ == 3 && x >= w - 400 && x < w - 250) { openExport(); return Action::None; }
     }
 
     // 3. Navigation (Sidebar or Top Nav)
@@ -409,15 +408,15 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
                                  : std::min(160,h-botY-16);
         const int currentX = px, recentX=stacked?px:px+halfW+14;
         const int recentY = stacked?botY+botH+12:botY;
-        if (ui::contains({currentX+halfW-110,botY+64,96,56},x,y)) {
+        if (ui::contains({currentX+halfW-122,botY+64,110,56},x,y)) {
             const auto cr=journal.currentlyReading();
             if(!cr.first.empty()){detailId_=cr.first;tab_=2;offset_=0;}
             return Action::None;
         }
-        if (ui::contains({currentX+halfW-130,botY+8,118,56},x,y)) {
+        if (ui::contains({currentX+halfW-160,botY+8,148,56},x,y)) {
             tab_=2;offset_=0;return Action::None;
         }
-        if (ui::contains({recentX+halfW-130,recentY+8,118,56},x,y)) {
+        if (ui::contains({recentX+halfW-160,recentY+8,148,56},x,y)) {
             tab_=3;offset_=0;return Action::None;
         }
     }
@@ -427,14 +426,14 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
         const int px = g.left, py = g.top, cw = g.width;
         int calW = (cw >= 700 && !(h>=900 && cw<900)) ? (cw*62/100) : cw;
         // Month navigation buttons line up with calRc.y+8.
-        if (y >= py + 56 && y < py + 104) {
+        if (y >= py + 62 && y < py + 118) {
             if (x >= px + calW - 148 && x <= px + calW - 80) { monthDelta_--; selectedDay_ = 0; return Action::None; }
             if (x >= px + calW - 76 && x <= px + calW - 8) { monthDelta_++; selectedDay_ = 0; return Action::None; }
         }
         // Day cells
         auto d = dateAt(monthDelta_);
         int first = (d.tm_wday + 6) % 7;
-        int cellW = std::max(56, (calW - 28) / 7), y0 = py + 140;
+        int cellW = std::max(56, (calW - 28) / 7), y0 = py + 146;
         if (y >= y0) {
             if(x<px+10 || x>=px+10+7*cellW)return Action::None;
             int col = (x - px - 10) / cellW;
@@ -457,11 +456,11 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
             const auto b = journal.books();
             int n = 0;
             for (std::size_t i = std::size_t(offset_); i < b.size(); ++i) {
-                int rowY = g.top + 52 + n++ * 92;
-                if (rowY + 80 > h) break;
-                // "Kitap istatistikleri" button
-                if (y >= rowY + 14 && y < rowY + 70 &&
-                    x >= g.left + g.width - 190 && x < g.left + g.width - 14) {
+                int rowY = g.top + 52 + n++ * 104;
+                if (rowY + 98 > h) break;
+                // "Detay" button
+                if (y >= rowY + 16 && y <= rowY + 76 &&
+                    x >= g.left + g.width - 156 && x <= g.left + g.width - 14) {
                     detailId_ = b[i].id; offset_ = 0; return Action::None;
                 }
             }
@@ -476,7 +475,7 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
             int rowY = g.top + 52 + (n - offset_ - 1) * 88;
             if (rowY + 80 > h) break;
             // Delete button [Sil]
-            if (y >= rowY + 16 && y <= rowY + 72 && x >= g.left + g.width - 90 && x <= g.left + g.width - 10) {
+            if (y >= rowY + 12 && y <= rowY + 68 && x >= g.left + g.width - 84 && x <= g.left + g.width - 12) {
                 sessionToDelete_ = it->id;
                 deleteModal_ = true;
                 return Action::None;
@@ -515,7 +514,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
                       int(bTotal.progress * 100.0), label(en, "tamamlandı", "completed").c_str(),
                       duration(bTotal.activeMilliseconds, en).c_str(),
                       bTotal.sessions, label(en, "oturum", "sessions").c_str());
-        text(r, font, metaBuf, headRc.x + 104, headRc.y + 98, pal.muted, headRc.w - 120);
+        textSmall(r, font, metaBuf, headRc.x + 104, headRc.y + 98, pal.muted, headRc.w - 120);
 
         text(r, font, label(en, "Bu Kitabın Oturum Geçmişi", "Session History for this Book"),
              px, py + 220, pal.fg, cw, true);
@@ -570,57 +569,57 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         // Panel 1: Active Reading Time & Chart
         SDL_Rect chartRc{px, gridY, wide, topCardH};
         panel(r, pal, chartRc);
-        text(r, font, label(en, "Toplam aktif okuma süresi", "Total active reading time"), chartRc.x + 20, chartRc.y + 12, pal.muted, wide - 40);
+        textSmall(r, font, label(en, "Toplam aktif okuma süresi", "Total active reading time"), chartRc.x + 20, chartRc.y + 12, pal.muted, wide - 40);
         text(r, font, duration(stats.activeMilliseconds, en), chartRc.x + 20, chartRc.y + 36, pal.fg, wide - 40, true);
 
         // Trend Pill
-        SDL_Rect trendPill{chartRc.x + 20, chartRc.y + 76, std::min(wide - 40, 260), 28};
-        ui::surface(r, trendPill, blendColor(pal.card, pal.accent, 22), 14);
-        text(r, font, stats.trendText, trendPill.x + 12, trendPill.y + 4, pal.accent, trendPill.w - 24);
+        SDL_Rect trendPill{chartRc.x + 20, chartRc.y + 72, std::min(wide - 40, 260), 26};
+        ui::surface(r, trendPill, blendColor(pal.card, pal.accent, 22), 13);
+        textSmall(r, font, stats.trendText, trendPill.x + 10, trendPill.y + 4, pal.accent, trendPill.w - 20);
 
-        // Bar Chart
+        // Bar Chart with clean vertical clearance
         if (!stats.barValues.empty()) {
             std::uint64_t maxVal = 1;
             for (auto v : stats.barValues) maxVal = std::max(maxVal, v);
-            int barAreaY = chartRc.y + 116;
+            int barAreaY = chartRc.y + 104;
             int barCount = static_cast<int>(stats.barValues.size());
             int barStep = (wide - 48) / barCount;
             int barW = std::clamp(barStep - 10, 8, 36);
 
             for (int i = 0; i < barCount; ++i) {
                 int bX = chartRc.x + 24 + i * barStep + (barStep - barW) / 2;
-                int bH = static_cast<int>(60.0 * (double(stats.barValues[i]) / double(maxVal)));
+                int bH = static_cast<int>(50.0 * (double(stats.barValues[i]) / double(maxVal)));
                 bH = std::max(4, bH);
-                SDL_Rect bRc{bX, barAreaY + 60 - bH, barW, bH};
+                SDL_Rect bRc{bX, barAreaY + 50 - bH, barW, bH};
                 SDL_Color bCol = (i == stats.highlightBar) ? pal.accent : blendColor(pal.card, pal.accent, 45);
                 ui::surface(r, bRc, bCol, 5);
-                text(r, font, stats.barLabels[i], bX - 4, barAreaY + 66, pal.muted, barStep);
+                textSmall(r, font, stats.barLabels[i], bX - 2, barAreaY + 54, pal.muted, barStep);
             }
         }
-        line(r, pal.cardBorder, chartRc.x + 20, chartRc.y + topCardH - 24, wide - 40);
-        text(r, font, stats.range, chartRc.x + 20, chartRc.y + topCardH - 20, pal.muted, wide - 40);
+        line(r, pal.cardBorder, chartRc.x + 20, chartRc.y + topCardH - 28, wide - 40);
+        textSmall(r, font, stats.range, chartRc.x + 20, chartRc.y + topCardH - 24, pal.muted, wide - 40);
 
         // Panel 2: Goal Widget
         if (wide < cw || portraitStack) {
             SDL_Rect goalRc = portraitStack ? SDL_Rect{px,gridY+topCardH+12,cw,topCardH}
                                             : SDL_Rect{px+wide+14,gridY,cw-wide-14,topCardH};
             panel(r, pal, goalRc);
-            text(r, font, label(en, "Günlük okuma hedefim", "Daily reading goal"), goalRc.x + 18, goalRc.y + 12, pal.muted, goalRc.w - 36);
+            textSmall(r, font, label(en, "Günlük okuma hedefim", "Daily reading goal"), goalRc.x + 18, goalRc.y + 12, pal.muted, goalRc.w - 36);
             std::string goalBadge = journal.dailyGoalMinutes() ? (std::to_string(journal.dailyGoalMinutes()) + (en ? " min/day" : " dk/gün")) : label(en, "Kapalı", "Disabled");
-            text(r, font, goalBadge, goalRc.x + goalRc.w - 120, goalRc.y + 42, pal.accent, 110);
+            textSmall(r, font, goalBadge, goalRc.x + goalRc.w - 120, goalRc.y + 40, pal.accent, 110);
 
-            // Ring
+            // Ring with centered text
             int cx = goalRc.x + goalRc.w / 2, cy = goalRc.y + 92, radius = 48, thickness = 9;
             float gFrac = stats.totalPeriodDays ? float(stats.goalDaysMet) / float(stats.totalPeriodDays) : 0.f;
             drawRing(r, pal, cx, cy, radius, thickness, gFrac);
             char gNum[32];
             std::snprintf(gNum, sizeof gNum, "%u/%u", stats.goalDaysMet, stats.totalPeriodDays);
-            text(r, font, gNum, cx - 18, cy - 14, pal.fg, 40, true);
-            text(r, font, label(en, "hedef günü", "goal days"), cx - 28, cy + 14, pal.muted, 60);
+            text(r, font, gNum, cx - 24, cy - 18, pal.fg, 48, true);
+            textSmall(r, font, label(en, "gün", "days"), cx - 18, cy + 12, pal.muted, 36);
 
             // Copy & progress dots
             std::string copy = journal.dailyGoalMinutes() ? (stats.goalDaysMet >= stats.totalPeriodDays / 2 ? label(en, "Harika gidiyorsun!", "Great progress!") : label(en, "Küçük adımlarla alışkanlık", "Building habits step by step")) : label(en, "Hedef belirlemek için dokun", "Tap Goals to set a daily target");
-            text(r, font, copy, goalRc.x + 14, goalRc.y + 154, pal.fg, goalRc.w - 28);
+            textSmall(r, font, copy, goalRc.x + 14, goalRc.y + 154, pal.fg, goalRc.w - 28);
 
             // 7 dots for week
             int dotCount = std::min(7, int(stats.totalPeriodDays));
@@ -633,7 +632,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             }
         }
 
-        // Mid Row: 4 Stat Tiles
+        // Mid Row: 4 Stat Tiles with live finished books count
         int tileY = gridY + topCardH + (portraitStack ? topCardH + 24 : 12);
         const int tileColumns = portraitStack ? 2 : 4;
         int tileW = (cw - (tileColumns - 1) * 12) / tileColumns;
@@ -644,17 +643,31 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             label(en, "Bitirilen kitap", "Books finished"),
             label(en, "Okuma serisi", "Reading streak")
         };
+
+        std::size_t finishedCount = 0;
+        const auto &allBooks = journal.books();
+        for (const auto &b : allBooks) {
+            if (liveProgress(b.id, b.progress, progress, catalog) >= 0.99) finishedCount++;
+        }
+        for (const auto &pr : progress.all()) {
+            if (liveProgress(pr.first, pr.second.fraction, progress, catalog) >= 0.99) {
+                bool exists = false;
+                for (const auto &b : allBooks) { if (b.id == pr.first) { exists = true; break; } }
+                if (!exists) finishedCount++;
+            }
+        }
+
         const std::string sValues[] = {
             std::to_string(stats.daysRead) + (en ? " days" : " gün"),
             std::to_string(stats.averageSessionMinutes) + (en ? " min" : " dk"),
-            std::to_string(stats.finishedBooks),
+            std::to_string(finishedCount),
             std::to_string(stats.streakDays) + (en ? " days" : " gün")
         };
         for (int i = 0; i < 4; ++i) {
             SDL_Rect tRc{px + (i % tileColumns) * (tileW + 12),
                          tileY + (i / tileColumns) * (tileH + 12), tileW, tileH};
             panel(r, pal, tRc);
-            text(r, font, sLabels[i], tRc.x + 14, tRc.y + 10, pal.muted, tileW - 20);
+            textSmall(r, font, sLabels[i], tRc.x + 14, tRc.y + 10, pal.muted, tileW - 20);
             text(r, font, sValues[i], tRc.x + 14, tRc.y + 40, pal.fg, tileW - 20, true);
         }
 
@@ -666,8 +679,8 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         // Card 1: Currently Reading
         SDL_Rect cRc{px, botY, halfW, botH};
         panel(r, pal, cRc);
-        text(r, font, label(en, "Şu anda okuduğun", "Currently reading"), cRc.x + 16, cRc.y + 10, pal.fg, halfW - 140, true);
-        ui::button(r, font, {cRc.x + halfW - 130, cRc.y + 8, 118, 56}, label(en, "Kitaplarım", "My books"), pal);
+        text(r, font, label(en, "Şu anda okuduğun", "Currently reading"), cRc.x + 16, cRc.y + 10, pal.fg, halfW - 170, true);
+        ui::button(r, font, {cRc.x + halfW - 160, cRc.y + 8, 148, 56}, label(en, "Kitaplarım", "My books"), pal);
 
         auto cr = journal.currentlyReading();
         if (!cr.first.empty()) {
@@ -675,21 +688,21 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             auto bTot = journal.bookTotal(cr.first);
             drawCover(r, pal, font, {cRc.x + 16, cRc.y + 54, 52, 78}, bTot.title, bTot.author);
             text(r, font, bTot.title, cRc.x + 80, cRc.y + 54, pal.fg, halfW - 210);
-            text(r, font, bTot.author, cRc.x + 80, cRc.y + 80, pal.muted, halfW - 210);
+            textSmall(r, font, bTot.author, cRc.x + 80, cRc.y + 80, pal.muted, halfW - 210);
             font.drawProgressBar(r, cRc.x + 80, cRc.y + 104, halfW - 210, 6, static_cast<float>(cr.second),
                                  blendColor(pal.card, pal.cardBorder, 60), pal.accent);
             char pStr[64];
             std::snprintf(pStr, sizeof pStr, "%%%d  ·  %s", int(cr.second * 100.0), duration(bTot.activeMilliseconds, en).c_str());
-            text(r, font, pStr, cRc.x + 80, cRc.y + 116, pal.muted, halfW - 210);
-            ui::button(r, font, {cRc.x + halfW - 110, cRc.y + 64, 96, 56}, label(en, "Detay ->", "Details ->"), pal, true);
+            textSmall(r, font, pStr, cRc.x + 80, cRc.y + 116, pal.muted, halfW - 210);
+            ui::button(r, font, {cRc.x + halfW - 122, cRc.y + 64, 110, 56}, label(en, "Detay", "Details"), pal, true);
         }
 
         // Card 2: Recent Activity
         SDL_Rect rRc{portraitStack ? px : px + halfW + 14,
                     portraitStack ? botY + botH + 12 : botY, halfW, botH};
         panel(r, pal, rRc);
-        text(r, font, label(en, "Son etkinlikler", "Recent activity"), rRc.x + 16, rRc.y + 10, pal.fg, halfW - 140, true);
-        ui::button(r, font, {rRc.x + halfW - 130, rRc.y + 8, 118, 56}, label(en, "Tümünü gör", "See all"), pal);
+        text(r, font, label(en, "Son etkinlikler", "Recent activity"), rRc.x + 16, rRc.y + 10, pal.fg, halfW - 170, true);
+        ui::button(r, font, {rRc.x + halfW - 160, rRc.y + 8, 148, 56}, label(en, "Tümünü Gör", "See all"), pal);
 
         const auto &allSessions = journal.sessions();
         int sShown = 0;
@@ -697,18 +710,18 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             int itemY = rRc.y + 54 + sShown * 46;
             text(r, font, "•", rRc.x + 16, itemY + 4, pal.accent);
             text(r, font, it->title, rRc.x + 40, itemY, pal.fg, halfW - 160);
-            text(r, font, localDate(it->endedUtc), rRc.x + 40, itemY + 22, pal.muted, halfW - 160);
-            text(r, font, duration(it->activeMilliseconds, en), rRc.x + halfW - 110, itemY + 8, pal.accent, 96);
+            textSmall(r, font, localDate(it->endedUtc), rRc.x + 40, itemY + 22, pal.muted, halfW - 160);
+            textSmall(r, font, duration(it->activeMilliseconds, en), rRc.x + halfW - 110, itemY + 8, pal.accent, 96);
         }
     } else if (tab_ == 1) {
         // Tab 1: Takvim (Calendar)
         text(r, font, label(en, "OKUMA TAKVİMİM", "READING CALENDAR"), px, py - 4, pal.accent);
-        text(r, font, label(en, "Hangi günler okuduğunu ve sürelerini gör", "Track your active reading days"), px, py + 23, pal.muted, cw - 200);
+        textSmall(r, font, label(en, "Hangi günler okuduğunu ve sürelerini gör", "Track your active reading days"), px, py + 25, pal.muted, cw - 200);
 
         const bool tallCalendar=(h>=900 && cw<900);
         int calW = (cw >= 700 && !tallCalendar) ? (cw * 62 / 100) : cw;
-        int gridH = tallCalendar ? 500 : h - py - 50;
-        SDL_Rect calRc{px, py + 48, calW, gridH};
+        int gridH = tallCalendar ? 500 : h - py - 58;
+        SDL_Rect calRc{px, py + 54, calW, gridH};
         panel(r, pal, calRc);
 
         auto d = dateAt(monthDelta_);
@@ -725,7 +738,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         int first = (d.tm_wday + 6) % 7;
         int cellW = std::max(56, (calW - 28) / 7);
         for (int i = 0; i < 7; ++i) {
-            text(r, font, en ? daysEn[i] : daysTr[i], calRc.x + 12 + i * cellW + 12, calRc.y + 64, pal.muted, cellW - 16);
+            textSmall(r, font, en ? daysEn[i] : daysTr[i], calRc.x + 12 + i * cellW + 12, calRc.y + 64, pal.muted, cellW - 16);
         }
 
         const auto cal = journal.calendar();
@@ -743,18 +756,22 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             }
             SDL_Color tC = (intensity > 70) ? pal.bg : pal.fg;
             text(r, font, std::to_string(k), box.x + 8, box.y + 4, tC, box.w - 12);
-            if (ms) text(r, font, std::to_string(ms / 60000) + (en ? "m" : "d"), box.x + 8, box.y + 28, tC, box.w - 12);
+            if (ms >= 60000) {
+                textSmall(r, font, std::to_string(ms / 60000) + (en ? "m" : " dk"), box.x + 6, box.y + 28, tC, box.w - 8);
+            } else if (ms > 0) {
+                textSmall(r, font, std::to_string(std::max<std::uint64_t>(1, ms / 1000)) + (en ? "s" : " sn"), box.x + 6, box.y + 28, tC, box.w - 8);
+            }
         }
 
         // Legend below calendar
         int legY = calRc.y + gridH - 32;
-        text(r, font, label(en, "Az", "Less"), calRc.x + 16, legY, pal.muted, 30);
+        textSmall(r, font, label(en, "Az", "Less"), calRc.x + 16, legY, pal.muted, 30);
         for (int lvl = 0; lvl < 5; ++lvl) {
             int intVal = lvl == 0 ? 0 : lvl == 1 ? 20 : lvl == 2 ? 40 : lvl == 3 ? 65 : 90;
             SDL_Rect lBox{calRc.x + 46 + lvl * 20, legY + 2, 14, 14};
             ui::surface(r, lBox, blendColor(pal.card, pal.accent, intVal), 3);
         }
-        text(r, font, label(en, "Çok  0/30/60/90+ dk", "More  0/30/60/90+ min"), calRc.x + 154, legY, pal.muted, 180);
+        textSmall(r, font, label(en, "Çok  0/30/60/90+ dk", "More  0/30/60/90+ min"), calRc.x + 154, legY, pal.muted, 180);
 
         // Daily Detail Panel (Right Side)
         if (calW < cw || tallCalendar) {
@@ -762,17 +779,17 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             int detW = tallCalendar ? cw : cw - calW - 14;
             SDL_Rect detRc = tallCalendar ? SDL_Rect{detX,calRc.y+gridH+16,detW,
                                                   std::max(200,h-(calRc.y+gridH+16)-24)}
-                                          : SDL_Rect{detX,py+48,detW,gridH};
+                                           : SDL_Rect{detX,py+54,detW,gridH};
             panel(r, pal, detRc);
 
             int dDay = selectedDay_ ? selectedDay_ : (monthDelta_ == 0 ? now.tm_mday : 1);
             char dStr[64];
             std::snprintf(dStr, sizeof dStr, "%d %s %d", dDay, en ? enM[d.tm_mon] : trM[d.tm_mon], d.tm_year + 1900);
-            text(r, font, label(en, "GÜNLÜK AYRINTI", "DAILY DETAIL"), detX + 18, detRc.y + 14, pal.accent);
+            textSmall(r, font, label(en, "GÜNLÜK AYRINTI", "DAILY DETAIL"), detX + 18, detRc.y + 14, pal.accent);
             text(r, font, dStr, detX + 18, detRc.y + 36, pal.fg, detW - 36, true);
 
             std::uint64_t selMs = dayMs(cal, d.tm_year + 1900, d.tm_mon + 1, dDay);
-            text(r, font, label(en, "Aktif okuma süresi:", "Active reading time:"), detX + 18, detRc.y + 80, pal.muted, detW - 36);
+            textSmall(r, font, label(en, "Aktif okuma süresi:", "Active reading time:"), detX + 18, detRc.y + 80, pal.muted, detW - 36);
             text(r, font, duration(selMs, en), detX + 18, detRc.y + 104, pal.accent, detW - 36, true);
             line(r, pal.cardBorder, detX + 18, detRc.y + 148, detW - 36);
 
@@ -781,49 +798,49 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             std::snprintf(dayK, sizeof dayK, "%04d-%02d-%02d", d.tm_year + 1900, d.tm_mon + 1, dDay);
             auto dSessions = journal.sessionsForDay(dayK);
             if (dSessions.empty()) {
-                text(r, font, label(en, "Bu gün için kayıtlı oturum yok.", "No recorded reading sessions."), detX + 18, detRc.y + 196, pal.muted, detW - 36);
+                textSmall(r, font, label(en, "Bu gün için kayıtlı oturum yok.", "No recorded reading sessions."), detX + 18, detRc.y + 196, pal.muted, detW - 36);
             } else {
                 int nS = 0;
                 for (const auto &s : dSessions) {
                     if (nS++ >= 4) break;
                     int sY = detRc.y + 196 + (nS - 1) * 64;
                     panel(r, pal, {detX + 18, sY, detW - 36, 56});
-                    text(r, font, "-", detX + 28, sY + 14, pal.accent);
-                    text(r, font, s.title, detX + 54, sY + 8, pal.fg, detW - 150);
-                    text(r, font, duration(s.activeMilliseconds, en), detX + detW - 120, sY + 16, pal.accent, 90);
+                    ui::surface(r, {detX + 30, sY + 24, 8, 8}, pal.accent, 4);
+                    text(r, font, s.title, detX + 48, sY + 8, pal.fg, detW - 180);
+                    textSmall(r, font, duration(s.activeMilliseconds, en), detX + detW - 120, sY + 18, pal.accent, 96);
                 }
             }
         }
     } else if (tab_ == 2) {
         // Tab 2: Kitaplarım (Books)
         text(r, font, label(en, "KİTAPLARA GÖRE", "BOOKS READING TIME"), px, py - 4, pal.accent);
-        text(r, font, label(en, "İlerleme, aktif süre ve oturum geçmişi", "Progress, active time and sessions"), px, py + 23, pal.muted, cw - 200);
+        textSmall(r, font, label(en, "İlerleme, aktif süre ve oturum geçmişi", "Progress, active time and sessions"), px, py + 25, pal.muted, cw - 200);
 
         auto bList = journal.books();
         for(auto &bk:bList)bk.progress=liveProgress(bk.id,bk.progress,progress,catalog);
         int n = 0;
         for (std::size_t i = std::size_t(offset_); i < bList.size(); ++i) {
-            int rowY = py + 52 + n++ * 92;
-            if (rowY + 86 > h) break;
-            SDL_Rect bRc{px, rowY, cw, 84};
+            int rowY = py + 52 + n++ * 104;
+            if (rowY + 98 > h) break;
+            SDL_Rect bRc{px, rowY, cw, 96};
             panel(r, pal, bRc);
-            drawCover(r, pal, font, {bRc.x + 14, bRc.y + 10, 46, 64}, bList[i].title, bList[i].author, int(i));
-            text(r, font, bList[i].title, bRc.x + 72, bRc.y + 10, pal.fg, cw - 280, true);
-            text(r, font, bList[i].author, bRc.x + 72, bRc.y + 36, pal.muted, cw - 280);
+            drawCover(r, pal, font, {bRc.x + 14, bRc.y + 12, 46, 72}, bList[i].title, bList[i].author, int(i));
+            text(r, font, bList[i].title, bRc.x + 72, bRc.y + 10, pal.fg, cw - 250, false);
+            textSmall(r, font, bList[i].author, bRc.x + 72, bRc.y + 38, pal.muted, cw - 250);
 
-            font.drawProgressBar(r, bRc.x + 72, bRc.y + 60, cw - 290, 6, static_cast<float>(bList[i].progress),
+            font.drawProgressBar(r, bRc.x + 72, bRc.y + 62, cw - 250, 6, static_cast<float>(bList[i].progress),
                                  blendColor(pal.card, pal.cardBorder, 60), pal.accent);
             char bInfo[128];
             std::snprintf(bInfo, sizeof bInfo, "%%%d  ·  %s  ·  %zu %s",
                           int(bList[i].progress * 100.0), duration(bList[i].activeMilliseconds, en).c_str(),
                           bList[i].sessions, label(en, "oturum", "sessions").c_str());
-            text(r, font, bInfo, bRc.x + cw - 210, bRc.y + 12, pal.muted, 200);
-            ui::button(r, font, {bRc.x + cw - 190, bRc.y + 14, 176, 56}, label(en, "Kitap istatistikleri", "Details"), pal);
+            textSmall(r, font, bInfo, bRc.x + 72, bRc.y + 72, pal.muted, cw - 250);
+            ui::button(r, font, {bRc.x + cw - 156, bRc.y + 20, 142, 56}, label(en, "Detay", "Details"), pal);
         }
     } else {
         // Tab 3: Geçmiş (History / Journal)
         text(r, font, label(en, "OKUMA GEÇMİŞİM", "SESSION HISTORY"), px, py - 4, pal.accent);
-        text(r, font, label(en, "Kronolojik okuma oturumları ve kayıt silme", "Chronological reading sessions log"), px, py + 23, pal.muted, cw - 360);
+        textSmall(r, font, label(en, "Kronolojik okuma oturumları ve kayıt silme", "Chronological reading sessions log"), px, py + 25, pal.muted, cw - 360);
 
         int n = 0;
         const auto &sList = journal.sessions();
@@ -834,17 +851,17 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             SDL_Rect sRc{px, rowY, cw, 80};
             panel(r, pal, sRc);
             text(r, font, "•", sRc.x + 18, rowY + 22, pal.accent);
-            text(r, font, it->title, sRc.x + 48, rowY + 12, pal.fg, cw - 280, true);
+            text(r, font, it->title, sRc.x + 48, rowY + 12, pal.fg, cw - 280, false);
 
             char subStr[128];
             std::snprintf(subStr, sizeof subStr, "%s · %s–%s · %%%d -> %%%d",
                           localDate(it->endedUtc).c_str(),
                           localTime(it->startedUtc).c_str(), localTime(it->endedUtc).c_str(),
                           int(it->startProgress * 100.0), int(it->endProgress * 100.0));
-            text(r, font, subStr, sRc.x + 48, rowY + 44, pal.muted, cw - 280);
+            textSmall(r, font, subStr, sRc.x + 48, rowY + 44, pal.muted, cw - 280);
 
-            text(r, font, duration(it->activeMilliseconds, en), sRc.x + cw - 190, rowY + 26, pal.accent, 100);
-            ui::button(r, font, {sRc.x + cw - 80, rowY + 16, 68, 48}, label(en, "Sil", "Del"), pal, false, false, false, false, false, false, true);
+            textSmall(r, font, duration(it->activeMilliseconds, en), sRc.x + cw - 180, rowY + 26, pal.accent, 90);
+            ui::button(r, font, {sRc.x + cw - 84, rowY + 12, 72, 56}, label(en, "Sil", "Del"), pal, false, false, false, false, false, false, true);
         }
     }
 
@@ -856,11 +873,11 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
 
         const int pw = 520, ph = 320, pxM = (w - pw) / 2, pyM = (h - ph) / 2;
         panel(r, pal, {pxM, pyM, pw, ph});
-        text(r, font, label(en, "OKUMA HEDEFLERİ", "READING GOALS"), pxM + 24, pyM + 18, pal.accent);
+        textSmall(r, font, label(en, "OKUMA HEDEFLERİ", "READING GOALS"), pxM + 24, pyM + 18, pal.accent);
         text(r, font, label(en, "Okuma hedeflerim", "My Reading Goals"), pxM + 24, pyM + 42, pal.fg, pw - 48, true);
-        text(r, font, label(en, "Hedefler isteğe bağlıdır. Günlük okuma hedefini buradan ayarla.",
-                            "Goals are optional. Adjust your daily reading target below."),
-             pxM + 24, pyM + 80, pal.muted, pw - 48);
+        textSmall(r, font, label(en, "Hedefler isteğe bağlıdır. Günlük okuma hedefini buradan ayarla.",
+                                     "Goals are optional. Adjust your daily reading target below."),
+                  pxM + 24, pyM + 80, pal.muted, pw - 48);
 
         std::string curG = journal.dailyGoalMinutes() ? (std::to_string(journal.dailyGoalMinutes()) + (en ? " min / day" : " dakika / gün")) : label(en, "Kapalı (Hedef yok)", "Disabled (No goal)");
         text(r, font, curG, pxM + 24, pyM + 116, pal.fg, pw - 48, true);
@@ -879,15 +896,16 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
 
         const int pw = 520, ph = 320, pxM = (w - pw) / 2, pyM = (h - ph) / 2;
         panel(r, pal, {pxM, pyM, pw, ph});
-        text(r, font, label(en, "VERİ DIŞA AKTARMA", "DATA EXPORT"), pxM + 24, pyM + 18, pal.accent);
+        textSmall(r, font, label(en, "VERİ DIŞA AKTARMA", "DATA EXPORT"), pxM + 24, pyM + 18, pal.accent);
         text(r, font, label(en, "Okuma verilerini dışa aktar", "Export Reading Data"), pxM + 24, pyM + 42, pal.fg, pw - 48, true);
-        text(r, font, label(en, "Oturum geçmişini JSON ve CSV formatında microSD karta kaydeder.",
-                            "Saves reading session history in JSON and CSV format to microSD."),
-             pxM + 24, pyM + 80, pal.muted, pw - 48);
-        text(r, font, "Konum: data/reading_journal/export/", pxM + 24, pyM + 108, pal.muted, pw - 48);
+        textSmall(r, font, label(en, "Oturum geçmişini JSON ve CSV formatında microSD karta kaydeder.",
+                                     "Saves reading session history in JSON and CSV format to microSD."),
+                  pxM + 24, pyM + 80, pal.muted, pw - 48);
+        std::string exportDirStr = journal.exportDirectory().string();
+        textSmall(r, font, label(en, "Konum: ", "Path: ") + exportDirStr, pxM + 24, pyM + 108, pal.muted, pw - 48);
 
         if (!exportMessage_.empty()) {
-            text(r, font, exportMessage_, pxM + 24, pyM + 136, pal.accent, pw - 48);
+            textSmall(r, font, exportMessage_, pxM + 24, pyM + 136, pal.accent, pw - 48);
         }
 
         ui::button(r, font, {pxM + 24, pyM + 170, 220, 56}, label(en, "JSON Olarak Aktar", "Export JSON"), pal);
@@ -902,12 +920,13 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
 
         const int pw = 480, ph = 260, pxM = (w - pw) / 2, pyM = (h - ph) / 2;
         panel(r, pal, {pxM, pyM, pw, ph});
-        text(r, font, label(en, "OTURUMU SİL", "DELETE SESSION"), pxM + 24, pyM + 18, pal.accent);
+        textSmall(r, font, label(en, "OTURUMU SİL", "DELETE SESSION"), pxM + 24, pyM + 18, pal.accent);
         text(r, font, label(en, "Bu oturumu silmek istiyor musun?", "Delete this reading session?"),
              pxM + 24, pyM + 44, pal.fg, pw - 48, true);
-        text(r, font, label(en, "Bu işlem kalıcıdır. Gün ve kitap toplamları yeniden hesaplanacaktır.",
-                            "This action is permanent. All totals and calendar stats will update."),
-             pxM + 24, pyM + 90, pal.muted, pw - 48);
+        font.renderWrapped(r, font.smallFont(),
+                           label(en, "Bu işlem kalıcıdır. Gün ve kitap toplamları yeniden hesaplanacaktır.",
+                                     "This action is permanent. All totals and calendar stats will update."),
+                           {pxM + 24, pyM + 86, pw - 48, 64}, pal.muted);
 
         ui::button(r, font, {pxM + 24, pyM + 180, 200, 56}, label(en, "Sil (Kalıcı)", "Delete"), pal, false, false, false, false, false, false, true);
         ui::button(r, font, {pxM + 240, pyM + 180, 200, 56}, label(en, "Vazgeç", "Cancel"), pal);

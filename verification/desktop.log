@@ -1,27 +1,27 @@
--- Configuring done (0.2s)
+-- Configuring done (0.3s)
 -- Generating done (0.1s)
 -- Build files have been written to: /work/build-core
 ninja: no work to do.
 Internal ctest changing into directory: /work/build-core
 Test project /work/build-core
     Start 1: papernx_catalog_tests
-1/7 Test #1: papernx_catalog_tests ............   Passed    0.03 sec
+1/7 Test #1: papernx_catalog_tests ............   Passed    0.05 sec
     Start 2: papernx_foundations_tests
 2/7 Test #2: papernx_foundations_tests ........   Passed    0.01 sec
     Start 3: papernx_localization_tests
 3/7 Test #3: papernx_localization_tests .......   Passed    0.01 sec
     Start 4: papernx_cover_tests
-4/7 Test #4: papernx_cover_tests ..............   Passed    0.01 sec
+4/7 Test #4: papernx_cover_tests ..............   Passed    0.02 sec
     Start 5: papernx_core_tests
-5/7 Test #5: papernx_core_tests ...............   Passed    0.37 sec
+5/7 Test #5: papernx_core_tests ...............   Passed    0.60 sec
     Start 6: papernx_reading_journal_tests
 6/7 Test #6: papernx_reading_journal_tests ....   Passed    0.01 sec
     Start 7: papernx_utf8_integrity
-7/7 Test #7: papernx_utf8_integrity ...........   Passed    0.73 sec
+7/7 Test #7: papernx_utf8_integrity ...........   Passed    0.80 sec
 
 100% tests passed, 0 tests failed out of 7
 
-Total Test time (real) =   1.28 sec
+Total Test time (real) =   1.62 sec
 [TEST] Running PaperNX packaging validation tests...
 [PASS] Packaging and SD extraction test suite passed successfully!
 Generated EPUB fixture: /work/tests/fixtures/sample_book.epub (3658 bytes)
@@ -31,7 +31,11 @@ Generated corrupt PDF fixture: /work/tests/fixtures/corrupt.pdf
 -- Configuring done (0.3s)
 -- Generating done (0.1s)
 -- Build files have been written to: /work/build-desktop
-ninja: no work to do.
+[1/5] Building CXX object CMakeFiles/papernx_ui.dir/src/reading_journal_ui.cpp.o
+[2/5] Linking CXX static library libpapernx_ui.a
+[3/5] Linking CXX executable papernx_ui_component_tests
+[4/5] Linking CXX executable PaperNX
+[5/5] Linking CXX executable papernx_app_tests
 Internal ctest changing into directory: /work/build-desktop
 Test project /work/build-desktop
       Start  1: papernx_catalog_tests
@@ -39,24 +43,24 @@ Test project /work/build-desktop
       Start  2: papernx_foundations_tests
  2/11 Test  #2: papernx_foundations_tests ........   Passed    0.01 sec
       Start  3: papernx_localization_tests
- 3/11 Test  #3: papernx_localization_tests .......   Passed    0.00 sec
+ 3/11 Test  #3: papernx_localization_tests .......   Passed    0.01 sec
       Start  4: papernx_cover_tests
- 4/11 Test  #4: papernx_cover_tests ..............   Passed    0.01 sec
+ 4/11 Test  #4: papernx_cover_tests ..............   Passed    0.02 sec
       Start  5: papernx_core_tests
- 5/11 Test  #5: papernx_core_tests ...............   Passed    0.40 sec
+ 5/11 Test  #5: papernx_core_tests ...............   Passed    0.44 sec
       Start  6: papernx_reading_journal_tests
  6/11 Test  #6: papernx_reading_journal_tests ....   Passed    0.01 sec
       Start  7: papernx_utf8_integrity
- 7/11 Test  #7: papernx_utf8_integrity ...........   Passed    1.18 sec
+ 7/11 Test  #7: papernx_utf8_integrity ...........   Passed    0.72 sec
       Start  8: papernx_ui_component_tests
- 8/11 Test  #8: papernx_ui_component_tests .......   Passed    0.14 sec
+ 8/11 Test  #8: papernx_ui_component_tests .......   Passed    0.17 sec
       Start  9: mupdf_render_tests
- 9/11 Test  #9: mupdf_render_tests ...............   Passed    0.38 sec
+ 9/11 Test  #9: mupdf_render_tests ...............   Passed    0.72 sec
       Start 11: v03_stress_fixtures
-10/11 Test #11: v03_stress_fixtures ..............   Passed    0.58 sec
+10/11 Test #11: v03_stress_fixtures ..............   Passed    0.57 sec
       Start 10: papernx_app_tests
-11/11 Test #10: papernx_app_tests ................   Passed   53.34 sec
+11/11 Test #10: papernx_app_tests ................   Passed   56.47 sec
 
 100% tests passed, 0 tests failed out of 11
 
-Total Test time (real) =  56.23 sec
+Total Test time (real) =  59.30 sec

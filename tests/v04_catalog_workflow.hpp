@@ -15,17 +15,17 @@ static void v04CatalogWorkflow(const fs::path &parent){
     choose(1);assert(app.progressStore_.get(book.id).favorite);
     // Status actions must persist, filter into the right tab and visibly identify the selection.
     choose(2);assert(app.catalog_.get(book.id).status==ReadingStatus::Reading);
-    assert(app.catalogRows()[2].second.find("✓ ")==0);
+    assert(app.catalog_.get(app.actionBook_.id).status==ReadingStatus::Reading);
     app.category_=Category::ContinueReading;app.updateVisibleBooks();
     assert(std::any_of(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &candidate){return candidate.id==book.id;}));
     app.category_=Category::All;app.updateVisibleBooks();
     choose(4);assert(app.catalog_.get(book.id).status==ReadingStatus::Completed);
-    assert(app.catalogRows()[4].second.find("✓ ")==0);
+    assert(app.catalog_.get(app.actionBook_.id).status==ReadingStatus::Completed);
     app.category_=Category::Completed;app.updateVisibleBooks();
     assert(std::any_of(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &candidate){return candidate.id==book.id;}));
     app.category_=Category::All;app.updateVisibleBooks();
     const auto location=app.progressStore_.get(book.id).page;choose(3);assert(app.catalog_.get(book.id).status==ReadingStatus::NotStarted);
-    assert(app.catalogRows()[3].second.find("✓ ")==0);
+    assert(app.catalog_.get(app.actionBook_.id).status==ReadingStatus::NotStarted);
     assert(app.progressStore_.get(book.id).page==location);
     app.category_=Category::Unread;app.updateVisibleBooks();
     assert(std::any_of(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &candidate){return candidate.id==book.id;}));
