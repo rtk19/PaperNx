@@ -192,6 +192,18 @@ void empty(SDL_Renderer *r, Typography &font, const ThemePalette &pal, SDL_Rect 
          rc.x + 24, rc.y + 124, pal.accent, rc.w - 48);
 }
 
+// Journal sessions are historical facts; the live progress indicator is the
+// authoritative library state, including explicit unread/finished overrides.
+double liveProgress(const std::string &bookId,double historic,
+                    const ProgressStore &progress,const CatalogStore &catalog) {
+    const auto status=catalog.get(bookId).status;
+    if(status==ReadingStatus::NotStarted)return 0.;
+    if(status==ReadingStatus::Completed)return 1.;
+    const auto &all=progress.all();
+    const auto it=all.find(bookId);
+    if(it==all.end())return std::clamp(historic,0.,1.);
+    return std::clamp(it->second.fraction,0.,1.);
+}
 std::uint64_t dayMs(const std::map<std::string, std::uint64_t> &cal, int y, int m, int d) {
     const auto it = cal.find(key(y, m, d)); return it == cal.end() ? 0 : it->second;
 }
@@ -476,7 +488,8 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
 }
 
 void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePalette &pal,
-                             const ReadingJournal &journal, int w, int h, bool en) {
+                             const ReadingJournal &journal,const ProgressStore &progress,
+                             const CatalogStore &catalog,int w, int h, bool en) {
     header(r, font, pal, w, tab_, en);
     sidebar(r, font, pal, w, h, tab_, focus_, en);
 
@@ -486,6 +499,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
     if (!detailId_.empty()) {
         // Book Details Drilldown
         auto bTotal = journal.bookTotal(detailId_);
+        bTotal.progress=liveProgress(detailId_,bTotal.progress,progress,catalog);
         ui::button(r, font, {px, py, 200, 56}, label(en, "Kitaplarıma dön", "Back to books"), pal);
         SDL_Rect headRc{px, py + 66, cw, 140};
         panel(r, pal, headRc);
@@ -657,6 +671,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
 
         auto cr = journal.currentlyReading();
         if (!cr.first.empty()) {
+            cr.second=liveProgress(cr.first,cr.second,progress,catalog);
             auto bTot = journal.bookTotal(cr.first);
             drawCover(r, pal, font, {cRc.x + 16, cRc.y + 54, 52, 78}, bTot.title, bTot.author);
             text(r, font, bTot.title, cRc.x + 80, cRc.y + 54, pal.fg, halfW - 210);
@@ -784,7 +799,8 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         text(r, font, label(en, "KİTAPLARA GÖRE", "BOOKS READING TIME"), px, py - 4, pal.accent);
         text(r, font, label(en, "İlerleme, aktif süre ve oturum geçmişi", "Progress, active time and sessions"), px, py + 23, pal.muted, cw - 200);
 
-        const auto bList = journal.books();
+        auto bList = journal.books();
+        for(auto &bk:bList)bk.progress=liveProgress(bk.id,bk.progress,progress,catalog);
         int n = 0;
         for (std::size_t i = std::size_t(offset_); i < bList.size(); ++i) {
             int rowY = py + 52 + n++ * 92;
