@@ -412,6 +412,7 @@ private:
     // Gestures and input
     TouchGestureTracker gestureTracker_;
     ControllerNavigator controllerNav_;
+    bool readerToolbarFocusActive_{false};
     bool dirty_{true};
     bool progressDirty_{false};
     bool appSavePending_{false};
@@ -1022,6 +1023,7 @@ private:
 
         screen_ = ScreenState::Reader;
         toolbarVisible_ = false;
+        readerToolbarFocusActive_=false;
         dirty_ = true;
     }
 
@@ -1042,6 +1044,7 @@ private:
         updateVisibleBooks();
         screen_ = ScreenState::Library;
         toolbarVisible_ = false;
+        readerToolbarFocusActive_=false;
         dirty_ = true;
     }
 
@@ -2047,6 +2050,7 @@ private:
                 searchQuery_.clear();
                 updateVisibleBooks();
             } else if (screen_ == ScreenState::Reader) {
+                if (readerToolbarFocusActive_) { readerToolbarFocusActive_=false;dirty_=true;return; }
                 if (toolbarVisible_) { toolbarVisible_ = false; dirty_ = true; return; }
                 closeBook();
             } else {
