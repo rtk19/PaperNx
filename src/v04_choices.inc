@@ -8,7 +8,6 @@
         case 0:return {"Serif","Sans",ui::language?"Publisher":"Yay\u0131nc\u0131"};
         case 1:return ui::language?std::vector<std::string>{"Landscape","Portrait clockwise","Portrait counterclockwise"}:std::vector<std::string>{"Yatay","Dikey: saat y\u00f6n\u00fc","Dikey: saat y\u00f6n\u00fcn\u00fcn tersi"};
         case 7:{std::vector<std::string> out;for(const auto &p:g_paperPresets)out.push_back(p.name);return out;}
-        case 5:return ui::language?std::vector<std::string>{"Original","Dark","Sepia","Invert"}:std::vector<std::string>{"Orijinal","Koyu","Sepya","Ters renkler"};
         case 6:return ui::language?std::vector<std::string>{"Off","Soft paper","Natural paper"}:std::vector<std::string>{"Kapal\u0131","Yumu\u015fak ka\u011f\u0131t","Do\u011fal ka\u011f\u0131t"};
         default:return {};
         }
@@ -51,21 +50,7 @@
         if(choiceKind_==0){currentFontFamily_=choiceIndex_;queueStyleChange();}
         if(choiceKind_==1){a.displayOrientation=choiceIndex_;appSettings_.put(a);pageCache_.clear();if(doc_ && px_document_is_epub(doc_)){++layoutGeneration_;layoutPending_=true;layoutDue_=SDL_GetTicks()+100;}else if(doc_)setPdfView(extraStyle_.pdfViewMode);}
         if(choiceKind_==7)applyGlobalPaperPreset(choiceIndex_);
-        if(choiceKind_==5){
-            // A PDF filter is a document-specific choice, not a global UI theme.
-            // Persist only the changed field to avoid slow synchronous MuPDF
-            // anchor/bookmark traversal on every filter selection.
-            extraStyle_.pdfColorMode=choiceIndex_;pageCache_.clear();
-            if(doc_) {
-                auto saved=progressStore_.get(currentBookId_);
-                saved.pdfColorMode=choiceIndex_;
-                progressStore_.put(currentBookId_,saved);progressDirty_=true;
-            } else {
-                auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
-                defaults.pdfColorMode=choiceIndex_;
-                progressStore_.put("PAPERNX_DEFAULTS",defaults);progressDirty_=true;
-            }
-        }
+        // Kind 5 (obsolete PDF-only filter) intentionally has no handler.
         if(choiceKind_==6){a.paperTexture=choiceIndex_;pageCache_.clear();}
         if(choiceKind_==1 || choiceKind_==6){appSettings_.put(a);persistAppSettings();}
         choiceKind_=-1;choiceDragging_=false;choiceTouchActive_=false;gestureTracker_.reset();activeFingers_.clear();dirty_=true;
