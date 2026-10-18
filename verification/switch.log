@@ -8,9 +8,35 @@ All archive members are AArch64: /work/prefix-mupdf-switch/lib/libmupdf.a
 All archive members are AArch64: /work/prefix-mupdf-switch/lib/libmupdf-third.a
 libmupdf.a: OK
 libmupdf-third.a: OK
+verification/v04-switch-build-receipt.json
 python3 scripts/validate_branding.py
 {'width': 256, 'height': 256, 'components': 3, 'encoding': 'baseline JPEG', 'sha256': 'b47198387614a9e66a570d7faaefff0fa496033d4481060316a086059b506bb5'}
-make[1]: Nothing to be done for 'all'.
+catalog.cpp
+core.cpp
+cover_repository.cpp
+gestures.cpp
+main.cpp
+In file included from /work/src/main.cpp:10:
+/work/include/papernx/orientation.hpp: In member function 'std::pair<float, float> papernx::DisplayTransform::toLogical(float, float) const':
+/work/include/papernx/orientation.hpp:10:61: note: parameter passing for argument of type 'std::pair<float, float>' when C++17 is enabled changed to match C++14 in GCC 10.1
+   10 |     std::pair<float,float> toLogical(float x,float y) const {
+      |                                                             ^
+page_cache.cpp
+reading_journal.cpp
+reading_journal_ui.cpp
+reading_stats.cpp
+typography.cpp
+mupdf_bridge.c
+built ... PaperNX.nacp
+linking PaperNX.elf
+Visiting directories...
+Calculating metadata...
+Writing /work/romfs/fonts/NotoSans-Regular.ttf to RomFS image...
+Writing /work/romfs/fonts/NotoSans-SemiBold.ttf to RomFS image...
+Writing /work/romfs/fonts/NotoSerif-Regular.ttf to RomFS image...
+Writing /work/romfs/fonts/OFL.txt to RomFS image...
+built ... PaperNX.nro
+verification/v04-switch-build-receipt.json
 ELF Header:
   Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
   Class:                             ELF64
@@ -23,7 +49,7 @@ ELF Header:
   Version:                           0x1
   Entry point address:               0x0
   Start of program headers:          64 (bytes into file)
-  Start of section headers:          64014696 (bytes into file)
+  Start of section headers:          70794992 (bytes into file)
   Flags:                             0x0
   Size of this header:               64 (bytes)
   Size of program headers:           56 (bytes)
@@ -33,8 +59,8 @@ ELF Header:
   Section header string table index: 36
 {
   "source": {
-    "git_revision": "03bbf513d311566245ea3efe6a7a5e85ecbeb98b",
-    "implementation_sha256": "84a03017d6c3d0cef453d6069d3e53b4cf1785574b12db06f306d4474789e869"
+    "git_revision": "5cdb829203928529f5513cfb718a95a021ad23c8",
+    "implementation_sha256": "500300d4229a504e6aae0f6b2702635277c5007e531c7890157934846f7fb408"
   },
   "elf": {
     "architecture": "AArch64",
@@ -43,38 +69,38 @@ ELF Header:
   },
   "nro": {
     "version": 0,
-    "declared_size": 45977600,
-    "actual_size": 47197587,
+    "declared_size": 46284800,
+    "actual_size": 48077779,
     "segments": [
       {
         "name": ".text",
         "offset": 0,
-        "size": 8708096
+        "size": 8982528
       },
       {
         "name": ".rodata",
-        "offset": 8708096,
-        "size": 36737024
+        "offset": 8982528,
+        "size": 36769792
       },
       {
         "name": ".data",
-        "offset": 45445120,
+        "offset": 45752320,
         "size": 532480
       }
     ]
   },
   "assets": {
     "icon": {
-      "offset": 45977656,
+      "offset": 46284856,
       "size": 13795
     },
     "nacp": {
-      "offset": 45991451,
+      "offset": 46298651,
       "size": 16384
     },
     "romfs": {
-      "offset": 46007835,
-      "size": 1189752
+      "offset": 46315035,
+      "size": 1762744
     }
   },
   "icon": {
@@ -87,21 +113,22 @@ ELF Header:
   "embedded_icon_identical": true,
   "romfs_files": [
     "fonts/NotoSans-Regular.ttf",
+    "fonts/NotoSans-SemiBold.ttf",
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60",
+  "nro_sha256": "4e8891c4d227369741162d22ac3e01fa99a71eb4be14d95993309422854a7d02",
   "hardware": "UNVERIFIED"
 }
-[OK] Release package created: dist/v0.3.0-rc1/PaperNX-switch-v0.3.0-rc1.zip
-[OK] SHA256: 2879f0dfa54ec9eee4a885dc8f602ffb761118c77bf5ab2e5176eb0d0ac5b9b7
+[OK] Release package created: dist/v0.4.0-journal/PaperNX-switch-v0.4.0-journal.zip
+[OK] SHA256: 932797dac5b9167400a2d8c9f8d43a7868218922f697ffbfbc6df0b9c959dbde
 {
   "result": "PASS",
-  "zip_sha256": "2879f0dfa54ec9eee4a885dc8f602ffb761118c77bf5ab2e5176eb0d0ac5b9b7",
-  "nro_sha256": "faa2984a2227f9ffae607252ab4d38e723b04a11472e2a8ee7edf35bb0b34d60",
-  "nacp_version": "0.3.0-rc1",
+  "zip_sha256": "932797dac5b9167400a2d8c9f8d43a7868218922f697ffbfbc6df0b9c959dbde",
+  "nro_sha256": "4e8891c4d227369741162d22ac3e01fa99a71eb4be14d95993309422854a7d02",
+  "nacp_version": "0.4.0-journal",
   "license_files": 59,
-  "zip_members": 79,
+  "zip_members": 86,
   "elf": {
     "architecture": "AArch64",
     "machine": 183,

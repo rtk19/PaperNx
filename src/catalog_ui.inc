@@ -180,7 +180,7 @@ void activateCatalogRow(int index){
         if(action==0){catalogFilter_.reset();updateVisibleBooks();setCatalogPanel(CatalogPanel::None);}
         if(action>=1&&action<=4){catalogGroup_=action==1?CatalogGroup::Authors:action==2?CatalogGroup::Genres:action==3?CatalogGroup::Collections:CatalogGroup::Series;setCatalogPanel(CatalogPanel::Values);}
         if(action==5)setCatalogPanel(CatalogPanel::Hidden);
-        if(action==6){setCatalogPanel(CatalogPanel::None);enterJournal(false);}
+        if(action==6)setCatalogPanel(CatalogPanel::Statistics);
         if(action==7)requestCatalogText(5,"");
         if(action==8){catalogGroup_=CatalogGroup::Formats;setCatalogPanel(CatalogPanel::Values);}
     }else if(catalogPanel_==CatalogPanel::Values){auto groups=catalog_.groups(books_,catalogGroup_);auto it=groups.begin();std::advance(it,index);if(it!=groups.end()){catalogFilter_=catalogGroup_;catalogFilterValue_=it->first;selectedCollection_=it->first;category_=Category::All;updateVisibleBooks();setCatalogPanel(CatalogPanel::None);}

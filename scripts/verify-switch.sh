@@ -5,15 +5,17 @@ exec > >(tee verification/switch.log) 2>&1
 export PATH="${DEVKITPRO}/portlibs/switch/bin:${PATH}"
 bash scripts/build-mupdf-switch.sh /work/prefix-mupdf-switch
 export MUPDF_PREFIX=/work/prefix-mupdf-switch
-make all -j4
+version="${PAPERNX_RELEASE_VERSION:-v0.4.0-journal}"
+release_dir="${PAPERNX_RELEASE_DIST:-dist/${version}}"
+python3 scripts/build_receipt.py start
+make all -B -j4
+python3 scripts/build_receipt.py finish
 "${DEVKITPRO}/devkitA64/bin/aarch64-none-elf-readelf" -h PaperNX.elf
 mkdir -p third-party-licenses
 cp -r prefix-mupdf-switch/licenses/. third-party-licenses/
 mkdir -p third-party-licenses/SDK-notices
 cp scripts/license-notices/* third-party-licenses/SDK-notices/
 dkp-pacman -Q > verification/switch-packages.txt
-version="${PAPERNX_RELEASE_VERSION:-v0.3.0-rc1}"
-release_dir="${PAPERNX_RELEASE_DIST:-dist/${version}}"
 python3 scripts/verify_artifacts.py --version "$version"
-python3 scripts/package_release.py PaperNX.nro --destination "$release_dir" --version "$version"
+python3 scripts/package_release.py PaperNX.nro --destination "$release_dir" --version "$version" --build-receipt verification/v04-switch-build-receipt.json
 python3 scripts/verify_distribution.py --dist "$release_dir" --version "$version"

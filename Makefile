@@ -57,7 +57,7 @@ ICON := assets/branding/PaperNX-icon-switch.jpg
 
 APP_TITLE	:=	PaperNX
 APP_AUTHOR	:=	ysfbz
-APP_VERSION	:=	0.4.0-rc3
+APP_VERSION	:=	0.4.0-journal
 
 #---------------------------------------------------------------------------------
 # options for code generation

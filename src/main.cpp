@@ -1085,6 +1085,8 @@ private:
         extraStyle_ = p;
         currentBookId_ = b.id;
         journalTitle_ = b.title;journalAuthor_ = b.author;
+        auto fp = computeBookFingerprint(b.path, b.bytes);
+        journal_.registerBookAlias(b.id, fp, b.title, b.author);
         journal_.interaction(SDL_GetTicks());
         currentTheme_ = p.theme;
         currentFontSize_ = p.fontSize > 0 ? p.fontSize : 22;
@@ -2288,6 +2290,13 @@ private:
             setPdfView((extraStyle_.pdfViewMode + 1) % 3); return;
         }
         if(screen_==ScreenState::AaModal && !settingsEditing_ && (match(SDLK_PAGEUP,SDL_CONTROLLER_BUTTON_LEFTSHOULDER)||match(SDLK_PAGEDOWN,SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))){aaTab_=std::clamp(aaTab_+(match(SDLK_PAGEUP,SDL_CONTROLLER_BUTTON_LEFTSHOULDER)?-1:1),0,5);aaRow_=0;settingsScroll_=0;dirty_=true;return;}
+        if (screen_ == ScreenState::ReadingJournal) {
+            if (match(SDLK_PAGEUP, SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) { journalUI_.prevTab(); dirty_ = true; return; }
+            if (match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) { journalUI_.nextTab(); dirty_ = true; return; }
+            if (match(SDLK_PLUS, SDL_CONTROLLER_BUTTON_START)) { journalUI_.openGoals(); dirty_ = true; return; }
+            if (match(SDLK_x, SDL_CONTROLLER_BUTTON_X)) { journalUI_.openExport(); dirty_ = true; return; }
+            if (match(SDLK_y, SDL_CONTROLLER_BUTTON_Y)) { journal_.interaction(SDL_GetTicks()); dirty_ = true; return; }
+        }
         // Page turns
         if (match(SDLK_RIGHT, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) {
             handleDirectional(1, 0);
