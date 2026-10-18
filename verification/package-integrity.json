@@ -1,7 +1,7 @@
 {
   "result": "PASS",
-  "zip_sha256": "75cbbc2b7c024ccfb4f45220ebe3236ac24e100b1fe046549aeefaa19ce824e4",
-  "nro_sha256": "26cad3e4c87b297d76b84dcd844b6b949c71725d94d7ef381c63664481b3c27b",
+  "zip_sha256": "ec32e2beb1f1137164dc4e323d14d0dd8a44792566f03690d6608bf3e4af2c51",
+  "nro_sha256": "758ae03c42acf3ca3a040dce60c62fa000426cf00019f40614f2aa4a54b48a8c",
   "nacp_version": "0.4.0-journal",
   "license_files": 59,
   "zip_members": 86,
