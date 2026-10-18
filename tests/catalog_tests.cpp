@@ -63,6 +63,22 @@ int main(){
     {std::ofstream out(second.path,std::ios::app);out<<"changed";}
     assert(!catalog.validateDeletion(second,root/"books",error));
     assert(catalog.deleteBookFile(first,root/"books",true,error));assert(!fs::exists(first.path));assert(fs::exists(root/"outside"/"valuable.epub"));
+    // Explicit status commands have actual position semantics. Journal/history,
+    // bookmarks, and per-book styles must not be destroyed.
+    Progress marked;marked.pageCount=20;marked.page=6;marked.fraction=.30;
+    marked.bookmarks.push_back({6,"Resume point",123,-1});
+    marked.theme=4;marked.styleOverride=1;
+    applyManualReadingStatus(marked,ReadingStatus::NotStarted,1000);
+    assert(marked.page==0 && marked.fraction==0.0 && marked.lastRead==0);
+    assert(marked.bookmarks.size()==1 && marked.theme==4 && marked.styleOverride==1);
+    marked.page=6;marked.fraction=.30;
+    applyManualReadingStatus(marked,ReadingStatus::Reading,1001);
+    assert(marked.page==6 && marked.fraction==.30);
+    applyManualReadingStatus(marked,ReadingStatus::Completed,1002);
+    assert(marked.fraction==1.0 && marked.page==19);
+    applyManualReadingStatus(marked,ReadingStatus::Reading,1003);
+    assert(marked.fraction==0.0 && marked.page==0);
+    assert(marked.bookmarks.size()==1 && marked.theme==4);
     // Conservative real activity, menu/idle/suspend exclusion and evidence gate.
     ReadingStatsStore stats(root/"stats.db");assert(!stats.load());assert(stats.setDailyGoal(20));assert(!stats.setDailyGoal(-1));assert(!stats.setDailyGoal(721));
     stats.interaction(0);stats.tick(0,first.id,0,true,"2026-10-18");
