@@ -1218,6 +1218,18 @@ private:
         p.page = currentPage_;
         p.pageCount = pageCount_;
         p.fraction = readingFraction();
+        const auto manualStatus=catalog_.get(currentBookId_).status;
+        if(manualStatus==ReadingStatus::Completed) {
+            // Explicitly finished remains 100% in every stored progress view;
+            // browsing an already-finished book does not silently undo its status.
+            p.fraction=1.0;
+        } else if(manualStatus==ReadingStatus::NotStarted && p.fraction>0.0001) {
+            // Actual forward reading is the first evidence that "unread" has
+            // become "reading". Never mark a PDF finished just for visiting the end.
+            auto state=catalog_.get(currentBookId_);
+            state.status=ReadingStatus::Reading;
+            if(catalog_.put(currentBookId_,state))catalogSavePending_=true;
+        }
         auto book = std::find_if(books_.begin(), books_.end(), [&](const Book &b) { return b.id == currentBookId_; });
         if (book != books_.end()) {
             p.bookPath = book->path; p.bookTitle = book->title; p.bookAuthor = book->author;
