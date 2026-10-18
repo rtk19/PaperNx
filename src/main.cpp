@@ -796,8 +796,7 @@ private:
         } else {
             SDL_Rect clip{r.x,r.y+44,r.w,r.h-44}; SDL_RenderSetClipRect(renderer_,&clip);
             auto actions=quickActions(); for(int i=0;i<int(actions.size());++i)
-                ui::button(renderer_,*typography_,{r.x+12,r.y+44+i*60-int(quickScroll_),r.w-24,56},actions[i],pal,false,
-                    !activeFingers_.empty() && ui::contains({r.x+12,r.y+44+i*60-int(quickScroll_),r.w-24,56},int(pressX_*w),int(pressY_*h)),true,i==quickFocus_);
+                ui::menuRow(renderer_,*typography_,{r.x+12,r.y+44+i*60-int(quickScroll_),r.w-24,56},actions[i],pal,false,i==quickFocus_);
             SDL_RenderSetClipRect(renderer_,nullptr);
         }
     }
