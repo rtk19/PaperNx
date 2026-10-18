@@ -21,7 +21,7 @@ inline PdfGesture classifyPdfGesture(const PdfGestureSample &s,const PdfGestureT
     if(s.multiTouch) return PdfGesture::Pinch;
     const float x=std::abs(s.dx),y=std::abs(s.dy);
     if(std::hypot(x,y)<=t.tapDistance) return PdfGesture::Tap;
-    if(s.releaseVelocityX!=0.f && std::abs(s.releaseVelocityX)<0.15f) return PdfGesture::Pan;
+    if(s.releaseVelocityX!=0.f && (std::abs(s.releaseVelocityX)<0.15f || s.dx*s.releaseVelocityX<0.f)) return PdfGesture::Pan;
     if(s.durationMs>0 && s.durationMs<=t.maximumDurationMs &&
        x>=std::max(t.minimumDistance,s.viewportWidth*t.distanceFraction) &&
        x>=y*t.dominance) {
