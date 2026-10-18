@@ -7,7 +7,7 @@
 
 A **native, fully offline EPUB/PDF reader for Nintendo Switch**, built with C++17, SDL2, and MuPDF. Designed with a touchscreen-first interface for comfortable reading with the Joy-Con controllers detached. Books, covers, and reading records stay on your microSD card; no account, cloud service, or browser engine is required.
 
-**v0.4.0-rc1 - development release candidate.** Final desktop, sanitizer, Release and Switch artifact gates are tracked in [test results](docs/TEST_RESULTS.md). New physical Switch acceptance, including portrait, is **UNVERIFIED**. Previous v0.3 test results do not validate this candidate.
+**v0.4.0-rc2 - development release candidate.** Final desktop, sanitizer, Release and Switch artifact gates are tracked in [test results](docs/TEST_RESULTS.md). New physical Switch acceptance, including portrait, is **UNVERIFIED**. Previous v0.3 test results do not validate this candidate.
 
 ---
 
@@ -54,7 +54,7 @@ Both software portrait rotations are captured in [clockwise](verification/screen
 
 ## Installation & Upgrade
 
-1. Download the release package from `dist/v0.4.0-rc1/PaperNX-switch-v0.4.0-rc1.zip`.
+1. Download the release package from `dist/v0.4.0-rc2/PaperNX-switch-v0.4.0-rc2.zip`.
 2. Extract and merge the `switch/` directory into the root of your Switch microSD card.
 3. Place your EPUB and PDF files in `switch/PaperNX/books/` or browse existing folders using **Browse SD**.
 4. Launch PaperNX from the Homebrew Menu.

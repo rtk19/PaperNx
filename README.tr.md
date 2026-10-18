@@ -7,7 +7,7 @@
 
 Nintendo Switch için C++17, SDL2 ve MuPDF ile geliştirilmiş, **native ve tamamen çevrimdışı EPUB/PDF okuyucu**. Joy-Con kumandaları konsoldan ayrılmış durumdayken rahatça kitap okuyabilmeniz için dokunmatik odaklı olarak tasarlanmıştır. Kitaplarınız, kapak önbelleğiniz ve okuma kayıtlarınız doğrudan microSD kartınızda saklanır; hesap, bulut servisi veya web tarayıcı motoru gerektirmez.
 
-**v0.4.0-rc1 — geliştirme sürüm adayı.** Güncel masaüstü, sanitizer, Release ve Switch çıktı kontrolleri [test sonuçlarında](docs/TEST_RESULTS.md) izlenir. Portre dahil yeni fiziksel Switch kabulü **UNVERIFIED** durumundadır. v0.3 sonuçları yeni adayı doğrulamaz.
+**v0.4.0-rc2 — geliştirme sürüm adayı.** Güncel masaüstü, sanitizer, Release ve Switch çıktı kontrolleri [test sonuçlarında](docs/TEST_RESULTS.md) izlenir. Portre dahil yeni fiziksel Switch kabulü **UNVERIFIED** durumundadır. v0.3 sonuçları yeni adayı doğrulamaz.
 
 ---
 
@@ -54,7 +54,7 @@ Portre çıktıları: [saat yönü](verification/screenshots/v04-portrait-cw-lib
 
 ## SD Kurulumu ve Güncelleme
 
-1. Sürüm paketini `dist/v0.4.0-rc1/PaperNX-switch-v0.4.0-rc1.zip` konumundan edinin.
+1. Sürüm paketini `dist/v0.4.0-rc2/PaperNX-switch-v0.4.0-rc2.zip` konumundan edinin.
 2. Arşiv içindeki `switch/` klasörünü Switch microSD kartınızın ana dizinine kopyalayıp birleştirin.
 3. EPUB ve PDF dosyalarınızı `switch/PaperNX/books/` altına ekleyin veya **SD Gözat** ile mevcut klasörlerden açın.
 4. Homebrew Menu üzerinden PaperNX'i başlatın.

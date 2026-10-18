@@ -12,7 +12,7 @@ if [[ "$mode" == switch ]]; then
     # Recompile application objects and regenerate NACP/NRO; retain SDK/MuPDF caches.
     make all -B -j4
     python3 scripts/build_receipt.py finish
-    python3 scripts/verify_artifacts.py --version v0.4.0-rc1
+    python3 scripts/verify_artifacts.py --version v0.4.0-rc2
     exit
 fi
 python3 tests/generate_fixtures.py
@@ -30,4 +30,4 @@ case "$mode" in
 esac
 cmake -S . -B "build-v04-$mode" -G Ninja "${options[@]}"
 cmake --build "build-v04-$mode" --parallel 4
-ASAN_OPTIONS=detect_leaks=1 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy ctest --test-dir "build-v04-$mode" --output-on-failure
+ASAN_OPTIONS=detect_leaks=1 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy ctest --test-dir "build-v04-$mode" -j1 --output-on-failure

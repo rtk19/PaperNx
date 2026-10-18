@@ -1,7 +1,7 @@
 {
   "source": {
-    "git_revision": "2da2b6dbe7247d69093a1400a4d542286038b9e6",
-    "implementation_sha256": "a07ed178289750c8ae7642c3e816f72c361089833c5be7f7d914e8a70b1d3546"
+    "git_revision": "d6f8e4ead7f448aee7cac70eb110baa270fa796d",
+    "implementation_sha256": "22075862deffed04f066f5e9335062ba13fd4bd7be984334522f15f5102072ca"
   },
   "elf": {
     "architecture": "AArch64",
@@ -58,6 +58,6 @@
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "dc67312298a15bc43349815a8cdeb9f08bae91bab06dbd8dcefa5b798c240496",
+  "nro_sha256": "d45e45327b99da7bb9b4b1bcb9387e609650c47cee9f0405f6aed9a0d7004634",
   "hardware": "UNVERIFIED"
 }
