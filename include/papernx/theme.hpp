@@ -142,7 +142,14 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
         "html, body { background-color: #%02x%02x%02x !important; color: #%02x%02x%02x !important; } ",
         bg.r, bg.g, bg.b, fg.r, fg.g, fg.b);
     std::string result = css;
-    if (style.publisherStyles) return result;
+    // Selected paper colors override embedded white publisher backgrounds.
+    // MuPDF would otherwise repaint the interior after the reader chrome changes.
+    const bool explicitPaper=style.backgroundColor>=0 || style.textColor>=0 || style.theme!=0;
+    if(style.publisherStyles && !explicitPaper) return result;
+    if(style.publisherStyles && explicitPaper) {
+        result += " /*papernx-reader-controlled*/ ";
+        return result;
+    }
     // MuPDF 1.23 gives inline styles higher specificity than user !important.
     // Tell the bridge to use semantic HTML and reader CSS for controlled typography.
     result += "/*papernx-reader-controlled*/ ";
