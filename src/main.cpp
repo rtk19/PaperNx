@@ -588,12 +588,18 @@ private:
         currentTheme_ = p.theme; currentFontSize_ = p.fontSize; currentFontFamily_ = p.fontFamily;
         currentLineHeight_ = p.lineHeight; currentMargin_ = p.margin; currentTextAlign_ = p.textAlign;
     }
+    ReaderPreferences presentedStyle() const {
+        // Until the reflowed EPUB document is published, the old page is still
+        // on screen. Keep its canvas/chrome exactly in sync with that old page.
+        if(doc_ && px_document_is_epub(doc_) && (layoutPending_ || layoutWorker_.joinable()))
+            return renderedStyle_;
+        return currentStyle();
+    }
     ThemePalette palette() const {
-        // One source of truth: global paper colors for all application surfaces.
-        // An explicitly enabled per-book override applies only while reading it.
-        const auto style=(doc_ && !globalSettings_)?currentStyle():
-                         static_cast<ReaderPreferences>(progressStore_.get("PAPERNX_DEFAULTS"));
-        return readerChromePalette(style,false,0,0);
+        if(doc_ && !globalSettings_)
+            return readerChromePalette(presentedStyle(),!px_document_is_epub(doc_),
+                                       extraStyle_.pdfColorMode,0);
+        return readerChromePalette(progressStore_.get("PAPERNX_DEFAULTS"),false,0,0);
     }
     int globalPaperPresetIndex() const {
         const auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
@@ -674,14 +680,20 @@ private:
         screen_=globalSettings_ ? settingsReturn_ : ScreenState::Reader;
         globalSettings_=false; gestureTracker_.reset(); dirty_=true; flushProgress();
     }
-    void queueStyleChange() {
-        auto style=currentStyle();
-        if(globalSettings_ || !style.styleOverride) storeDefaults();
-        // Avoid a synchronous MuPDF anchor walk on each touch stepper press.
-        // The prepared layout preserves the old anchor at publication; closeBook
-        // also persists the current state if the user exits before publication.
-        if(doc_ && px_document_is_epub(doc_)) { ++layoutGeneration_; layoutPending_=true; layoutDue_=SDL_GetTicks()+140; }
-        else if(doc_) saveCurrentPosition();
+    void queueStyleChange(bool preserveScope=false) {
+        if(doc_ && !globalSettings_) {
+            // Reader appearance changes belong to THIS book; never silently
+            // rewrite the global theme. Scope-toggle reset is the exception.
+            if(!preserveScope)extraStyle_.styleOverride=1;
+            auto progress=progressStore_.get(currentBookId_);
+            static_cast<ReaderPreferences&>(progress)=currentStyle();
+            progressStore_.put(currentBookId_,progress);progressDirty_=true;
+        } else storeDefaults();
+        // Debounced preparation is off-thread, but the old EPUB page and its
+        // chrome remain on the same palette until the new layout is published.
+        if(doc_ && px_document_is_epub(doc_)) {
+            ++layoutGeneration_;layoutPending_=true;layoutDue_=SDL_GetTicks()+35;
+        }
         dirty_=true;
     }
     void cancelLayout() {
@@ -1306,7 +1318,8 @@ private:
         if(auto tex=pageCache_.get(key)) return tex;
         PxImage image{}; char error[256]{};
         if(!px_document_render_tile(doc_,page,y,width,*height,&image,error,sizeof error)) return nullptr;
-        auto bg=readingColor(extraStyle_.backgroundColor,g_palettes[currentTheme_].bg);
+        const auto style=presentedStyle();
+        auto bg=readingColor(style.backgroundColor,g_palettes[style.theme].bg);
         applyPaperTexture(image.rgb,image.width,image.height,image.stride,(bg.r<<16)|(bg.g<<8)|bg.b,appSettings_.get().paperTexture,y);
         auto tex=SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_RGB24,SDL_TEXTUREACCESS_STATIC,image.width,image.height);
         if(tex && SDL_UpdateTexture(tex,nullptr,image.rgb,image.stride)!=0) { SDL_DestroyTexture(tex); tex=nullptr; }
@@ -1344,8 +1357,9 @@ private:
 
         std::string key;
         if (px_document_is_epub(doc_)) {
-            key = PageCache::makeEpubKey(currentBookId_, pageIdx, currentFontSize_, currentTheme_,
-                                         currentLineHeight_, currentMargin_, currentTextAlign_, w, h, currentFontFamily_);
+            const auto style=presentedStyle();
+            key = PageCache::makeEpubKey(currentBookId_,pageIdx,style.fontSize,style.theme,
+                                         style.lineHeight,style.margin,style.textAlign,w,h,style.fontFamily);
         } else {
             key = PageCache::makePdfKey(currentBookId_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_, w, h) + ":filter:" + std::to_string(extraStyle_.pdfColorMode);
         }
@@ -1372,7 +1386,7 @@ private:
 
         if (ok && img.rgb) {
             if (!px_document_is_epub(doc_)) px_image_filter(&img, extraStyle_.pdfColorMode);
-            else {auto bg=readingColor(extraStyle_.backgroundColor,g_palettes[currentTheme_].bg);applyPaperTexture(img.rgb,img.width,img.height,img.stride,(bg.r<<16)|(bg.g<<8)|bg.b,appSettings_.get().paperTexture);}
+            else {const auto style=presentedStyle();auto bg=readingColor(style.backgroundColor,g_palettes[style.theme].bg);applyPaperTexture(img.rgb,img.width,img.height,img.stride,(bg.r<<16)|(bg.g<<8)|bg.b,appSettings_.get().paperTexture);}
             tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, img.width, img.height);
             if (tex) {
                 if (SDL_UpdateTexture(tex, nullptr, img.rgb, img.stride) != 0) {
@@ -1896,7 +1910,7 @@ private:
                 auto resolved=resolveReadingPreferences(progressStore_.get("PAPERNX_DEFAULTS"),currentStyle());
                 applyStyle(resolved);
             }
-            queueStyleChange(); return;
+            queueStyleChange(true); return;
         }
         if(ui::contains(l.footer,px,py)) {
             if(px<l.footer.x+l.footer.w/2) { flushProgress(); persistAppSettings(); dismissSettings(); }
@@ -2227,7 +2241,9 @@ private:
                 render();return;
             }
         }
-        SDL_Color canvas = doc_ && px_document_is_epub(doc_) ? readingColor(extraStyle_.backgroundColor,g_palettes[std::clamp(currentTheme_,0,5)].bg) : pal.bg;
+        // Exactly the same resolved background feeds both the page surround
+        // and all chrome in this frame (including during asynchronous reflow).
+        SDL_Color canvas=pal.bg;
         SDL_SetRenderDrawColor(renderer_, canvas.r, canvas.g, canvas.b, 255);
         SDL_RenderClear(renderer_);
 
