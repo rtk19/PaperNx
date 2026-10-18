@@ -22,7 +22,7 @@ Ortak tipografi ve ayrı ayar kontrolleri, okuma temasıyla uyumlu menüler, aç
 - **Genel ve Kitap Başına Özelleştirme:** Paylaşılan genel tipografi ayarları tüm kitaplara uygulanır. İstediğiniz kitapta ayarları özelleştirebilir veya tek dokunuşla genel ayarlara geri dönebilirsiniz.
 - **Gerçek Dikey Sürekli EPUB Kaydırma:** Sahte sayfa geçişleri yerine akıcı dikey piksel kaydırma, ayarlanabilir hassasiyet ve momentum, pürüzsüz bölüm geçişleri ve mantıksal okuma konumu (`anchor`) koruma. Sayfalı yatay okuma modu da eksiksiz korunmaktadır.
 - **Disk Üzerinde Kalıcı Kapak Önbelleği:** 150×210 RGB24 boyutunda, diskte 32 MiB / 512 dosya ile sınırlandırılmış hızlı kapak önbelleği; dosya boyutu/tarihi ile geçersiz kılma, bozulma tespiti, otomatik kurtarma ve anında beliren şık vektörel yer tutucu kapaklar.
-- **Özel Renk Temaları:** Nintendo Switch LCD ve OLED ekranları için optimize edilmiş Paper, Ivory, Sepia, Slate, Dark ve OLED Black renk paletleri.
+- **Tek Genel Tema:** Ayarlar → Uygulama → Genel Tema bölümünde dokuz doğal kâğıt önayarı. Kitaplık, üst menü, ayarlar, tüm pencereler ve EPUB aynı temayı kullanır. Kitaba özel görünüm yalnızca açıkça etkinleştirilirse devreye girer. PDF filtreleri belgeyi değiştirir, genel arayüz temasını değil.
 - **Çift Dilli Arayüz:** Gerçek Türkçe ve İngilizce arayüz lokalizasyonu. Kitap içerikleri, başlıklar ve içindekiler özgün dillerinde korunur.
 - **Gelişmiş PDF Navigasyonu:** Sayfaya sığdırma, genişliğe sığdırma, yakınlaştırma, dokunmatik serbest kaydırma ve tüm sayfa filtreleri (Orijinal, Koyu, Sepya, Ters).
 - **Veri Güvenliği:** Eski kayıt biçimlerinden (PAPERNX-1..5) PAPERNX-6'ya güvenli yükseltme; yükseltme öncesinde değiştirilemez `.pre-v6-vN.bak` yedeği alma.
@@ -46,7 +46,7 @@ Doğrudan SDL uygulamasından alınmış gerçek ekran görüntüleri:
 *Okuma renkleriyle uyumlu ayar yüzeyleri.*
 
 ![Koyu PDF ayarları](verification/screenshots/v04-dark-pdf-settings.png)
-*PDF filtresiyle uyumlu koyu arayüz.*
+*Önceki v0.4 ekran görüntüsü: PDF sayfa filtresi artık genel arayüz temasından bağımsızdır. Yeni görünüm fiziksel Switch üzerinde ayrıca doğrulanacaktır.*
 
 Portre çıktıları: [saat yönü](verification/screenshots/v04-portrait-cw-library.png), [saat yönünün tersi](verification/screenshots/v04-portrait-ccw-library.png). Görüntüyü konsolu tutacağınız yönde çevirin; uygulama çıktısı yazılımda bir kez döndürülür. Fiziksel portre testi **UNVERIFIED** durumundadır.
 
