@@ -50,6 +50,49 @@ static void v04UiWorkflow(const fs::path &parent) {
         app.screen_=ScreenState::TocModal;snapshot(app,"v04-dark-epub-toc");app.screen_=ScreenState::Reader;
         app.currentTheme_=5;app.queueStyleChange();v03WaitLayout(app);app.quickMenu_=true;snapshot(app,"v04-oled-quick-menu");app.quickMenu_=false;
         app.closeBook();
+        // App-wide Follow Reading Theme must use persisted defaults, not stale Paper UI.
+        {
+            auto defaults=app.progressStore_.get("PAPERNX_DEFAULTS");
+            defaults.theme=2;defaults.backgroundColor=0xe8d6b3;defaults.textColor=0x4b3828;
+            app.progressStore_.put("PAPERNX_DEFAULTS",defaults);
+            auto prefs=app.appSettings_.get();prefs.chromePolicy=0;app.appSettings_.put(prefs);
+            assert(app.palette().bg.r==0xe8);
+            auto html=generateEpubCss(defaults);
+            assert(html.find("background-color: #e8d6b3")!=std::string::npos);
+            defaults.publisherStyles=1;
+            assert(generateEpubCss(defaults).find("papernx-reader-controlled")!=std::string::npos);
+        }
+        // Default D-pad pagination wins even with permanently visible reader tools.
+        app.openBook(epub);
+        {
+            auto prefs=app.appSettings_.get();prefs.toolbar=1;app.appSettings_.put(prefs);
+            app.currentPage_=0;
+            pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.currentPage_==1);
+            pad(app,SDL_CONTROLLER_BUTTON_DPAD_UP);assert(app.readerToolbarFocusActive_);
+            const int beforeFocus=app.currentPage_;
+            pad(app,SDL_CONTROLLER_BUTTON_DPAD_LEFT);assert(app.currentPage_==beforeFocus);
+            pad(app,SDL_CONTROLLER_BUTTON_B);assert(!app.readerToolbarFocusActive_ && app.doc_);
+            pad(app,SDL_CONTROLLER_BUTTON_DPAD_LEFT);assert(app.currentPage_==0);
+            prefs.toolbar=0;app.appSettings_.put(prefs);
+        }
+        app.closeBook();
+        // Long finger movement through the *full event chain* must scroll a choice list.
+        {
+            SDL_SetWindowSize(app.window_,640,480);
+            app.openSettings(true);
+            app.openChoice(3,0);
+            int cw,ch;app.getWindowSize(cw,ch);
+            auto region=app.choiceContentRect(cw,ch);
+            const float cx=float(region.x+region.w/2)/cw,cy=float(region.y+region.h-24)/ch;
+            finger(app,SDL_FINGERDOWN,cx,cy,91);
+            finger(app,SDL_FINGERMOTION,cx,cy-.22f,91);
+            assert(app.choiceScroll_>0.f);
+            finger(app,SDL_FINGERUP,cx,cy-.22f,91);
+            pad(app,SDL_CONTROLLER_BUTTON_B);
+            assert(app.choiceKind_<0);
+            closeSettings(app);
+            SDL_SetWindowSize(app.window_,1280,720);
+        }
         for(int orientation=1;orientation<=2;++orientation) {
             auto a=app.appSettings_.get();a.displayOrientation=orientation;app.appSettings_.put(a);app.persistAppSettings();
             int w,h;app.getWindowSize(w,h);assert(w==720 && h==1280);app.render();
