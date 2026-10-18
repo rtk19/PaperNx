@@ -60,17 +60,13 @@ inline SDL_Color blendColor(SDL_Color a,SDL_Color b,int percent) {
     auto mix=[percent](int x,int y){return Uint8((x*(100-percent)+y*percent)/100);};
     return {mix(a.r,b.r),mix(a.g,b.g),mix(a.b,b.b),255};
 }
-// Derive chrome from document appearance without filtering controls or changing
-// persisted six-theme identifiers. Custom paper presets use RGB overrides.
+// The effective reading style is the SINGLE theme source for all UI surfaces.
+// PDF filters recolor document pixels only; they never silently select a second
+// interface theme. The old arguments are retained for source compatibility with
+// existing call sites and saved legacy settings.
 inline ThemePalette readerChromePalette(const ReaderPreferences &style,bool pdf,int pdfFilter,
                                         int appTheme,int policy=0,int customTheme=0) {
-    if(policy==1) return g_palettes[std::clamp(appTheme,0,5)];
-    if(policy==2) return g_palettes[std::clamp(customTheme,0,5)];
-    if(pdf) {
-        if(pdfFilter==1 || pdfFilter==3) return g_palettes[4];
-        if(pdfFilter==2) return g_palettes[2];
-        return g_palettes[std::clamp(appTheme,0,5)];
-    }
+    (void)pdf; (void)pdfFilter; (void)appTheme; (void)policy; (void)customTheme;
     auto p=g_palettes[std::clamp(style.theme,0,5)];
     auto rgb=[](int c){return SDL_Color{Uint8(c>>16),Uint8(c>>8),Uint8(c),255};};
     if(style.backgroundColor>=0) p.bg=rgb(style.backgroundColor);
