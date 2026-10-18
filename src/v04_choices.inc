@@ -37,7 +37,8 @@
     void openChoice(int kind,int selected) {
         choiceKind_=kind;
         choiceIndex_=selected;
-        choiceFocusedIndex_=selected;
+        // A custom palette has no selected built-in preset; focus starts at the first item.
+        choiceFocusedIndex_=std::max(0,selected);
         choiceScroll_=0.f;
         choiceDragging_=false;
         choiceTouchActive_=false;
@@ -68,6 +69,7 @@
             auto m=[&](int key,int button){return k==(pad?button:key);};
             if(m(SDLK_ESCAPE,SDL_CONTROLLER_BUTTON_B)){choiceKind_=-1;choiceDragging_=false;dirty_=true;}
             else if(m(SDLK_RETURN,SDL_CONTROLLER_BUTTON_A)){
+                choiceIndex_=choiceFocusedIndex_;
                 commitChoice();
             } else {
                 int d=(m(SDLK_DOWN,SDL_CONTROLLER_BUTTON_DPAD_DOWN)||m(SDLK_RIGHT,SDL_CONTROLLER_BUTTON_DPAD_RIGHT))?1:
