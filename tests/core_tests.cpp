@@ -522,8 +522,6 @@ int main() {
         AppSettingsStore restart(path); assert(restart.load());
         assert(restart.get().uiTheme == 2 && restart.get().language == 1 && restart.get().libraryLayout == 1);
         assert(restart.get().chromePolicy==0); // Never resurrect legacy custom chrome.
-        ReaderPreferences paper;paper.theme=2;paper.backgroundColor=0xe8d6b3;paper.textColor=0x4b3828;
-        // Test through the application renderer in the SDL suite; core only checks migration.
         assert(restart.get().sort == 4 && restart.get().toolbar == 1 && restart.get().defaultBrowserPath == app.defaultBrowserPath);
         std::ofstream(path, std::ios::trunc) << "corrupt cache must recover settings";
         assert(restart.load() && restart.get().sort == 4);
