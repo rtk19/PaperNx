@@ -74,12 +74,21 @@
         dirty_=true;
     }
     bool moveFocus(int dx,int dy) {
-        if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None && !(toolbarVisible_ || appSettings_.get().toolbar))return false;
+        if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None) {
+            // D-pad Left/Right turns pages until the toolbar is deliberately focused.
+            if(!(toolbarVisible_ || appSettings_.get().toolbar)) {readerToolbarFocusActive_=false;return false;}
+            if(!readerToolbarFocusActive_) {
+                if(dy>=0) return false;
+                readerToolbarFocusActive_=true;
+            } else if(dy>0) {
+                readerToolbarFocusActive_=false;dirty_=true;return true;
+            }
+        }
         if(screen_==ScreenState::AaModal && settingsEditing_ && catalogPanel_==CatalogPanel::None)return false;
         rebuildFocus();navigationFocus_.move(dx,dy);focusReveal();return true;
     }
     bool activateFocus() {
-        if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None && !(toolbarVisible_ || appSettings_.get().toolbar))return false;
+        if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None && !readerToolbarFocusActive_)return false;
         if(screen_==ScreenState::AaModal && settingsEditing_ && catalogPanel_==CatalogPanel::None)return false;
         rebuildFocus();const auto id=navigationFocus_.active();
         if(catalogPanel_==CatalogPanel::None && screen_==ScreenState::AaModal && id.rfind("setting.",0)==0) {
@@ -94,7 +103,7 @@
         return false;
     }
     void paintFocus() {
-        if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None && !(toolbarVisible_ || appSettings_.get().toolbar))return;
+        if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None && !readerToolbarFocusActive_)return;
         rebuildFocus();const auto pal=palette();
         for(const auto &item:navigationFocus_.items())if(item.id==navigationFocus_.active()) {
             const auto r=item.rect;ui::focusRing(renderer_,{r.x,r.y,r.w,r.h},pal,screen_==ScreenState::AaModal && settingsEditing_);break;
