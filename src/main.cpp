@@ -1890,7 +1890,8 @@ private:
         int px = static_cast<int>(x * w);
         int py = static_cast<int>(y * h);
         if(catalogPanel_!=CatalogPanel::None){handleCatalogTap(px,py,w,h);return;}
-        if((screen_==ScreenState::ReadingJournal||screen_==ScreenState::JournalPreview)&&!quickMenu_){
+        if((screen_==ScreenState::ReadingJournal||screen_==ScreenState::JournalPreview)&&!quickMenu_&&
+           (screen_==ScreenState::JournalPreview || !(px>=w-80&&py<72))){
             journalAction(journalUI_.tap(px,py,w,h,journal_));return;
         }
 
@@ -2122,7 +2123,7 @@ private:
         handleAaModalTap(r.x+r.w/2,r.y+r.h/2,w,h);
     }
     void handleDirectional(int dx, int dy) {
-        if(screen_==ScreenState::ReadingJournal){journalUI_.navigate(dx,dy,journal_);dirty_=true;return;}
+        if(screen_==ScreenState::ReadingJournal&&!quickMenu_){journalUI_.navigate(dx,dy,journal_);dirty_=true;return;}
         if(screen_==ScreenState::JournalPreview)return;
         if(moveFocus(dx,dy))return;
         if(quickMenu_) { quickFocus_=std::clamp(quickFocus_+dy,0,std::max(0,int(quickActions().size())-1));
@@ -2195,6 +2196,7 @@ private:
         }
 
         if (match(SDLK_ESCAPE, SDL_CONTROLLER_BUTTON_B)) {
+            if(quickMenu_){quickMenu_=false;helpMenu_=false;dirty_=true;return;}
             if(screen_==ScreenState::JournalPreview){screen_=ScreenState::Reader;journalUI_.hidePreview();dirty_=true;return;}
             if(screen_==ScreenState::ReadingJournal){
                 if(journalUI_.hasSubpage())journalUI_.back();
@@ -2202,7 +2204,6 @@ private:
                 dirty_=true;return;
             }
             if(catalogPanel_!=CatalogPanel::None){closeCatalogPanel();return;}
-            if(quickMenu_) { quickMenu_=false; helpMenu_=false; dirty_=true; return; }
             if(screen_==ScreenState::AaModal) {
                 if(settingsEditing_) { applyStyle(editOriginal_);pdfZoom_=editOriginalZoom_;settingsEditing_=false;queueStyleChange();dirty_=true;return; }
                 dismissSettings(); return; }
@@ -2229,10 +2230,10 @@ private:
         }
 
         if (match(SDLK_RETURN, SDL_CONTROLLER_BUTTON_A)) {
+            if(quickMenu_){int w,h;getWindowSize(w,h);auto rc=quickSheet(w,h);handleQuickMenuTap(rc.x+28,rc.y+44+quickFocus_*60-int(quickScroll_)+24,w,h);return;}
             if(screen_==ScreenState::JournalPreview){enterJournal(true);return;}
             if(screen_==ScreenState::ReadingJournal){journalAction(journalUI_.activate(0,0,journal_));return;}
             if(activateFocus())return;
-            if(quickMenu_) { int w,h;getWindowSize(w,h);auto r=quickSheet(w,h);handleQuickMenuTap(r.x+28,r.y+44+quickFocus_*60-int(quickScroll_)+24,w,h);return; }
             if (screen_ == ScreenState::TocModal) {
                 if (!tocEntries_.empty() && tocSelected_ >= 0 && tocSelected_ < static_cast<int>(tocEntries_.size()) && tocEntries_[tocSelected_].page >= 0) {
                     rememberPosition();
