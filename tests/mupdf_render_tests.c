@@ -225,6 +225,15 @@ int main(int argc, char **argv) {
         assert(hash_pdf0 != hash_zoom);
         px_image_free(&pdf_zoom);
 
+        // The same EPUB paper/text RGB mapping is applied to neutral PDF
+        // raster pixels, while colored illustrations retain their colors.
+        unsigned char sample[12]={255,255,255,0,0,0,128,128,128,255,0,0};
+        PxImage mapped={2,2,6,sample};
+        px_image_apply_reading_colors(&mapped,0xece0c6u,0x413224u);
+        assert(sample[0]==0xec && sample[1]==0xe0 && sample[2]==0xc6);
+        assert(sample[3]==0x41 && sample[4]==0x32 && sample[5]==0x24);
+        assert(sample[9]==255 && sample[10]==0 && sample[11]==0);
+        px_image_apply_reading_colors(NULL,0,0);
         // Viewport allocation stays bounded even at maximum zoom/extreme pan.
         PxImage bounded = {0};
         assert(px_document_render_view(pdf, 0, 5, 1000000, 1000000, 640, 480, &bounded, err, sizeof err));
