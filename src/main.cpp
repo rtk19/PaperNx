@@ -844,6 +844,10 @@ private:
     void handleQuickMenuTap(int px,int py,int w,int h) {
         auto r=quickSheet(w,h);
         if(helpMenu_ || !ui::contains(r,px,py)) { quickMenu_=helpMenu_=false; dirty_=true; return; }
+        // Fixed header shortcut: visible without scrolling the long action list.
+        if(ui::contains({r.x+r.w-164,r.y+4,148,36},px,py)){
+            quickMenu_=false;openChoice(1,appSettings_.get().displayOrientation);return;
+        }
         int index=int(py-r.y-44+quickScroll_)/60;
         auto actions=quickActions();
         if(py<r.y+44 || index<0 || index>=int(actions.size())) return;
@@ -887,7 +891,9 @@ private:
     }
     void renderQuickMenu(int w,int h,const ThemePalette &pal) {
         auto r=quickSheet(w,h); ui::surface(renderer_,r,pal.card,16);
-        typography_->renderText(renderer_,typography_->smallFont(),helpMenu_?"DOKUNMA REHBERİ · Kapatmak için dokun":"HIZLI İŞLEMLER",r.x+20,r.y+12,pal.muted,r.w-32);
+        typography_->renderText(renderer_,typography_->smallFont(),helpMenu_?"DOKUNMA REHBERİ · Kapatmak için dokun":"HIZLI İŞLEMLER",r.x+20,r.y+12,pal.muted,r.w-200);
+        if(!helpMenu_)ui::button(renderer_,*typography_,{r.x+r.w-164,r.y+4,148,36},
+                                 catLabel("↻ Yatay/Dikey","↻ Rotate"),pal);
         if(helpMenu_) {
             int y=r.y+58; int metadataLines=0;
             std::vector<std::string> lines={"+ tüm işlemleri açar.","Kitaplarınızı dokunarak açın.","Listeleri parmağınızla sürükleyin.","Sayfalı: Kenarlara dokun / yatay kaydır.","Sürekli: Yukarı / aşağı sürükle.","PDF: İki parmakla yakınlaştır, sürükle.","Okuma ayarları tüm kitaplarda ortaktır.","Bu kitap seçeneği özel ayar oluşturur.","Kitaplarınız ve kayıtlarınız cihazda kalır."};
