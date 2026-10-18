@@ -48,7 +48,7 @@ struct ReaderPreferences {
     int indentation{120};
     int touchZone{30}; // percentage on each edge
     int publisherStyles{0};
-    int pdfColorMode{0}; // original, dark, sepia, invert (whole-page filters)
+    int pdfColorMode{0}; // Legacy PAPERNX-6 field; ignored by rendering. Both formats use Appearance.
     int pdfViewMode{0}; // fit page, fit width, 100%
 };
 
