@@ -1,5 +1,6 @@
 #pragma once
 #include "papernx/reading_journal.hpp"
+#include "papernx/catalog.hpp"
 #include "papernx/theme.hpp"
 #include "papernx/typography.hpp"
 #include <string>
@@ -20,7 +21,7 @@ public:
     void back();
     bool hasSubpage() const { return goals_ || exportModal_ || deleteModal_ || !detailId_.empty(); }
     void render(SDL_Renderer *,Typography &,const ThemePalette &,const ReadingJournal &,
-                int w,int h,bool english);
+                const ProgressStore &,const CatalogStore &,int w,int h,bool english);
     void renderPreview(SDL_Renderer *,Typography &,const ThemePalette &,const ReadingJournal &,
                        const std::string &bookId,int w,int h,bool english);
     void openGoals() { goals_ = true; exportModal_ = false; deleteModal_ = false; }
