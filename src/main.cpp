@@ -13,6 +13,8 @@
 #include "papernx/paper_texture.hpp"
 #include "papernx/catalog.hpp"
 #include "papernx/reading_stats.hpp"
+#include "papernx/reading_journal.hpp"
+#include "papernx/reading_journal_ui.hpp"
 #include "papernx/cover_design.hpp"
 #include <cstring>
 
@@ -73,7 +75,9 @@ enum class ScreenState {
     FileBrowser,
     AaModal,
     TocModal,
-    BookmarksModal
+    BookmarksModal,
+    ReadingJournal,
+    JournalPreview
 };
 
 enum class ViewMode {
@@ -127,6 +131,7 @@ public:
 
         flushProgress();
         readingStats_.save();
+        journal_.save();
 
         // 3. Crucial: Release all textures and fonts BEFORE destroying renderer
         pageCache_.clear();
@@ -185,6 +190,7 @@ public:
         progressStore_.load();
         catalog_.load();
         readingStats_.load();
+        if(!journal_.load()) logMessage("Reading journal recovery: "+journal_.diagnostic());
         appSettings_.load();
         ui::language=appSettings_.get().language;
         viewMode_=appSettings_.get().libraryLayout ? ViewMode::List : ViewMode::Grid;
@@ -304,6 +310,7 @@ public:
         closeBook();
         flushProgress();
         readingStats_.save();
+        journal_.save();
     }
 
 private:
@@ -311,6 +318,10 @@ private:
     fs::path root_;
     ProgressStore progressStore_;
     AppSettingsStore appSettings_;
+    ReadingJournal journal_{root_/"data"/"reading_journal"};
+    ReadingJournalUI journalUI_;
+    ScreenState journalReturn_{ScreenState::Library};
+    std::string journalTitle_,journalAuthor_;
     CoverRepository coverRepository_;
     PageCache pageCache_;
     PageCache thumbCache_;
@@ -648,6 +659,8 @@ private:
         return currentStyle();
     }
     ThemePalette palette() const {
+        if(screen_==ScreenState::ReadingJournal)
+            return readerChromePalette(progressStore_.get("PAPERNX_DEFAULTS"),false,0,0);
         if(doc_ && !globalSettings_)
             return readerChromePalette(presentedStyle(),!px_document_is_epub(doc_),
                                        extraStyle_.pdfColorMode,0);
@@ -1060,6 +1073,8 @@ private:
         scrollY_ = scrollVelocity_ = 0;
         extraStyle_ = p;
         currentBookId_ = b.id;
+        journalTitle_ = b.title;journalAuthor_ = b.author;
+        journal_.interaction(SDL_GetTicks());
         currentTheme_ = p.theme;
         currentFontSize_ = p.fontSize > 0 ? p.fontSize : 22;
         currentLineHeight_ = p.lineHeight > 0 ? p.lineHeight : 140;
@@ -1146,6 +1161,7 @@ private:
     }
 
     void closeBook() {
+        journal_.pause(SDL_GetTicks(),std::time(nullptr));journal_.save();
         pageFlipPosition_.reset();readingStats_.reanchor();
         cancelLayout(); navigationHistory_.clear(); quickMenu_=false;
         globalSettings_=false;
@@ -1569,9 +1585,12 @@ private:
             running = false;
             return;
         }
-        if(e.type==SDL_APP_WILLENTERBACKGROUND){appBackground_=true;readingStats_.reanchor();readingStats_.save();}
+        if(e.type==SDL_APP_WILLENTERBACKGROUND){appBackground_=true;readingStats_.reanchor();readingStats_.save();journal_.pause(SDL_GetTicks(),std::time(nullptr));journal_.save();}
         if(e.type==SDL_APP_DIDENTERFOREGROUND){appBackground_=false;readingStats_.reanchor();}
-        if(e.type==SDL_FINGERDOWN||e.type==SDL_FINGERMOTION||e.type==SDL_KEYDOWN||e.type==SDL_CONTROLLERBUTTONDOWN||e.type==SDL_CONTROLLERAXISMOTION)readingStats_.interaction(SDL_GetTicks());
+        if(e.type==SDL_FINGERDOWN||e.type==SDL_FINGERMOTION||e.type==SDL_KEYDOWN||e.type==SDL_CONTROLLERBUTTONDOWN||e.type==SDL_CONTROLLERAXISMOTION){
+            readingStats_.interaction(SDL_GetTicks());
+            if(screen_==ScreenState::Reader&&!quickMenu_&&!appBackground_)journal_.interaction(SDL_GetTicks());
+        }
         if((e.type==SDL_FINGERDOWN||e.type==SDL_FINGERUP||e.type==SDL_FINGERMOTION)&&e.tfinger.touchId!=-42){sawFinger_=true;lastFingerTick_=SDL_GetTicks();}
         if(e.type==SDL_MOUSEBUTTONDOWN&&e.button.button==SDL_BUTTON_RIGHT&&screen_==ScreenState::Library&&catalogPanel_==CatalogPanel::None&&choiceKind_<0&&colorEditing_<0){
             int pw,ph;SDL_GetWindowSize(window_,&pw,&ph);DisplayTransform transform{pw,ph,appSettings_.get().displayOrientation};
@@ -2310,7 +2329,12 @@ private:
         SDL_SetRenderDrawColor(renderer_, canvas.r, canvas.g, canvas.b, 255);
         SDL_RenderClear(renderer_);
 
-        if (screen_ == ScreenState::Library) {
+        if (screen_ == ScreenState::ReadingJournal) {
+            journalUI_.render(renderer_,*typography_,pal,journal_,w,h,ui::language==1);
+        } else if(screen_==ScreenState::JournalPreview) {
+            renderReaderScreen(w,h,pal);
+            journalUI_.renderPreview(renderer_,*typography_,pal,journal_,currentBookId_,w,h,ui::language==1);
+        } else if (screen_ == ScreenState::Library) {
             renderLibraryScreen(w, h, pal);
         } else if (screen_ == ScreenState::Reader) {
             renderReaderScreen(w, h, pal);
@@ -2337,7 +2361,8 @@ private:
         }
 
         // One discoverable touch affordance across every screen and modal.
-        ui::button(renderer_,*typography_,{w-80,8,64,64},quickMenu_?"×":"+",pal,quickMenu_);
+        if(screen_!=ScreenState::JournalPreview)
+            ui::button(renderer_,*typography_,{w-80,8,64,64},quickMenu_?"×":"+",pal,quickMenu_);
         if(quickMenu_) renderQuickMenu(w,h,pal);
         renderCatalogPanel(w,h,pal);
         if(colorEditing_<0 && choiceKind_<0)paintFocus();
@@ -2414,7 +2439,8 @@ private:
     void renderLibraryScreen(int w, int h, const ThemePalette &pal) {
         ui::surface(renderer_,{0,0,w,88},pal.card,0);
         typography_->renderText(renderer_,typography_->titleFont(),ui::label("PaperNX"),32,24,pal.fg);
-        ui::button(renderer_,*typography_,{208,16,180,56},catLabel("Kitaplığı gez","Browse library"),pal,catalogFilter_.has_value());
+        if(w>=900)ui::button(renderer_,*typography_,{208,16,180,56},catLabel("Kitaplığı gez","Browse library"),pal,catalogFilter_.has_value());
+        ui::button(renderer_,*typography_,{w-440,16,200,56},catLabel("Günlüğüm","My journal"),pal);
         ui::button(renderer_,*typography_,{w-216,16,112,56},searchActive_?"Temizle":"Ara",pal,searchActive_);
         if(searchActive_) typography_->renderText(renderer_,typography_->uiFont(),searchQuery_+"_",32,62,pal.accent,w-280);
         const char *cats[]={"Tüm kitaplar","Devam et","Son okunan","Favoriler","Okunmamış","Tamamlanan"};
