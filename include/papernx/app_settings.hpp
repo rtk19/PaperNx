@@ -9,6 +9,11 @@ struct AppPreferences {
     int libraryLayout{0}; // 0 grid, 1 list
     int sort{0}; // papernx::Sort
     int toolbar{0}; // 0 auto-hide, 1 persistent
+    int chromePolicy{0}; // 0 follow reading, 1 application, 2 custom
+    int customUiTheme{0};
+    int displayOrientation{0}; // landscape, clockwise, counterclockwise
+    bool preservePdfZoom{true};
+    int paperTexture{0}; // off, soft, natural; EPUB canvas only
     std::string defaultBrowserPath;
 };
 

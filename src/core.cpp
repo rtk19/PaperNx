@@ -390,6 +390,10 @@ void AppSettingsStore::put(AppPreferences preferences) {
     preferences.libraryLayout = std::clamp(preferences.libraryLayout, 0, 1);
     preferences.sort = std::clamp(preferences.sort, 0, 4);
     preferences.toolbar = std::clamp(preferences.toolbar, 0, 1);
+    preferences.chromePolicy = std::clamp(preferences.chromePolicy, 0, 2);
+    preferences.customUiTheme = std::clamp(preferences.customUiTheme, 0, 5);
+    preferences.displayOrientation = std::clamp(preferences.displayOrientation, 0, 2);
+    preferences.paperTexture = std::clamp(preferences.paperTexture, 0, 2);
     preferences.defaultBrowserPath = utf8SafeTruncate(preferences.defaultBrowserPath, 4096);
     preferences_ = std::move(preferences);
 }
@@ -404,6 +408,14 @@ bool AppSettingsStore::load() {
     preferences.sort = record.fontSize - 12;
     preferences.toolbar = record.pdfViewMode;
     preferences.defaultBrowserPath = record.bookPath;
+    if(store_.all().count("APP_DISPLAY_V04_")) {
+        const auto display=store_.get("APP_DISPLAY_V04_");
+        preferences.chromePolicy=display.fontFamily;
+        preferences.customUiTheme=display.theme;
+        preferences.displayOrientation=display.pdfViewMode;
+        preferences.preservePdfZoom=display.scrollInertia!=0;
+        preferences.paperTexture=display.pdfColorMode;
+    }
     put(std::move(preferences));
     return true;
 }
@@ -417,6 +429,13 @@ bool AppSettingsStore::save() const {
     record.pdfViewMode = preferences_.toolbar;
     record.bookPath = preferences_.defaultBrowserPath;
     store_.put("APP_PREFERENCES_", std::move(record));
+    Progress display;
+    display.fontFamily=preferences_.chromePolicy;
+    display.theme=preferences_.customUiTheme;
+    display.pdfViewMode=preferences_.displayOrientation;
+    display.scrollInertia=preferences_.preservePdfZoom?1:0;
+    display.pdfColorMode=preferences_.paperTexture;
+    store_.put("APP_DISPLAY_V04_",std::move(display));
     return store_.save();
 }
 

@@ -11,11 +11,11 @@ Typography::Typography(const std::filesystem::path &root) : root_(root) {}
 Typography::~Typography() {
     clearTextCache();
     if(previewFont_) TTF_CloseFont(previewFont_);
-    TTF_Font* fonts[] = {titleFont_, uiFont_, smallFont_, readerFont_};
-    for (int i = 0; i < 4; ++i) {
+    TTF_Font* fonts[] = {titleFont_, uiFont_, smallFont_, readerFont_,sectionFont_,buttonFont_};
+    for (int i = 0; i < 6; ++i) {
         if (!fonts[i]) continue;
         TTF_CloseFont(fonts[i]);
-        for (int j = i + 1; j < 4; ++j) {
+        for (int j = i + 1; j < 6; ++j) {
             if (fonts[j] == fonts[i]) {
                 fonts[j] = nullptr;
             }
@@ -66,7 +66,17 @@ bool Typography::init() {
     };
 
     sansPaths_=sansCandidates; serifPaths_=serifCandidates;
-    titleFont_ = findAndLoad(sansCandidates, 32);
+    std::vector<std::string> boldCandidates={
+#ifdef __SWITCH__
+        "romfs:/fonts/NotoSans-SemiBold.ttf",
+#endif
+        (root_/"fonts"/"NotoSans-SemiBold.ttf").string(),
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"};
+    titleFont_ = findAndLoad(boldCandidates, 30);
+    if(!titleFont_) titleFont_=findAndLoad(sansCandidates,30);
+    sectionFont_=findAndLoad(boldCandidates,24);
+    buttonFont_=findAndLoad(boldCandidates,21);
     uiFont_ = findAndLoad(sansCandidates, 22);
     smallFont_ = findAndLoad(sansCandidates, 18);
     readerFont_ = findAndLoad(serifCandidates, 24);
@@ -85,6 +95,7 @@ bool Typography::init() {
 TTF_Font *Typography::previewFont(int family,int size) {
     if(family!=previewFamily_ || size!=previewSize_) {
         clearTextCache();
+        metricsCache_.clear();
         if(previewFont_) TTF_CloseFont(previewFont_);
         previewFont_=findAndLoad(family==1?sansPaths_:serifPaths_,std::clamp(size,14,44));
         previewFamily_=family; previewSize_=size;
@@ -97,9 +108,9 @@ int Typography::renderParagraph(SDL_Renderer *r,TTF_Font *font,const std::string
     if(!font || area.w<24) return 0;
     std::istringstream input(str); std::vector<std::vector<std::string>> lines;
     std::vector<std::string> line; std::string word; int width=indent,space=0,height=0;
-    TTF_SizeUTF8(font," ",&space,&height);
+    measureText(font," ",&space,&height);
     while(input>>word) {
-        int ww=0; TTF_SizeUTF8(font,word.c_str(),&ww,&height);
+        int ww=0; measureText(font,word,&ww,&height);
         if(!line.empty() && width+space+ww>area.w) { lines.push_back(std::move(line)); line.clear(); width=0; }
         if(!line.empty()) width+=space;
         line.push_back(word); width+=ww;
@@ -108,12 +119,12 @@ int Typography::renderParagraph(SDL_Renderer *r,TTF_Font *font,const std::string
     for(std::size_t i=0;i<lines.size();++i) {
         int x=area.x+(i?0:indent), y=area.y+int(i)*lineHeight,total=0;
         if(y>=area.y+area.h) break;
-        for(const auto &part:lines[i]) { int ww=0; TTF_SizeUTF8(font,part.c_str(),&ww,&height); total+=ww; }
+        for(const auto &part:lines[i]) { int ww=0; measureText(font,part,&ww,&height); total+=ww; }
         int spacing=space;
         if(!left && i+1<lines.size() && lines[i].size()>1) spacing=std::max(space,(area.w-total-(i?0:indent))/int(lines[i].size()-1));
         for(const auto &part:lines[i]) {
             renderText(r,font,part,x,y,color);
-            int ww=0; TTF_SizeUTF8(font,part.c_str(),&ww,&height); x+=ww+spacing;
+            int ww=0; measureText(font,part,&ww,&height); x+=ww+spacing;
         }
     }
     return int(lines.size())*lineHeight;
@@ -126,7 +137,9 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
     auto cached=textCache_.find(key);
     if(cached!=textCache_.end()) {
         cached->second.tick=++textTick_;
-        SDL_Rect dst{x,y,cached->second.width,cached->second.height}; SDL_RenderCopy(r,cached->second.texture,nullptr,&dst); return;
+        int width=maxWidth>0?std::min(maxWidth,cached->second.width):cached->second.width;
+        SDL_Rect src{0,0,width,cached->second.height},dst{x,y,width,cached->second.height};
+        SDL_RenderCopy(r,cached->second.texture,&src,&dst); return;
     }
 
     std::string textToRender = str;
@@ -158,8 +171,9 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
 
     SDL_Texture *texture = SDL_CreateTextureFromSurface(r, surface);
     if (texture) {
-        SDL_Rect dst{x, y, surface->w, surface->h};
-        SDL_RenderCopy(r, texture, nullptr, &dst);
+        int width=maxWidth>0?std::min(maxWidth,surface->w):surface->w;
+        SDL_Rect src{0,0,width,surface->h},dst{x,y,width,surface->h};
+        SDL_RenderCopy(r, texture, &src, &dst);
         storeText(std::move(key),texture,surface->w,surface->h);
     }
     SDL_FreeSurface(surface);
@@ -206,7 +220,16 @@ void Typography::measureText(TTF_Font *font, const std::string &str, int *outW, 
         if (outH) *outH = 0;
         return;
     }
-    TTF_SizeUTF8(font, str.c_str(), outW, outH);
+    auto key=std::to_string(reinterpret_cast<std::uintptr_t>(font))+":"+str;
+    auto found=metricsCache_.find(key);
+    if(found==metricsCache_.end()) {
+        int width=0,height=0;
+        TTF_SizeUTF8(font,str.c_str(),&width,&height);
+        if(metricsCache_.size()>=2048) metricsCache_.clear();
+        found=metricsCache_.emplace(std::move(key),std::make_pair(width,height)).first;
+    }
+    if(outW) *outW=found->second.first;
+    if(outH) *outH=found->second.second;
     if (maxWidth > 0 && outW && *outW > maxWidth) {
         *outW = maxWidth;
     }

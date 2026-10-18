@@ -6,6 +6,11 @@
 namespace papernx::ui {
 // Native touch design tokens, in output pixels. Logical sizes scale with layout.
 inline constexpr int touch = 56, gap = 16, radius = 12, row = 64;
+struct Tokens {
+    static constexpr int title=30,section=24,label=22,metadata=18,description=17;
+    static constexpr int spaceSmall=8,space=16,spaceLarge=24,border=1,focusBorder=3;
+    static constexpr int headerHeight=80,footerHeight=64,dialogMaxWidth=920,coverWidth=154,coverHeight=218;
+};
 inline int pointerX=0,pointerY=0;
 inline bool pointerDown=false;
 inline int language=0;
@@ -23,14 +28,53 @@ inline void surface(SDL_Renderer *r, SDL_Rect rect, SDL_Color color, int corner=
         SDL_RenderDrawLine(r,rect.x+inset,rect.y+rect.h-1-y,rect.x+rect.w-1-inset,rect.y+rect.h-1-y);
     }
 }
+inline void focusRing(SDL_Renderer *r,SDL_Rect rect,const ThemePalette &pal,bool editing=false) {
+    // Two contrasting outlines stay visible on selected accent fills and on
+    // surrounding surfaces. Shape communicates focus independently of hue.
+    SDL_SetRenderDrawColor(r,pal.bg.r,pal.bg.g,pal.bg.b,255);
+    SDL_Rect outer{rect.x-1,rect.y-1,rect.w+2,rect.h+2}; SDL_RenderDrawRect(r,&outer);
+    auto color=editing?pal.accent:pal.fg;
+    SDL_SetRenderDrawColor(r,color.r,color.g,color.b,255);
+    for(int i=0;i<Tokens::focusBorder;++i) {
+        SDL_Rect edge{rect.x+i,rect.y+i,rect.w-2*i,rect.h-2*i}; SDL_RenderDrawRect(r,&edge);
+    }
+    if(editing) { SDL_Rect underline{rect.x+8,rect.y+rect.h-7,rect.w-16,3}; SDL_RenderFillRect(r,&underline); }
+}
+inline SDL_Color destructiveColor(const ThemePalette &pal) {
+    return int(pal.bg.r)+pal.bg.g+pal.bg.b<384?SDL_Color{255,160,150,255}:SDL_Color{155,36,32,255};
+}
 inline void button(SDL_Renderer *r, Typography &type, SDL_Rect rect, const std::string &text,
-                   const ThemePalette &pal, bool selected=false, bool pressed=false,bool translate=true) {
+                   const ThemePalette &pal, bool selected=false, bool pressed=false,bool translate=true,
+                   bool focused=false,bool editing=false,bool disabled=false,bool destructive=false) {
     auto label=translate?ui::label(text):text;
-    pressed=pressed || (pointerDown && contains(rect,pointerX,pointerY));
-    surface(r,rect,selected?pal.accent:pressed?pal.cardBorder:pal.header);
-    int tw=0,th=0; type.measureText(type.uiFont(),label,&tw,&th,rect.w-24);
-    type.renderText(r,type.uiFont(),label,rect.x+std::max(12,(rect.w-tw)/2),rect.y+(rect.h-th)/2,
-                    selected?pal.bg:pal.fg,rect.w-24);
+    pressed=!disabled && (pressed || (pointerDown && contains(rect,pointerX,pointerY)));
+    auto fill=selected?(pressed?blendColor(pal.accent,pal.bg,12):pal.accent):pressed?pal.cardBorder:focused?pal.card:pal.header;
+    surface(r,rect,fill);
+    if(focused || editing) focusRing(r,rect,pal,editing);
+    int tw=0,th=0; type.measureText(type.buttonFont(),label,&tw,&th,rect.w-24);
+    type.renderText(r,type.buttonFont(),label,rect.x+std::max(12,(rect.w-tw)/2),rect.y+(rect.h-th)/2,
+                    disabled?pal.muted:selected?pal.bg:destructive?destructiveColor(pal):pal.fg,rect.w-24);
+}
+struct StepperLayout {
+    SDL_Rect label,minus,value,plus;
+    explicit StepperLayout(SDL_Rect r) {
+        int size=std::min({touch,std::max(0,r.h),std::max(0,r.w)/3});
+        int valueWidth=std::min(80,std::max(0,r.w-2*size));
+        plus={r.x+r.w-size,r.y,size,r.h}; value={plus.x-valueWidth,r.y,valueWidth,r.h};
+        minus={value.x-size,r.y,size,r.h}; label={r.x+12,r.y,std::max(0,minus.x-r.x-24),r.h};
+    }
+    int hit(int x,int y) const { return contains(minus,x,y)?-1:contains(plus,x,y)?1:0; }
+};
+inline void settingsRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &label,
+                        const std::string &value,const ThemePalette &pal,bool focused=false,bool editing=false) {
+    surface(r,rect,focused?pal.card:pal.header);
+    StepperLayout layout(rect); int height=0; type.measureText(type.uiFont(),label,nullptr,&height);
+    if(layout.label.w>0) type.renderText(r,type.uiFont(),ui::label(label),layout.label.x,rect.y+(rect.h-height)/2,pal.fg,layout.label.w);
+    button(r,type,layout.minus,"−",pal,false,false,false);
+    button(r,type,layout.plus,"+",pal,false,false,false);
+    int width=0; type.measureText(type.uiFont(),value,&width,&height);
+    type.renderText(r,type.uiFont(),value,layout.value.x+(layout.value.w-width)/2,rect.y+(rect.h-height)/2,pal.fg,layout.value.w);
+    if(focused || editing) focusRing(r,rect,pal,editing);
 }
 inline void favorite(SDL_Renderer *r,SDL_Rect rect,const ThemePalette &pal,bool selected) {
     surface(r,rect,selected?pal.accent:(pointerDown&&contains(rect,pointerX,pointerY)?pal.cardBorder:pal.header));

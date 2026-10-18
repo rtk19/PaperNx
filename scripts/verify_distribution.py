@@ -28,7 +28,7 @@ assets = validate_assets(nro, validate_nro(nro)["declared_size"])
 version = nro[assets["nacp"]["offset"] + 0x3060:assets["nacp"]["offset"] + 0x3070].split(b"\0")[0].decode()
 assert version == args.version.removeprefix("v"), version
 files = read_romfs(nro, assets["romfs"])
-for name in ("NotoSans-Regular.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
+for name in ("NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
     assert files["fonts/" + name] == (Path("fonts") / name).read_bytes()
 with ZipFile(archive) as zipped:
     assert zipped.testzip() is None
@@ -36,7 +36,7 @@ with ZipFile(archive) as zipped:
     assert not any(name.startswith(("switch/PaperNX/books/", "switch/PaperNX/data/")) and not name.endswith("/") for name in zipped.namelist()), "Package overwrites user data"
     for name in ("PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md"):
         assert zipped.read("switch/PaperNX/docs/" + name) == (Path("docs") / name).read_bytes()
-    for name in ("NotoSans-Regular.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
+    for name in ("NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
         assert zipped.read("switch/PaperNX/fonts/" + name) == (Path("fonts") / name).read_bytes()
     notices = [name for name in zipped.namelist() if "/licenses/" in name]
     assert len(notices) >= 55

@@ -48,6 +48,40 @@ inline const ThemePalette g_palettes[] = {
 
 inline const int g_paletteCount = sizeof(g_palettes) / sizeof(g_palettes[0]);
 
+struct PaperPreset { const char *name; int background,text,theme; };
+inline constexpr PaperPreset g_paperPresets[] = {
+    {"Pure Paper",0xffffff,0x242424,0},{"Soft Ivory",0xf7f3e8,0x35312b,1},
+    {"Warm Cream",0xf4e8d0,0x41362a,1},{"Natural Paper",0xeee4cf,0x383229,2},
+    {"Vintage Sepia",0xe8d6b3,0x4b3828,2},{"Linen",0xe5e1d6,0x343632,0},
+    {"Cool Paper",0xe9ebe8,0x303638,3},{"Charcoal Night",0x252522,0xe8e3d9,4},
+    {"OLED Black",0x000000,0xeae7df,5}
+};
+inline SDL_Color blendColor(SDL_Color a,SDL_Color b,int percent) {
+    auto mix=[percent](int x,int y){return Uint8((x*(100-percent)+y*percent)/100);};
+    return {mix(a.r,b.r),mix(a.g,b.g),mix(a.b,b.b),255};
+}
+// Derive chrome from document appearance without filtering controls or changing
+// persisted six-theme identifiers. Custom paper presets use RGB overrides.
+inline ThemePalette readerChromePalette(const ReaderPreferences &style,bool pdf,int pdfFilter,
+                                        int appTheme,int policy=0,int customTheme=0) {
+    if(policy==1) return g_palettes[std::clamp(appTheme,0,5)];
+    if(policy==2) return g_palettes[std::clamp(customTheme,0,5)];
+    if(pdf) {
+        if(pdfFilter==1 || pdfFilter==3) return g_palettes[4];
+        if(pdfFilter==2) return g_palettes[2];
+        return g_palettes[std::clamp(appTheme,0,5)];
+    }
+    auto p=g_palettes[std::clamp(style.theme,0,5)];
+    auto rgb=[](int c){return SDL_Color{Uint8(c>>16),Uint8(c>>8),Uint8(c),255};};
+    if(style.backgroundColor>=0) p.bg=rgb(style.backgroundColor);
+    if(style.textColor>=0) p.fg=rgb(style.textColor);
+    p.card=blendColor(p.bg,p.fg,5); p.header=blendColor(p.bg,p.fg,8);
+    p.cardBorder=blendColor(p.bg,p.fg,24); p.muted=blendColor(p.bg,p.fg,68);
+    // Focus/action accent must remain readable even with custom content colors.
+    p.accent=p.fg;
+    return p;
+}
+
 inline std::string generateEpubCss(int themeIdx, int fontFamily, int fontSize, int lineHeightPercent, int marginPx, int textAlign) {
     if (themeIdx < 0 || themeIdx >= g_paletteCount) themeIdx = 0;
     const auto &p = g_palettes[themeIdx];

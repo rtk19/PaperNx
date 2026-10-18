@@ -81,7 +81,7 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
 
     fonts_dir = repo_root / "fonts"
     required_fonts = [
-        "NotoSans-Regular.ttf",
+        "NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf",
         "NotoSerif-Regular.ttf",
         "OFL.txt"
     ]
@@ -115,7 +115,7 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
         readme = repo_root / "README.md"
         if readme.is_file():
             write_entry(z, "switch/PaperNX/README.md", readme.read_bytes())
-        for name in ("PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md", "DESIGN_SYSTEM.md", "TOUCH_CONTROLS_V03.md", "V03_REQUIREMENT_COVERAGE.md", "TEST_RESULTS.md", "PERFORMANCE_RESULTS.md", "KNOWN_ISSUES.md", "STATUS.md", "RELEASE_REPORT.md"):
+        for name in ("PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md", "DESIGN_SYSTEM.md", "TOUCH_CONTROLS_V03.md", "V03_REQUIREMENT_COVERAGE.md", "SWITCH_V04_UX_AUDIT.md", "V04_INTERACTION_SPEC.md", "V04_LIBRARY_DATA_MODEL.md", "V04_REQUIREMENT_COVERAGE.md", "TEST_RESULTS.md", "PERFORMANCE_RESULTS.md", "KNOWN_ISSUES.md", "STATUS.md", "RELEASE_REPORT.md"):
             doc = repo_root / "docs" / name
             if doc.is_file():
                 write_entry(z, "switch/PaperNX/docs/" + name, doc.read_bytes())

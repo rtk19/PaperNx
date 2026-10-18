@@ -19,6 +19,8 @@ public:
     TTF_Font *titleFont() const { return titleFont_; }
     TTF_Font *uiFont() const { return uiFont_; }
     TTF_Font *smallFont() const { return smallFont_; }
+    TTF_Font *sectionFont() const { return sectionFont_?sectionFont_:uiFont_; }
+    TTF_Font *buttonFont() const { return buttonFont_?buttonFont_:uiFont_; }
     TTF_Font *readerFont() const { return readerFont_; }
     TTF_Font *previewFont(int family, int size);
 
@@ -40,6 +42,8 @@ private:
     TTF_Font *uiFont_{nullptr};
     TTF_Font *smallFont_{nullptr};
     TTF_Font *readerFont_{nullptr};
+    TTF_Font *sectionFont_{nullptr}, *buttonFont_{nullptr};
+    std::map<std::string,std::pair<int,int>> metricsCache_;
     TTF_Font *previewFont_{nullptr};
     int previewFamily_{-1}, previewSize_{-1};
     std::vector<std::string> sansPaths_, serifPaths_;
