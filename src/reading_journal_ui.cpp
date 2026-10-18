@@ -94,17 +94,28 @@ void ReadingJournalUI::back(){
 void ReadingJournalUI::navigate(int dx,int dy,const ReadingJournal &journal){
     if(goals_)return;
     if(!detailId_.empty()){if(dy)offset_=std::max(0,offset_+dy);return;}
-    if(dx && tab_==1){monthDelta_+=dx;selectedDay_=0;}
-    else if(dx)tab_=std::clamp(tab_+dx,0,3);
-    if(dy && (tab_==2||tab_==3))offset_=std::clamp(offset_+dy,0,int(tab_==2?journal.books().size():journal.sessions().size()));
-    if(dy && tab_==1)selectedDay_=std::clamp(selectedDay_+dy*7,1,31);
+    if(dy<0 && (tab_==0||tab_==1) && focus_!=5){focus_=5;return;}
+    if(focus_==5){if(dy>0)focus_=tab_+1;return;}
+    if(tab_==1&&selectedDay_>0&&dx){
+        const auto d=dateAt(monthDelta_);
+        selectedDay_=std::clamp(selectedDay_+dx,1,daysInMonth(d.tm_year+1900,d.tm_mon));
+    }else if(dx){tab_=std::clamp(tab_+dx,0,3);offset_=0;}
+    if(dy && (tab_==2||tab_==3))
+        offset_=std::clamp(offset_+dy,0,std::max(0,int(tab_==2?journal.books().size():journal.sessions().size())-1));
+    if(dy && tab_==1){
+        const auto d=dateAt(monthDelta_);
+        selectedDay_=std::clamp(std::max(1,selectedDay_)+dy*7,1,daysInMonth(d.tm_year+1900,d.tm_mon));
+    }
     focus_=tab_+1;
 }
 ReadingJournalUI::Action ReadingJournalUI::activate(int w,int h,ReadingJournal &j){
-    if(goals_)return Action::None;
+    (void)w;(void)h;
+    if(goals_){goals_=false;return Action::None;}
     if(preview_)return Action::OpenFull;
-    if(!detailId_.empty()) {back();return Action::None;}
-    (void)w;(void)h;(void)j;return Action::None;
+    if(focus_==5){goals_=true;return Action::None;}
+    if(!detailId_.empty()){back();return Action::None;}
+    if(tab_==2){const auto books=j.books();if(offset_<int(books.size())){detailId_=books[offset_].id;offset_=0;}}
+    return Action::None;
 }
 ReadingJournalUI::Action ReadingJournalUI::tap(int x,int y,int w,int h,ReadingJournal &journal){
     if(preview_){
@@ -153,6 +164,7 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x,int y,int w,int h,ReadingJo
 void ReadingJournalUI::render(SDL_Renderer *r,Typography &font,const ThemePalette &pal,
                                const ReadingJournal &journal,int w,int h,bool en){
     header(r,font,pal,w,en);nav(r,font,pal,w,tab_,focus_,en);
+    if(focus_==5)ui::focusRing(r,{w-248,12,160,56},pal);
     const auto g=geometry(w);const int x=g.left,y=g.top,cw=g.width;
     const auto sum=journal.totals();
     const auto cal=journal.calendar();
