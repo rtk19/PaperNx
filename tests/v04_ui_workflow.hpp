@@ -78,7 +78,9 @@ static void v04UiWorkflow(const fs::path &parent) {
         app.closeBook();
         // Long finger movement through the *full event chain* must scroll a choice list.
         {
-            SDL_SetWindowSize(app.window_,640,480);
+            // Six choice rows fit within 480px; use a deliberately short viewport
+            // to exercise overflow and real swipe routing through the parent modal.
+            SDL_SetWindowSize(app.window_,640,320);
             app.openSettings(true);
             app.openChoice(3,0);
             int cw,ch;app.getWindowSize(cw,ch);
