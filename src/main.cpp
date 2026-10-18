@@ -589,14 +589,52 @@ private:
         currentLineHeight_ = p.lineHeight; currentMargin_ = p.margin; currentTextAlign_ = p.textAlign;
     }
     ThemePalette palette() const {
-        const auto &a=appSettings_.get();
-        if(doc_ && !globalSettings_) return readerChromePalette(currentStyle(),!px_document_is_epub(doc_),extraStyle_.pdfColorMode,a.uiTheme,a.chromePolicy,a.customUiTheme);
-        // The library and application settings follow the persisted global reading palette.
-        if(a.chromePolicy==0) {
-            const auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
-            return readerChromePalette(defaults,false,0,a.uiTheme,0,a.customUiTheme);
+        // One source of truth: global paper colors for all application surfaces.
+        // An explicitly enabled per-book override applies only while reading it.
+        const auto style=(doc_ && !globalSettings_)?currentStyle():
+                         static_cast<ReaderPreferences>(progressStore_.get("PAPERNX_DEFAULTS"));
+        return readerChromePalette(style,false,0,0);
+    }
+    int globalPaperPresetIndex() const {
+        const auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
+        for(int i=0;i<int(sizeof(g_paperPresets)/sizeof(g_paperPresets[0]));++i) {
+            const auto &p=g_paperPresets[i];
+            if(defaults.theme==p.theme && defaults.backgroundColor==p.background &&
+               defaults.textColor==p.text)return i;
         }
-        return g_palettes[std::clamp(a.chromePolicy==2?a.customUiTheme:a.uiTheme,0,g_paletteCount-1)];
+        // Older installs only stored one of the original six named palettes.
+        if(defaults.backgroundColor<0 && defaults.textColor<0) {
+            const int legacy[]={0,1,4,6,7,8};
+            return legacy[std::clamp(defaults.theme,0,5)];
+        }
+        return -1; // User-defined colors chosen through the appearance palette.
+    }
+    void applyGlobalPaperPreset(int index) {
+        if(index<0 || index>=int(sizeof(g_paperPresets)/sizeof(g_paperPresets[0]))) return;
+        const auto preset=g_paperPresets[index];
+        auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
+        defaults.theme=preset.theme;
+        defaults.backgroundColor=preset.background;
+        defaults.textColor=preset.text;
+        defaults.styleOverride=0;
+        defaults.modeOverride=0;
+        progressStore_.put("PAPERNX_DEFAULTS",defaults);
+        progressDirty_=true;
+        auto prefs=appSettings_.get();
+        prefs.uiTheme=preset.theme; // Backward-compatible serialized value only.
+        prefs.chromePolicy=0;
+        appSettings_.put(prefs);
+        persistAppSettings();
+        if(!doc_ || globalSettings_) {
+            applyStyle(defaults);
+        } else if(!extraStyle_.styleOverride) {
+            // Existing books inherit global changes without losing their anchors.
+            auto effective=resolveReadingPreferences(defaults,currentStyle());
+            applyStyle(effective);
+            queueStyleChange();
+        }
+        pageCache_.clear();
+        dirty_=true;
     }
     std::string buildEpubCss() const { return generateEpubCss(currentStyle()); }
     void storeDefaults() {
@@ -1927,24 +1965,19 @@ private:
             dirty_=true; return;
         } else if(aaTab_==5) {
             auto p=appSettings_.get();
-            if(row==0){openChoice(3,p.uiTheme);return;}
-            if(row==6){openChoice(2,p.chromePolicy);return;}
-            if(row==7){openChoice(1,p.displayOrientation);return;}
-            if(row==8){openChoice(4,p.customUiTheme);return;}
-            if(row==9){openChoice(6,p.paperTexture);return;}
-            if(row==0) p.uiTheme=(p.uiTheme+1)%6;
+            if(row==0){openChoice(7,std::max(0,globalPaperPresetIndex()));return;}
+            if(row==6){openChoice(1,p.displayOrientation);return;}
+            if(row==7){openChoice(6,p.paperTexture);return;}
             if(row==1) { viewMode_=viewMode_==ViewMode::Grid?ViewMode::List:ViewMode::Grid; listScroll_=0; }
             if(row==2) { sort_=static_cast<Sort>((static_cast<int>(sort_)+1)%5); updateVisibleBooks(); }
             if(row==3) p.toolbar=1-p.toolbar;
             if(row==4) { p.defaultBrowserPath=browserPath_.u8string(); }
             if(row==5) { p.language=1-p.language; ui::language=p.language; }
-            if(row==6) p.chromePolicy=(p.chromePolicy+1)%3;
-            if(row==7) { p.displayOrientation=(p.displayOrientation+1)%3;appSettings_.put(p);pageCache_.clear();
+            if(row==6) { p.displayOrientation=(p.displayOrientation+1)%3;appSettings_.put(p);pageCache_.clear();
                 if(doc_ && px_document_is_epub(doc_)) {++layoutGeneration_;layoutPending_=true;layoutDue_=SDL_GetTicks()+100;}
                 else if(doc_)setPdfView(extraStyle_.pdfViewMode);
             }
-            if(row==8) p.customUiTheme=(p.customUiTheme+1)%6;
-            if(row==9) p.paperTexture=(p.paperTexture+1)%3;
+            if(row==7) p.paperTexture=(p.paperTexture+1)%3;
             appSettings_.put(p); persistAppSettings(); return;
         }
         if(!settingsEditing_)queueStyleChange();else dirty_=true;
@@ -1955,7 +1988,7 @@ private:
             pdfPanX_+=dx*40; pdfPanY_+=dy*40; clampPdfPan(); dirty_=true;
         } else handleDirectional(dx,dy);
     }
-    int settingsRows() const { const int rows[]={6,4,8,6,6,10}; return rows[aaTab_]; }
+    int settingsRows() const { const int rows[]={6,4,8,6,6,8}; return rows[aaTab_]; }
     bool numericSetting() const { return (aaTab_==0 && (aaRow_==0 || aaRow_==2 || aaRow_==3)) ||
         (aaTab_==1 && (aaRow_==0 || aaRow_==3)) || (aaTab_==3 && (aaRow_==2 || aaRow_==4)) || (aaTab_==4 && aaRow_==4); }
     void settingsActivate(int direction=1) {
@@ -2488,22 +2521,20 @@ private:
             if(doc_ && !px_document_is_epub(doc_)) row(4,"-    Yakınlaştırma: %"+std::to_string(int(pdfZoom_*100))+"    +");
         } else {
             auto p=appSettings_.get();
-            row(0,std::string("Uygulama teması: ")+g_palettes[p.uiTheme].name);
+            const int globalPreset=globalPaperPresetIndex();
+            row(0,std::string(ui::language?"General theme: ":"Genel tema: ")+
+                (globalPreset>=0?g_paperPresets[globalPreset].name:(ui::language?"Custom colors":"Özel renkler")));
             row(1,viewMode_==ViewMode::Grid?"Kitaplık: Kapak ızgarası":"Kitaplık: Ayrıntılı liste");
             const char *sorts[]={"Başlık","Yazar","Dosya adı","Değiştirilme","Son okunan"};
             row(2,std::string("Sıralama: ")+sorts[static_cast<int>(sort_)]);
             row(3,p.toolbar?"Okuma araçları: Sürekli görünür":"Okuma araçları: Dokunarak göster");
             if(!browserPath_.empty()) row(4,"Geçerli klasörü başlangıç olarak kaydet");
             row(5,p.language?"Dil: English":"Dil: Türkçe");
-            const char *policiesEn[]={"Follow reading","Follow application","Custom UI"};
-            const char *policiesTr[]={"Okuma temas\u0131","Uygulama temas\u0131","\u00d6zel aray\u00fcz"};
-            row(6,std::string(ui::language?"Reader chrome: ":"Okuma aray\u00fcz\u00fc: ")+(ui::language?policiesEn:policiesTr)[p.chromePolicy]);
             const char *orientEn[]={"Landscape","Portrait clockwise","Portrait counterclockwise"};
             const char *orientTr[]={"Yatay","Dikey: saat y\u00f6n\u00fc","Dikey: ters y\u00f6n"};
-            row(7,std::string(ui::language?"Display orientation: ":"Ekran y\u00f6n\u00fc: ")+(ui::language?orientEn:orientTr)[p.displayOrientation]);
-            row(8,std::string(ui::language?"Custom UI theme: ":"\u00d6zel aray\u00fcz: ")+g_palettes[p.customUiTheme].name);
+            row(6,std::string(ui::language?"Display orientation: ":"Ekran yönü: ")+(ui::language?orientEn:orientTr)[p.displayOrientation]);
             const char *textureEn[]={"Off","Soft paper","Natural paper"};const char *textureTr[]={"Kapal\u0131","Yumu\u015fak ka\u011f\u0131t","Do\u011fal ka\u011f\u0131t"};
-            row(9,std::string(ui::language?"Paper texture: ":"Ka\u011f\u0131t dokusu: ")+(ui::language?textureEn:textureTr)[p.paperTexture]);
+            row(7,std::string(ui::language?"Paper texture: ":"Kağıt dokusu: ")+(ui::language?textureEn:textureTr)[p.paperTexture]);
 
         }
         SDL_RenderSetClipRect(renderer_,nullptr);
