@@ -1860,6 +1860,17 @@ private:
         }
     }
 
+    void enterJournal(bool fromReader,const std::string &bookId={}) {
+        journalReturn_=fromReader?ScreenState::Reader:ScreenState::Library;
+        journalUI_.open(bookId);quickMenu_=false;helpMenu_=false;
+        screen_=ScreenState::ReadingJournal;dirty_=true;
+    }
+    void journalAction(ReadingJournalUI::Action action) {
+        if(action==ReadingJournalUI::Action::OpenFull){enterJournal(true);return;}
+        if(action==ReadingJournalUI::Action::ClosePreview){screen_=ScreenState::Reader;journalUI_.hidePreview();dirty_=true;return;}
+        if(action==ReadingJournalUI::Action::Back){screen_=journalReturn_;journalUI_.back();dirty_=true;return;}
+        dirty_=true;
+    }
     void handleTap(float x, float y) {
         trace("tap_decision");
         int w = 1280, h = 720;
@@ -1868,6 +1879,9 @@ private:
         int px = static_cast<int>(x * w);
         int py = static_cast<int>(y * h);
         if(catalogPanel_!=CatalogPanel::None){handleCatalogTap(px,py,w,h);return;}
+        if((screen_==ScreenState::ReadingJournal||screen_==ScreenState::JournalPreview)&&!quickMenu_){
+            journalAction(journalUI_.tap(px,py,w,h,journal_));return;
+        }
 
         if(quickMenu_) { handleQuickMenuTap(px,py,w,h); return; }
         listVelocity_=0;
@@ -1923,7 +1937,8 @@ private:
         } else if (screen_ == ScreenState::BookmarksModal) {
             handleBookmarksModalTap(px, py, w, h);
         } else if (screen_ == ScreenState::Library) {
-            if(ui::contains({208,16,180,56},px,py)){setCatalogPanel(CatalogPanel::Browse);return;}
+            if(w>=900 && ui::contains({208,16,180,56},px,py)){setCatalogPanel(CatalogPanel::Browse);return;}
+            if(ui::contains({w-440,16,200,56},px,py)){enterJournal(false);return;}
             ui::LibraryLayout l(w);
             for(int c=0;c<6;++c) if(ui::contains(categoryRect(c,w),px,py)) { category_=static_cast<Category>(c); updateVisibleBooks(); return; }
             if(ui::contains({w-216,16,112,56},px,py)) { toggleSearch(); return; }
@@ -2096,6 +2111,8 @@ private:
         handleAaModalTap(r.x+r.w/2,r.y+r.h/2,w,h);
     }
     void handleDirectional(int dx, int dy) {
+        if(screen_==ScreenState::ReadingJournal){journalUI_.navigate(dx,dy,journal_);dirty_=true;return;}
+        if(screen_==ScreenState::JournalPreview)return;
         if(moveFocus(dx,dy))return;
         if(quickMenu_) { quickFocus_=std::clamp(quickFocus_+dy,0,std::max(0,int(quickActions().size())-1));
             int w,h;getWindowSize(w,h);auto r=quickSheet(w,h);quickScroll_=std::clamp(float(quickFocus_*60-(r.h-104)),0.f,maxUiScroll());dirty_=true;return; }
@@ -2167,6 +2184,12 @@ private:
         }
 
         if (match(SDLK_ESCAPE, SDL_CONTROLLER_BUTTON_B)) {
+            if(screen_==ScreenState::JournalPreview){screen_=ScreenState::Reader;journalUI_.hidePreview();dirty_=true;return;}
+            if(screen_==ScreenState::ReadingJournal){
+                if(journalUI_.hasSubpage())journalUI_.back();
+                else screen_=journalReturn_;
+                dirty_=true;return;
+            }
             if(catalogPanel_!=CatalogPanel::None){closeCatalogPanel();return;}
             if(quickMenu_) { quickMenu_=false; helpMenu_=false; dirty_=true; return; }
             if(screen_==ScreenState::AaModal) {
@@ -2195,6 +2218,8 @@ private:
         }
 
         if (match(SDLK_RETURN, SDL_CONTROLLER_BUTTON_A)) {
+            if(screen_==ScreenState::JournalPreview){enterJournal(true);return;}
+            if(screen_==ScreenState::ReadingJournal){journalAction(journalUI_.activate(0,0,journal_));return;}
             if(activateFocus())return;
             if(quickMenu_) { int w,h;getWindowSize(w,h);auto r=quickSheet(w,h);handleQuickMenuTap(r.x+28,r.y+44+quickFocus_*60-int(quickScroll_)+24,w,h);return; }
             if (screen_ == ScreenState::TocModal) {
