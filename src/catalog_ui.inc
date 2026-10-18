@@ -48,8 +48,16 @@ std::string localReadingDay() const {
 void tickReadingStats() {
     const auto now=SDL_GetTicks();
     double fraction=pageCount_>0?(currentPage_+(continuous()?std::clamp(double(scrollY_)/std::max(1.f,segmentHeight(currentPage_)),0.0,1.0):0.0))/pageCount_:0;
-    readingStats_.tick(now,currentBookId_,fraction,doc_&&screen_==ScreenState::Reader&&!quickMenu_&&catalogPanel_==CatalogPanel::None&&!appBackground_&&!layoutPending_,localReadingDay());
-    if(now-statsSaveAt_>=60000){readingStats_.save();statsSaveAt_=now;}
+    const bool visible=doc_&&screen_==ScreenState::Reader&&!quickMenu_&&
+        catalogPanel_==CatalogPanel::None&&!appBackground_&&!layoutPending_;
+    readingStats_.tick(now,currentBookId_,fraction,visible,localReadingDay());
+    journal_.tick(now,std::time(nullptr),localReadingDay(),currentBookId_,journalTitle_,journalAuthor_,fraction,visible);
+    if(now-statsSaveAt_>=60000){
+        readingStats_.save();
+        if(journal_.hasUnsavedChanges()&&!journal_.save())
+            currentErrorMessage_="Reading journal not saved: "+journal_.diagnostic();
+        statsSaveAt_=now;
+    }
 }
 int libraryBookAt(float x,float y) {
     int w,h;getWindowSize(w,h);ui::LibraryLayout l(w);const int px=int(x*w),py=int(y*h);
@@ -84,7 +92,7 @@ std::vector<std::pair<int,std::string>> catalogRows() const {
             {3,std::string(e.status==ReadingStatus::NotStarted?"✓ ":"")+catLabel("Okunmadı","Unread")},
             {4,std::string(e.status==ReadingStatus::Completed?"✓ ":"")+catLabel("Okundu / Tamamlandı","Read / Finished")},
             {5,catLabel("Koleksiyonlar","Collections")},
-            {6,catLabel("Bilgileri düzenle","Edit Metadata")},{7,catLabel("Kitap bilgisi","Book Details")},
+            {6,catLabel("Bilgileri düzenle","Edit Metadata")},{7,catLabel("Kitap bilgisi","Book Details")},{10,catLabel("Okuma geçmişi","Reading history")},
             {8,catLabel("Kitaplıktan gizle","Remove from Library")},{9,catLabel("Dosyayı sil","Delete File Permanently")}};
     }else if(catalogPanel_==CatalogPanel::Metadata){
         rows={{0,catLabel("Başlık: ","Title: ")+(e.title.empty()?actionBook_.title:e.title)},
@@ -104,7 +112,7 @@ std::vector<std::pair<int,std::string>> catalogRows() const {
     }else if(catalogPanel_==CatalogPanel::Hidden){for(const auto &b:books_)if(catalog_.get(b.id).hidden)rows.push_back({int(rows.size()),catLabel("Geri getir: ","Restore: ")+catalog_.apply(b).title});
     }else if(catalogPanel_==CatalogPanel::Statistics){rows={{0,catLabel("Günlük hedef: ","Daily Goal: ")+std::to_string(readingStats_.dailyGoal())+" min"},{1,catLabel("Hedefi azalt −5","Decrease Goal")},{2,catLabel("Hedefi artır +5","Increase Goal")},{3,catLabel("Hedefi kapat","Disable Goal")}};
     }else if(catalogPanel_==CatalogPanel::DeleteConfirm){rows={{0,catLabel("Vazgeç","Cancel")},{1,catLabel("Kalıcı olarak sil","Delete this file permanently")}};
-    }else if(catalogPanel_==CatalogPanel::Details){rows={{0,catLabel("Bilgileri düzenle","Edit Metadata")},{1,catLabel("Koleksiyonlar","Collections")}};}
+    }else if(catalogPanel_==CatalogPanel::Details){rows={{0,catLabel("Bilgileri düzenle","Edit Metadata")},{1,catLabel("Koleksiyonlar","Collections")},{2,catLabel("Okuma geçmişi","Reading history")}};}
     return rows;
 }
 std::string catalogHeading() const {
@@ -158,10 +166,13 @@ void activateCatalogRow(int index){
         if(action==5)setCatalogPanel(CatalogPanel::Collections);
         if(action==6)setCatalogPanel(CatalogPanel::Metadata);
         if(action==7)setCatalogPanel(CatalogPanel::Details);
+        if(action==10){setCatalogPanel(CatalogPanel::None);enterJournal(false,actionBook_.id);}
         if(action==8){saveCatalogChange([&]{auto e=catalog_.get(actionBook_.id);e.hidden=true;catalog_.put(actionBook_.id,e);});setCatalogPanel(CatalogPanel::None);}
         if(action==9)setCatalogPanel(CatalogPanel::DeleteConfirm);
     }else if(catalogPanel_==CatalogPanel::Metadata){auto e=catalog_.get(actionBook_.id);const std::string values[]={e.title.empty()?actionBook_.title:e.title,e.author.empty()?actionBook_.author:e.author,e.genre.empty()?e.sourceGenre:e.genre,e.series.empty()?e.sourceSeries:e.series,e.tags};requestCatalogText(action,values[action]);
-    }else if(catalogPanel_==CatalogPanel::Details){setCatalogPanel(action==0?CatalogPanel::Metadata:CatalogPanel::Collections);
+    }else if(catalogPanel_==CatalogPanel::Details){
+        if(action==2){setCatalogPanel(CatalogPanel::None);enterJournal(false,actionBook_.id);}
+        else setCatalogPanel(action==0?CatalogPanel::Metadata:CatalogPanel::Collections);
     }else if(catalogPanel_==CatalogPanel::Collections){
         if(action==-1)requestCatalogText(5,"");else if(action==-2){catalogGroup_=CatalogGroup::Collections;setCatalogPanel(CatalogPanel::Values);}
         else {auto it=catalog_.collections().begin();std::advance(it,index-1);if(it!=catalog_.collections().end()){auto id=it->first;saveCatalogChange([&]{auto e=catalog_.get(actionBook_.id);if(std::find(e.collections.begin(),e.collections.end(),id)==e.collections.end())catalog_.addToCollection(actionBook_.id,id);else catalog_.removeFromCollection(actionBook_.id,id);});}}
@@ -169,7 +180,7 @@ void activateCatalogRow(int index){
         if(action==0){catalogFilter_.reset();updateVisibleBooks();setCatalogPanel(CatalogPanel::None);}
         if(action>=1&&action<=4){catalogGroup_=action==1?CatalogGroup::Authors:action==2?CatalogGroup::Genres:action==3?CatalogGroup::Collections:CatalogGroup::Series;setCatalogPanel(CatalogPanel::Values);}
         if(action==5)setCatalogPanel(CatalogPanel::Hidden);
-        if(action==6)setCatalogPanel(CatalogPanel::Statistics);
+        if(action==6){setCatalogPanel(CatalogPanel::None);enterJournal(false);}
         if(action==7)requestCatalogText(5,"");
         if(action==8){catalogGroup_=CatalogGroup::Formats;setCatalogPanel(CatalogPanel::Values);}
     }else if(catalogPanel_==CatalogPanel::Values){auto groups=catalog_.groups(books_,catalogGroup_);auto it=groups.begin();std::advance(it,index);if(it!=groups.end()){catalogFilter_=catalogGroup_;catalogFilterValue_=it->first;selectedCollection_=it->first;category_=Category::All;updateVisibleBooks();setCatalogPanel(CatalogPanel::None);}
