@@ -37,7 +37,11 @@ void px_document_close(PxDocument *doc);
 int px_document_render(PxDocument *doc, int page, int max_width, int max_height, PxImage *image, char *error, int capacity);
 int px_document_render_view(PxDocument *doc, int page, float zoom, int view_x, int view_y, int view_w, int view_h, PxImage *image, char *error, int capacity);
 int px_document_render_thumbnail(PxDocument *doc, int max_w, int max_h, PxImage *image, char *error, int capacity);
-void px_image_filter(PxImage *image, int mode);
+// PDF pixel paper/text tint using the SAME resolved ReaderPreferences palette as EPUB.
+// Neutral grayscale paper/ink pixels are mapped to exact background/foreground colors;
+// chromatic document artwork is retained; original PDF geometry is untouched.
+void px_image_apply_reading_colors(PxImage *image, uint32_t background_rgb, uint32_t foreground_rgb);
+void px_image_filter(PxImage *image, int mode); // Legacy API, no longer used by the reader UI.
 void px_image_free(PxImage *image);
 
 // Versioned chapter/fraction locations; approximate after layout changes.
