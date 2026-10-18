@@ -834,20 +834,22 @@ private:
     }
     std::vector<std::string> quickActions() const {
         if(helpMenu_) return {};
+        if(screen_==ScreenState::ReadingJournal)return {catLabel("Geri dön","Go back"),catLabel("Hedeflerim","My goals")};
         if(doc_) {
             std::vector<std::string> result={"Kitaplığa dön","Okuma ayarları · Aa","İçindekiler","Yer imleri","İlerleme / sayfaya git"};
             if(!navigationHistory_.empty()) result.push_back("Önceki konuma dön");
             if(!tocEntries_.empty()) { result.push_back("Önceki bölüm"); result.push_back("Sonraki bölüm"); }
             result.push_back(pageFlipPosition_?catLabel("Saklanan konuma dön","Return to saved place"):catLabel("Bu konumu sakla · Sayfa gezintisi","Keep this place · Page Flip"));
+            result.push_back(catLabel("Bu kitabın istatistikleri","This book's statistics"));
             result.push_back("Kitap bilgisi / yardım");
             result.push_back(catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"));
             return result;
         }
-        if(screen_==ScreenState::FileBrowser) return {"Kitaplığa dön","Üst klasör","Okuma ayarları","Görünümü yenile","Yardım","PaperNX’ten çık",catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait")};
+        if(screen_==ScreenState::FileBrowser) return {"Kitaplığa dön","Üst klasör","Okuma ayarları","Görünümü yenile","Yardım","PaperNX’ten çık",catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"),catLabel("Günlüğüm","My journal")};
         const char *sorts[]={"Başlık","Yazar","Dosya adı","Değiştirilme","Son okunan"};
         return {"Okuma ayarları","Uygulama görünümü","SD’ye gözat / kitap aç","Kitaplıkta ara",
             std::string("Sırala: ")+sorts[static_cast<int>(sort_)],viewMode_==ViewMode::Grid?"Liste görünümüne geç":"Kapak ızgarasına geç",
-            "Kitaplığı yenile","Yardım / dokunma rehberi","PaperNX’ten çık",catLabel("Yazarlar, türler ve koleksiyonlar","Authors, genres and collections"),catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait")};
+            "Kitaplığı yenile","Yardım / dokunma rehberi","PaperNX’ten çık",catLabel("Yazarlar, türler ve koleksiyonlar","Authors, genres and collections"),catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"),catLabel("Günlüğüm","My journal")};
     }
     SDL_Rect quickSheet(int w,int h) const {
         int width=std::min(460,w-32),height=std::min(h-96,56+int(quickActions().size())*60);
@@ -865,6 +867,12 @@ private:
         auto actions=quickActions();
         if(py<r.y+44 || index<0 || index>=int(actions.size())) return;
         std::string action=actions[index]; quickMenu_=false;
+        if(screen_==ScreenState::ReadingJournal){
+            if(index==0){screen_=journalReturn_;dirty_=true;}
+            else journalUI_.tap(w-200,40,w,h,journal_);
+            return;
+        }
+        if(action==catLabel("Günlüğüm","My journal")){enterJournal(false);return;}
         if(action==catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait")) {
             openChoice(1,appSettings_.get().displayOrientation);
             return;
@@ -878,6 +886,9 @@ private:
             else if(action=="Önceki konuma dön") { jumpBack(); screen_=ScreenState::Reader; }
             else if(action=="Önceki bölüm") { chapterJump(-1); screen_=ScreenState::Reader; }
             else if(action=="Sonraki bölüm") { chapterJump(1); screen_=ScreenState::Reader; }
+            else if(action==catLabel("Bu kitabın istatistikleri","This book's statistics")){
+                journalUI_.showPreview();screen_=ScreenState::JournalPreview;
+            }
             else if(action==catLabel("Saklanan konuma dön","Return to saved place"))returnToPageFlip();
             else if(action==catLabel("Bu konumu sakla · Sayfa gezintisi","Keep this place · Page Flip"))pinPageFlip();
             else quickMenu_=helpMenu_=true;
