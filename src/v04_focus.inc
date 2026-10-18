@@ -15,6 +15,7 @@
         } else if(quickMenu_) {
             auto r=quickSheet(w,h);auto actions=quickActions();
             for(int i=0;i<int(actions.size());++i)add("quick."+std::to_string(i),{r.x+12,r.y+44+i*60-int(quickScroll_),r.w-24,56});
+            add("quick.orientation",{r.x+r.w-164,r.y+4,148,36});
             add("quick.close",{w-80,8,64,64});
         } else if(screen_==ScreenState::AaModal) {
             ui::SettingsLayout l(w,h);
