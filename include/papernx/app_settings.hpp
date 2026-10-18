@@ -4,13 +4,13 @@
 namespace papernx {
 
 struct AppPreferences {
-    int uiTheme{0}; // Same curated palette indices as the reader; independent selection.
+    int uiTheme{0}; // Legacy on-disk compatibility; the global ReaderPreferences theme is authoritative.
     int language{0}; // 0 Turkish, 1 English
     int libraryLayout{0}; // 0 grid, 1 list
     int sort{0}; // papernx::Sort
     int toolbar{0}; // 0 auto-hide, 1 persistent
-    int chromePolicy{0}; // 0 follow reading, 1 application, 2 custom
-    int customUiTheme{0};
+    int chromePolicy{0}; // Legacy persisted value: normalized to 0; no longer a user-facing policy.
+    int customUiTheme{0}; // Legacy persisted value, ignored by unified reader chrome.
     int displayOrientation{0}; // landscape, clockwise, counterclockwise
     bool preservePdfZoom{true};
     bool shoulderPageTurns{true};
