@@ -381,48 +381,52 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
     if (tab_ == 0) {
         const int px = g.left, py = g.top, cw = g.width;
         // Period segmented toggle: Hafta | Ay | Yıl
-        int segW = 96, segX = px + cw - 3 * segW;
-        if (y >= py && y <= py + 56) {
+        int segW = 90, segX = px + cw - 3 * segW;
+        if (y >= py && y <= py + 52) {
             for (int p = 0; p < 3; ++p) {
                 if (x >= segX + p * segW && x < segX + (p + 1) * segW) {
                     period_ = p; return Action::None;
                 }
             }
         }
-        // Link to books or detail button
-        int botY = py + 390;
-        int halfW = (cw - 16) / 2;
-        // Currently reading card "Detay →" button
-        if (y >= botY + 10 && y <= botY + 66 && x >= px + halfW - 120 && x <= px + halfW - 10) {
-            auto cr = journal.currentlyReading();
-            if (!cr.first.empty()) { detailId_ = cr.first; tab_ = 2; return Action::None; }
+        // Touch targets come from the exact same geometry as the render pass.
+        const bool stacked = h >= 900 && cw < 900;
+        const int botY = py + 70 + 224 + (stacked ? 248 : 12) + (stacked ? 200 : 100);
+        const int halfW = stacked ? cw : (cw - 14) / 2;
+        const int botH = stacked ? std::min(164,std::max(112,(h-botY-34)/2))
+                                 : std::min(160,h-botY-16);
+        const int currentX = px, recentX=stacked?px:px+halfW+14;
+        const int recentY = stacked?botY+botH+12:botY;
+        if (ui::contains({currentX+halfW-110,botY+64,96,56},x,y)) {
+            const auto cr=journal.currentlyReading();
+            if(!cr.first.empty()){detailId_=cr.first;tab_=2;offset_=0;}
+            return Action::None;
         }
-        // "Kitaplarım ↗" link
-        if (y >= botY + 10 && y <= botY + 66 && x >= px + halfW - 240 && x < px + halfW - 120) {
-            tab_ = 2; return Action::None;
+        if (ui::contains({currentX+halfW-130,botY+8,118,56},x,y)) {
+            tab_=2;offset_=0;return Action::None;
         }
-        // "Tümünü gör ↗" link
-        if (y >= botY + 10 && y <= botY + 66 && x >= px + cw - 160 && x <= px + cw - 10) {
-            tab_ = 3; return Action::None;
+        if (ui::contains({recentX+halfW-130,recentY+8,118,56},x,y)) {
+            tab_=3;offset_=0;return Action::None;
         }
     }
 
     // 5. Tab 1: Calendar Interactive Areas
     if (tab_ == 1) {
         const int px = g.left, py = g.top, cw = g.width;
-        int calW = cw >= 700 ? (cw * 62 / 100) : cw;
-        // Month navigation buttons
-        if (y >= py + 10 && y <= py + 66) {
+        int calW = (cw >= 700 && !(h>=900 && cw<900)) ? (cw*62/100) : cw;
+        // Month navigation buttons line up with calRc.y+8.
+        if (y >= py + 56 && y < py + 104) {
             if (x >= px + calW - 148 && x <= px + calW - 80) { monthDelta_--; selectedDay_ = 0; return Action::None; }
             if (x >= px + calW - 76 && x <= px + calW - 8) { monthDelta_++; selectedDay_ = 0; return Action::None; }
         }
         // Day cells
         auto d = dateAt(monthDelta_);
         int first = (d.tm_wday + 6) % 7;
-        int cellW = std::max(56, (calW - 24) / 7), y0 = py + 120;
+        int cellW = std::max(56, (calW - 28) / 7), y0 = py + 140;
         if (y >= y0) {
-            int col = (x - px - 8) / cellW;
-            int row = (y - y0) / 60;
+            if(x<px+10 || x>=px+10+7*cellW)return Action::None;
+            int col = (x - px - 10) / cellW;
+            int row = (y - y0) / 58;
             int day = row * 7 + col - first + 1;
             if (col >= 0 && col < 7 && day >= 1 && day <= daysInMonth(d.tm_year + 1900, d.tm_mon)) {
                 selectedDay_ = day; return Action::None;
@@ -441,10 +445,11 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
             const auto b = journal.books();
             int n = 0;
             for (std::size_t i = std::size_t(offset_); i < b.size(); ++i) {
-                int rowY = g.top + 50 + n++ * 88;
+                int rowY = g.top + 52 + n++ * 92;
                 if (rowY + 80 > h) break;
                 // "Kitap istatistikleri ↗" button
-                if (y >= rowY + 12 && y <= rowY + 68 && x >= g.left + g.width - 220) {
+                if (y >= rowY + 14 && y < rowY + 70 &&
+                    x >= g.left + g.width - 190 && x < g.left + g.width - 14) {
                     detailId_ = b[i].id; offset_ = 0; return Action::None;
                 }
             }
@@ -456,7 +461,7 @@ ReadingJournalUI::Action ReadingJournalUI::tap(int x, int y, int w, int h, Readi
         int n = 0;
         for (auto it = journal.sessions().rbegin(); it != journal.sessions().rend(); ++it) {
             if (n++ < offset_) continue;
-            int rowY = g.top + 50 + (n - offset_ - 1) * 88;
+            int rowY = g.top + 52 + (n - offset_ - 1) * 88;
             if (rowY + 80 > h) break;
             // Delete button [Sil]
             if (y >= rowY + 16 && y <= rowY + 72 && x >= g.left + g.width - 90 && x <= g.left + g.width - 10) {
@@ -648,7 +653,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         SDL_Rect cRc{px, botY, halfW, botH};
         panel(r, pal, cRc);
         text(r, font, label(en, "Şu anda okuduğun", "Currently reading"), cRc.x + 16, cRc.y + 10, pal.fg, halfW - 140, true);
-        ui::button(r, font, {cRc.x + halfW - 130, cRc.y + 8, 118, 40}, label(en, "Kitaplarım ↗", "My books ↗"), pal);
+        ui::button(r, font, {cRc.x + halfW - 130, cRc.y + 8, 118, 56}, label(en, "Kitaplarım ↗", "My books ↗"), pal);
 
         auto cr = journal.currentlyReading();
         if (!cr.first.empty()) {
@@ -669,7 +674,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
                     portraitStack ? botY + botH + 12 : botY, halfW, botH};
         panel(r, pal, rRc);
         text(r, font, label(en, "Son etkinlikler", "Recent activity"), rRc.x + 16, rRc.y + 10, pal.fg, halfW - 140, true);
-        ui::button(r, font, {rRc.x + halfW - 130, rRc.y + 8, 118, 40}, label(en, "Tümünü gör ↗", "See all ↗"), pal);
+        ui::button(r, font, {rRc.x + halfW - 130, rRc.y + 8, 118, 56}, label(en, "Tümünü gör ↗", "See all ↗"), pal);
 
         const auto &allSessions = journal.sessions();
         int sShown = 0;
@@ -797,7 +802,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
                           int(bList[i].progress * 100.0), duration(bList[i].activeMilliseconds, en).c_str(),
                           bList[i].sessions, label(en, "oturum", "sessions").c_str());
             text(r, font, bInfo, bRc.x + cw - 210, bRc.y + 12, pal.muted, 200);
-            ui::button(r, font, {bRc.x + cw - 190, bRc.y + 38, 176, 42}, label(en, "Kitap istatistikleri ↗", "Details ↗"), pal);
+            ui::button(r, font, {bRc.x + cw - 190, bRc.y + 14, 176, 56}, label(en, "Kitap istatistikleri ↗", "Details ↗"), pal);
         }
     } else {
         // Tab 3: Geçmiş (History / Journal)
