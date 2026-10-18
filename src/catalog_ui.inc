@@ -281,7 +281,7 @@ void renderCatalogPanel(int w,int h,const ThemePalette &pal){
         if(manage)row.w-=132;
         const auto status=catalog_.get(actionBook_.id).status;
         const bool statusSelected=catalogPanel_==CatalogPanel::Actions && ((rows[i].first==2&&status==ReadingStatus::Reading)||(rows[i].first==3&&status==ReadingStatus::NotStarted)||(rows[i].first==4&&status==ReadingStatus::Completed));
-        ui::button(renderer_,*typography_,row,rows[i].second,pal,statusSelected,false,false,i==catalogFocus_ && catalogPanel_==CatalogPanel::Actions,false,false,danger);
+        ui::menuRow(renderer_,*typography_,row,rows[i].second,pal,statusSelected,i==catalogFocus_ && catalogPanel_==CatalogPanel::Actions,danger);
         if(manage)ui::button(renderer_,*typography_,{row.x+row.w+8,row.y,124,56},catLabel("Düzenle","Manage"),pal);}
     if(rows.empty())typography_->renderText(renderer_,typography_->uiFont(),catLabel("Henüz öğe yok","No items"),r.x+24,top+24,pal.muted,r.w-48);
     SDL_RenderSetClipRect(renderer_,nullptr);
