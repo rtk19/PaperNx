@@ -1965,7 +1965,7 @@ private:
             dirty_=true; return;
         } else if(aaTab_==5) {
             auto p=appSettings_.get();
-            if(row==0){openChoice(7,std::max(0,globalPaperPresetIndex()));return;}
+            if(row==0){openChoice(7,globalPaperPresetIndex());return;}
             if(row==6){openChoice(1,p.displayOrientation);return;}
             if(row==7){openChoice(6,p.paperTexture);return;}
             if(row==1) { viewMode_=viewMode_==ViewMode::Grid?ViewMode::List:ViewMode::Grid; listScroll_=0; }
