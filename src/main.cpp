@@ -671,7 +671,7 @@ private:
             // Existing books inherit global changes without losing their anchors.
             auto effective=resolveReadingPreferences(defaults,currentStyle());
             applyStyle(effective);
-            queueStyleChange();
+            queueStyleChange(true); // Still inherits the new global theme.
         }
         pageCache_.clear();
         dirty_=true;
