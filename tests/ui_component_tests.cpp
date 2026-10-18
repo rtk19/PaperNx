@@ -71,6 +71,19 @@ int main() {
             assert(contrast(chrome.header,chrome.fg)>=4.5);
             assert(contrast(chrome.accent,chrome.bg)>=4.5);
         }
+        // PDF filter backdrop must exactly match the white-paper pixels
+        // produced by px_image_filter, never the unrelated global app palette.
+        {
+            ReaderPreferences global;global.theme=2;global.backgroundColor=0xe8d6b3;
+            auto dark=readerChromePalette(global,true,1,0);
+            auto sepia=readerChromePalette(global,true,2,0);
+            auto inverted=readerChromePalette(global,true,3,0);
+            auto original=readerChromePalette(global,true,0,0);
+            assert(dark.bg.r==28 && dark.bg.g==30 && dark.bg.b==32);
+            assert(sepia.bg.r==236 && sepia.bg.g==224 && sepia.bg.b==198);
+            assert(inverted.bg.r==0 && inverted.bg.g==0 && inverted.bg.b==0);
+            assert(original.bg.r==0xe8 && original.bg.g==0xd6);
+        }
         for(int width:{64,120,320,560}) {
             ui::StepperLayout l({10,20,width,64});
             for(auto r:{l.minus,l.value,l.plus})assert(r.x>=10 && r.x+r.w<=10+width && r.w>=0);
