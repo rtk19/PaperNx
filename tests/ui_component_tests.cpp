@@ -71,18 +71,17 @@ int main() {
             assert(contrast(chrome.header,chrome.fg)>=4.5);
             assert(contrast(chrome.accent,chrome.bg)>=4.5);
         }
-        // PDF filter backdrop must exactly match the white-paper pixels
-        // produced by px_image_filter, never the unrelated global app palette.
+        // PDF and EPUB share exactly one resolved ReaderPreferences appearance.
+        // Legacy pdfColorMode values never alter canvas, ink or UI chrome.
         {
-            ReaderPreferences global;global.theme=2;global.backgroundColor=0xe8d6b3;
-            auto dark=readerChromePalette(global,true,1,0);
-            auto sepia=readerChromePalette(global,true,2,0);
-            auto inverted=readerChromePalette(global,true,3,0);
-            auto original=readerChromePalette(global,true,0,0);
-            assert(dark.bg.r==28 && dark.bg.g==30 && dark.bg.b==32);
-            assert(sepia.bg.r==236 && sepia.bg.g==224 && sepia.bg.b==198);
-            assert(inverted.bg.r==0 && inverted.bg.g==0 && inverted.bg.b==0);
-            assert(original.bg.r==0xe8 && original.bg.g==0xd6);
+            ReaderPreferences style;style.theme=2;
+            style.backgroundColor=0xe8d6b3;style.textColor=0x413224;
+            auto epub=readerChromePalette(style,false,0,0);
+            for(int legacy=0;legacy<=3;++legacy){
+                auto pdf=readerChromePalette(style,true,legacy,0);
+                assert(pdf.bg.r==epub.bg.r && pdf.bg.g==epub.bg.g && pdf.bg.b==epub.bg.b);
+                assert(pdf.fg.r==epub.fg.r && pdf.fg.g==epub.fg.g && pdf.fg.b==epub.fg.b);
+            }
         }
         for(int width:{64,120,320,560}) {
             ui::StepperLayout l({10,20,width,64});
