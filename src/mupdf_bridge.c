@@ -843,6 +843,38 @@ static void load_epub_extras(PxDocument *d) {
     fz_catch(d->ctx) { /* Optional extras; native outline/page-zero remain available. */ }
 }
 
+/* PDF pixels share EPUB's resolved appearance palette.
+ * Light neutral page pixels become the precise theme paper RGB; neutral ink is
+ * blended towards the theme foreground. Chromatic artwork remains unchanged.
+ * This is raster-level color adaptation, not structural PDF text reflow. */
+void px_image_apply_reading_colors(PxImage *image, uint32_t background_rgb, uint32_t foreground_rgb) {
+    if (!image || !image->rgb || image->width <= 0 || image->height <= 0 ||
+        image->stride < image->width * 3) return;
+    const int br = (background_rgb >> 16) & 255;
+    const int bg = (background_rgb >> 8) & 255;
+    const int bb = background_rgb & 255;
+    const int fr = (foreground_rgb >> 16) & 255;
+    const int fg = (foreground_rgb >> 8) & 255;
+    const int fb = foreground_rgb & 255;
+    for (int y = 0; y < image->height; ++y) {
+        unsigned char *row = image->rgb + (size_t)y * (size_t)image->stride;
+        for (int x = 0; x < image->width; ++x) {
+            unsigned char *p = row + x * 3;
+            int lo = p[0] < p[1] ? p[0] : p[1];
+            if (p[2] < lo) lo = p[2];
+            int hi = p[0] > p[1] ? p[0] : p[1];
+            if (p[2] > hi) hi = p[2];
+            /* Preserve color illustrations/highlights; only neutral paper and ink
+               are rendered with the reading colors chosen in Appearance. */
+            if (hi - lo > 18) continue;
+            const int lum = (p[0] * 54 + p[1] * 183 + p[2] * 19 + 128) >> 8;
+            p[0] = (unsigned char)((fr * (255 - lum) + br * lum + 127) / 255);
+            p[1] = (unsigned char)((fg * (255 - lum) + bg * lum + 127) / 255);
+            p[2] = (unsigned char)((fb * (255 - lum) + bb * lum + 127) / 255);
+        }
+    }
+}
+
 /* Explicitly whole-page, reversible filters; no claim of image-safe recoloring. */
 void px_image_filter(PxImage *image, int mode) {
     if (!image || !image->rgb || mode < 1 || mode > 3) return;
