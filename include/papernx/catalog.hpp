@@ -4,6 +4,30 @@
 
 namespace papernx {
 enum class ReadingStatus { Automatic, NotStarted, Reading, Completed };
+// Explicit library status has user-visible position semantics, not just a filter tag.
+// Preserve bookmarks, appearance overrides, and reading journal history.
+inline void applyManualReadingStatus(Progress &p, ReadingStatus status, std::int64_t nowUtc=0) {
+    if(status==ReadingStatus::Automatic)return;
+    if(status==ReadingStatus::NotStarted) {
+        p.page=0;p.fraction=0.0;p.lastRead=0;
+        p.muBookmark=-1;p.anchorChapter=-1;p.anchorCharacter=-1;p.anchorOffset=0;
+        p.chapter=-1;
+    } else if(status==ReadingStatus::Completed) {
+        p.fraction=1.0;
+        p.page=p.pageCount>0?p.pageCount-1:0;
+        p.muBookmark=-1;p.anchorChapter=-1;p.anchorCharacter=-1;p.anchorOffset=0;
+        if(nowUtc>0 && p.lastRead<=0)p.lastRead=nowUtc;
+    } else if(status==ReadingStatus::Reading) {
+        // Returning a completed book to "Reading" starts a new read rather than
+        // inventing 99% progress. A real intermediate position is preserved.
+        if(p.fraction>=1.0) {
+            p.fraction=0.0;p.page=0;
+            p.muBookmark=-1;p.anchorChapter=-1;p.anchorCharacter=-1;p.anchorOffset=0;
+        }
+        if(nowUtc>0 && p.lastRead<=0)p.lastRead=nowUtc;
+    }
+}
+
 enum class CatalogGroup { Authors, Genres, Collections, Series, Formats };
 struct CatalogEntry {
     std::string title, author, genre, series, tags;
