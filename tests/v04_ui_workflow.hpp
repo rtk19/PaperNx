@@ -50,6 +50,27 @@ static void v04UiWorkflow(const fs::path &parent) {
         app.screen_=ScreenState::TocModal;snapshot(app,"v04-dark-epub-toc");app.screen_=ScreenState::Reader;
         app.currentTheme_=5;app.queueStyleChange();v03WaitLayout(app);app.quickMenu_=true;snapshot(app,"v04-oled-quick-menu");app.quickMenu_=false;
         app.closeBook();
+        // One global theme picker controls reader, library, headers and settings.
+        // Old separate application/chrome policy settings cannot override it.
+        {
+            auto legacy=app.appSettings_.get();legacy.chromePolicy=2;
+            legacy.customUiTheme=4;legacy.uiTheme=0;app.appSettings_.put(legacy);
+            assert(app.appSettings_.get().chromePolicy==0);
+            app.openSettings(true,5);
+            assert(app.settingsRows()==8);
+            app.openChoice(7,0);
+            assert(app.choiceOptions().size()==9);
+            app.choiceIndex_=4;app.commitChoice(); // Vintage Sepia
+            const auto defaults=app.progressStore_.get("PAPERNX_DEFAULTS");
+            assert(defaults.theme==2 && defaults.backgroundColor==0xe8d6b3);
+            assert(defaults.textColor==0x4b3828 && defaults.styleOverride==0);
+            assert(app.globalPaperPresetIndex()==4);
+            assert(app.palette().bg.r==0xe8 && app.palette().bg.g==0xd6);
+            snapshot(app,"v04-unified-global-library-sepia");
+            closeSettings(app);
+            assert(app.appSettings_.save());
+            app.flushProgress();
+        }
         // App-wide Follow Reading Theme must use persisted defaults, not stale Paper UI.
         {
             auto defaults=app.progressStore_.get("PAPERNX_DEFAULTS");
@@ -82,7 +103,7 @@ static void v04UiWorkflow(const fs::path &parent) {
             // to exercise overflow and real swipe routing through the parent modal.
             SDL_SetWindowSize(app.window_,640,320);
             app.openSettings(true);
-            app.openChoice(3,0);
+            app.openChoice(7,0);
             int cw,ch;app.getWindowSize(cw,ch);
             auto region=app.choiceContentRect(cw,ch);
             const float cx=float(region.x+region.w/2)/cw,cy=float(region.y+region.h-24)/ch;
@@ -118,7 +139,11 @@ static void v04UiWorkflow(const fs::path &parent) {
         }
         auto a=app.appSettings_.get();a.displayOrientation=0;app.appSettings_.put(a);app.persistAppSettings();
         auto pdf=*std::find_if(app.books_.begin(),app.books_.end(),[](const Book &b){return b.format==Format::Pdf;});app.openBook(pdf);
-        app.extraStyle_.pdfColorMode=1;app.pageCache_.clear();assert(app.palette().bg.r<48);app.toolbarVisible_=true;snapshot(app,"v04-dark-pdf-toolbar");
+        // PDF dark filter is document-only; UI chrome still uses the selected general theme.
+        const auto globalBg=app.palette().bg;
+        app.extraStyle_.pdfColorMode=1;app.pageCache_.clear();
+        assert(app.palette().bg.r==globalBg.r && app.palette().bg.g==globalBg.g);
+        app.toolbarVisible_=true;snapshot(app,"v04-dark-pdf-toolbar");
         app.openSettings();snapshot(app,"v04-dark-pdf-settings");closeSettings(app);app.toolbarVisible_=false;
         app.extraStyle_.pdfColorMode=2;app.pageCache_.clear();snapshot(app,"v04-sepia-pdf-canvas");
         app.extraStyle_.pdfColorMode=0;app.pageCache_.clear();snapshot(app,"v04-original-pdf");
