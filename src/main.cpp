@@ -95,6 +95,9 @@ struct LoadedThumb {
     std::vector<unsigned char> rgb;
     CoverState state{CoverState::Loaded};
 };
+struct LoadedMetadata {
+    std::string id,title,author;
+};
 
 class PaperNxApp {
 public:
@@ -475,6 +478,7 @@ private:
 
     std::mutex completedMutex_;
     std::vector<LoadedThumb> completedThumbs_;
+    std::vector<LoadedMetadata> completedMetadata_;
 
     // Caller holds queueMutex_. Pending IDs include queued, processing and upload-ready work.
     void failThumbnail(const std::string &id) {
@@ -511,6 +515,16 @@ private:
                 failThumbnail(b.id);
                 continue;
             }
+            // Metadata extraction happens in the existing bounded cover worker,
+            // not on the UI thread. A book without an illustration can still
+            // have a real title and author in OPF/PDF metadata.
+            char bookTitle[512]{},bookAuthor[512]{};
+            px_document_metadata(thumbDoc,"info:Title",bookTitle,sizeof bookTitle);
+            px_document_metadata(thumbDoc,"info:Author",bookAuthor,sizeof bookAuthor);
+            if(bookTitle[0] || bookAuthor[0]) {
+                std::lock_guard<std::mutex> lock(completedMutex_);
+                completedMetadata_.push_back({b.id,bookTitle,bookAuthor});
+            }
             if(b.format==Format::Epub && !px_document_has_embedded_cover(thumbDoc)) {
                 px_document_close(thumbDoc);
                 std::lock_guard<std::mutex> lock(queueMutex_);
@@ -546,6 +560,26 @@ private:
     void processCompletedThumbnails() {
         // A reader opening has priority over background library cover uploads.
         if(coversPaused_)return;
+        std::vector<LoadedMetadata> metadata;
+        {
+            std::lock_guard<std::mutex> lock(completedMutex_);
+            const auto count=std::min<std::size_t>(2,completedMetadata_.size());
+            metadata.insert(metadata.end(),std::make_move_iterator(completedMetadata_.begin()),
+                            std::make_move_iterator(completedMetadata_.begin()+count));
+            completedMetadata_.erase(completedMetadata_.begin(),completedMetadata_.begin()+count);
+        }
+        bool metadataChanged=false;
+        for(const auto &md:metadata) {
+            auto book=std::find_if(books_.begin(),books_.end(),[&](const Book &b){return b.id==md.id;});
+            if(book==books_.end())continue;
+            auto entry=catalog_.get(md.id);
+            const std::string fingerprint=std::to_string(book->bytes)+":"+std::to_string(book->modified);
+            if(entry.sourceTitle==md.title && entry.sourceAuthor==md.author &&
+               entry.metadataFingerprint==fingerprint)continue;
+            entry.sourceTitle=md.title;entry.sourceAuthor=md.author;entry.metadataFingerprint=fingerprint;
+            catalog_.put(md.id,entry);catalogSavePending_=true;metadataChanged=true;
+        }
+        if(metadataChanged){updateVisibleBooks();dirty_=true;}
         std::vector<LoadedThumb> toUpload;
         {
             std::lock_guard<std::mutex> lock(completedMutex_);
@@ -2486,8 +2520,8 @@ private:
         ui::button(renderer_,*typography_,l.close,"Kapat",pal);
         const char *tabs[]={"Okuma","Sayfa düzeni","Görünüm","Navigasyon","PDF","Uygulama"};
         for(int i=0;i<6;++i) ui::button(renderer_,*typography_,l.tab(i),tabs[i],pal,aaTab_==i);
-        std::string scope=globalSettings_||!doc_?"Genel ayarlar · Tüm kitaplara uygulanır":
-            extraStyle_.styleOverride?"Yalnızca bu kitap · Genel ayarlara dön":"Genel ayarlar · Bu kitabı özelleştir";
+        std::string scope=globalSettings_||!doc_?"Genel tema · Kitaplığa uygulanır":
+            extraStyle_.styleOverride?"Bu kitabın teması · Genel temaya dön":"Genel temayı kullanıyor · Bu kitabı özelleştir";
         ui::button(renderer_,*typography_,l.scope,scope,pal,doc_ && extraStyle_.styleOverride);
         auto row=[&](int n,const std::string &label,bool selected=false) {
             auto r=l.control(n); r.y-=int(settingsScroll_);
