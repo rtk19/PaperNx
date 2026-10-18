@@ -167,6 +167,49 @@ void run(){
     exportJournal.setIdleMinutes(7); // invalid, must remain 10
     assert(exportJournal.idleMinutes() == 10);
 
+    // 6. BookStateResolver & Finished Books Integration (FAZ 2.1 & 2.2)
+    {
+        ReadingJournal stateJournal(dir / "state_test");
+        stateJournal.interaction(1000);
+        // Add session for book-A reaching 1.0 (completed)
+        step(stateJournal, 1000, 1792367880, "2026-10-18", true, 0.5);
+        for (std::uint64_t t = 2000; t <= 10000; t += 1000) {
+            step(stateJournal, t, 1792367880 + std::int64_t(t / 1000), "2026-10-18", true, 1.0);
+        }
+        stateJournal.pause(11000, 1792367891);
+
+        // Case A: Without resolver, session progress 1.0 gives 1 finished book
+        auto defaultStats = stateJournal.calculatePeriodStats(0, 0, false);
+        assert(defaultStats.finishedBooks == 1);
+        // When all books are completed, currentlyReading must return empty (never false in-progress!)
+        assert(stateJournal.currentlyReading().first.empty());
+
+        // Case B: User reset book-A to NotStarted in CatalogStore -> must NOT count as finished
+        BookStateResolver resetResolver;
+        resetResolver.progressResolver = [](const std::string &, double) { return 0.0; };
+        resetResolver.isCompleted = [](const std::string &, double) { return false; };
+        auto resetStats = stateJournal.calculatePeriodStats(0, 0, false, resetResolver);
+        assert(resetStats.finishedBooks == 0);
+
+        // Case C: Book-B has NO sessions, but was marked Completed in CatalogStore -> must count as finished!
+        BookStateResolver catalogResolver;
+        catalogResolver.isCompleted = [](const std::string &id, double) {
+            return id == "book-01" || id == "book-external-completed";
+        };
+        catalogResolver.knownBookIds = []() -> std::vector<std::string> {
+            return {"book-01", "book-external-completed"};
+        };
+        auto catStats = stateJournal.calculatePeriodStats(0, 0, false, catalogResolver);
+        assert(catStats.finishedBooks == 2);
+
+        // Case D: Re-reading book-A (re-read started at 0.0) -> currentlyReading identifies it
+        BookStateResolver rereadResolver;
+        rereadResolver.progressResolver = [](const std::string &, double) { return 0.05; };
+        rereadResolver.isCompleted = [](const std::string &, double) { return false; };
+        assert(stateJournal.currentlyReading(rereadResolver).first == "book-01");
+        assert(std::abs(stateJournal.currentlyReading(rereadResolver).second - 0.05) < 0.001);
+    }
+
     fs::remove_all(dir,ec);
 }
 }

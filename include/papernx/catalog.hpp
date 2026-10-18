@@ -51,6 +51,7 @@ public:
     std::vector<Book> visible(const std::vector<Book> &) const;
     std::map<std::string, std::size_t> groups(const std::vector<Book> &, CatalogGroup) const;
     std::vector<Book> filter(const std::vector<Book> &, CatalogGroup, const std::string &value) const;
+    const std::map<std::string, CatalogEntry> &entries() const { return entries_; }
     const std::map<std::string, std::string> &collections() const { return collections_; }
     std::string createCollection(const std::string &name);
     bool renameCollection(const std::string &id, const std::string &name);

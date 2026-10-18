@@ -366,7 +366,7 @@ private:
     ScreenState settingsReturn_{ScreenState::Library};
     int documentMode_{0};
     float listScroll_{0}, listVelocity_{0}, listLastY_{0};
-    float settingsScroll_{0}, quickScroll_{0}, browserScroll_{0}, tocScroll_{0}, bookmarkScroll_{0};
+    float settingsScroll_{0}, quickScroll_{0}, browserScroll_{0}, tocScroll_{0}, bookmarkScroll_{0}, journalScroll_{0};
     bool listTracking_{false}, listMoved_{false};
     Uint32 listTick_{0}, listPhysicsTick_{0};
     struct HistoryPosition { int page; float y; int chapter,character; double offset; };
@@ -944,6 +944,7 @@ private:
     }
     float &uiScroll() {
         if(quickMenu_) return quickScroll_;
+        if(screen_==ScreenState::ReadingJournal) return journalScroll_;
         if(screen_==ScreenState::AaModal) return settingsScroll_;
         if(screen_==ScreenState::FileBrowser) return browserScroll_;
         if(screen_==ScreenState::TocModal) return tocScroll_;
@@ -953,6 +954,7 @@ private:
     float maxUiScroll() {
         int w,h; getWindowSize(w,h);
         if(quickMenu_) return std::max(0,int(quickActions().size())*60-(quickSheet(w,h).h-44));
+        if(screen_==ScreenState::ReadingJournal) return float(journalUI_.maxScrollY());
         if(screen_==ScreenState::AaModal) return std::max(0,settingsRows()*64-ui::SettingsLayout(w,h).content.h);
         if(screen_==ScreenState::FileBrowser) return std::max(0,int(browserEntries_.size())*64-(h-128));
         if(screen_==ScreenState::TocModal) return std::max(0,int(tocEntries_.size())*56-(h-208));
@@ -963,6 +965,7 @@ private:
     bool beginListTouch(float x,float y) {
         int w,h; getWindowSize(w,h); int px=int(x*w),py=int(y*h); bool capture=false;
         if(quickMenu_) capture=ui::contains(quickSheet(w,h),px,py) && !helpMenu_;
+        else if(screen_==ScreenState::ReadingJournal) capture=!journalUI_.hasSubpage() && py>=76;
         else if(screen_==ScreenState::Library) capture=py>=ui::LibraryLayout(w).top;
         else if(screen_==ScreenState::FileBrowser) capture=py>=112;
         else if(screen_==ScreenState::AaModal) capture=ui::contains(ui::SettingsLayout(w,h).content,px,py);
@@ -1900,6 +1903,7 @@ private:
     void enterJournal(bool fromReader,const std::string &bookId={}) {
         journalReturn_=fromReader?ScreenState::Reader:ScreenState::Library;
         journalUI_.open(bookId);quickMenu_=false;helpMenu_=false;
+        journalScroll_=0.f;
         screen_=ScreenState::ReadingJournal;dirty_=true;
     }
     void journalAction(ReadingJournalUI::Action action) {
@@ -1918,7 +1922,7 @@ private:
         if(catalogPanel_!=CatalogPanel::None){handleCatalogTap(px,py,w,h);return;}
         if((screen_==ScreenState::ReadingJournal||screen_==ScreenState::JournalPreview)&&!quickMenu_&&
            (screen_==ScreenState::JournalPreview || !(px>=w-80&&py<72))){
-            journalAction(journalUI_.tap(px,py,w,h,journal_));return;
+            journalAction(journalUI_.tap(px,py,w,h,journal_,&progressStore_,&catalog_));return;
         }
 
         if(quickMenu_) { handleQuickMenuTap(px,py,w,h); return; }
@@ -2148,7 +2152,7 @@ private:
         handleAaModalTap(r.x+r.w/2,r.y+r.h/2,w,h);
     }
     void handleDirectional(int dx, int dy) {
-        if(screen_==ScreenState::ReadingJournal&&!quickMenu_){journalUI_.navigate(dx,dy,journal_);dirty_=true;return;}
+        if(screen_==ScreenState::ReadingJournal&&!quickMenu_){journalUI_.navigate(dx,dy,journal_,&progressStore_,&catalog_);journalScroll_=float(journalUI_.scrollY());dirty_=true;return;}
         if(screen_==ScreenState::JournalPreview)return;
         if(moveFocus(dx,dy))return;
         if(quickMenu_) { quickFocus_=std::clamp(quickFocus_+dy,0,std::max(0,int(quickActions().size())-1));
@@ -2399,6 +2403,7 @@ private:
         SDL_RenderClear(renderer_);
 
         if (screen_ == ScreenState::ReadingJournal) {
+            journalUI_.setScrollY(int(journalScroll_));
             journalUI_.render(renderer_,*typography_,pal,journal_,progressStore_,catalog_,w,h,ui::language==1);
         } else if(screen_==ScreenState::JournalPreview) {
             renderReaderScreen(w,h,pal);

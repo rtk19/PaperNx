@@ -82,33 +82,86 @@ struct AppTest {
         // Deterministic test fixture, never bundled as a user journal.
         PaperNxApp app(root); assert(app.init());
         assert(!app.books_.empty());
-        const auto book=app.books_.front();
-        app.journal_.registerBookAlias(book.id,"",book.title,book.author);
+        const auto book = app.books_.front();
+        app.journal_.registerBookAlias(book.id, "", book.title, book.author);
         app.journal_.interaction(1000);
-        for(std::uint64_t ms=1000;ms<=121000;ms+=1000){
-            app.journal_.tick(ms,1792367880+std::int64_t(ms/1000),
-                "2026-10-18",book.id,book.title,book.author,0.1+double(ms)/10000000.,true);
+        for (std::uint64_t ms = 1000; ms <= 121000; ms += 1000) {
+            app.journal_.tick(ms, 1792367880 + std::int64_t(ms / 1000),
+                "2026-10-18", book.id, book.title, book.author, 0.1 + double(ms) / 10000000., true);
         }
-        app.journal_.pause(122000,1792368003);
-        app.enterJournal(false);
-        snapshot(app,"journal-overview-1280");
-        app.journalUI_.nextTab();snapshot(app,"journal-calendar-1280");
-        app.journalUI_.nextTab();snapshot(app,"journal-books-1280");
-        app.journalUI_.nextTab();snapshot(app,"journal-history-1280");
-        SDL_SetWindowSize(app.window_,1920,1080);
-        app.journalUI_.open();
-        snapshot(app,"journal-overview-1920");
-        SDL_SetWindowSize(app.window_,640,360);
-        snapshot(app,"journal-overview-640");
-        SDL_SetWindowSize(app.window_,1280,720);
-        auto prefs=app.appSettings_.get();
-        prefs.displayOrientation=1;app.appSettings_.put(prefs);
-        app.journalUI_.open();
-        snapshot(app,"journal-overview-portrait-cw");
-        app.journalUI_.nextTab();
-        snapshot(app,"journal-calendar-portrait-cw");
-        prefs.displayOrientation=2;app.appSettings_.put(prefs);
-        snapshot(app,"journal-calendar-portrait-ccw");
+        app.journal_.pause(122000, 1792368003);
+
+        const auto sessions = app.journal_.sessions();
+        assert(!sessions.empty());
+        std::uint64_t sampleSessionId = sessions.front().id;
+
+        struct TargetConfig {
+            int w, h;
+            int orientation; // 0=none, 1=CW, 2=CCW
+            std::string suffix;
+        };
+
+        std::vector<TargetConfig> configs = {
+            {1280, 720, 0, "1280"},
+            {1280, 720, 1, "portrait-cw"},
+            {1280, 720, 2, "portrait-ccw"},
+            {1920, 1080, 0, "1920"},
+            {640, 360, 0, "640"}
+        };
+
+        for (const auto &cfg : configs) {
+            SDL_SetWindowSize(app.window_, cfg.w, cfg.h);
+            auto prefs = app.appSettings_.get();
+            prefs.displayOrientation = cfg.orientation;
+            app.appSettings_.put(prefs);
+
+            app.enterJournal(false);
+
+            // 1. Overview
+            app.journalUI_.setTab(0);
+            snapshot(app, ("journal-overview-" + cfg.suffix).c_str());
+
+            // 2. Calendar
+            app.journalUI_.setTab(1);
+            snapshot(app, ("journal-calendar-" + cfg.suffix).c_str());
+
+            // 3. Books
+            app.journalUI_.setTab(2);
+            snapshot(app, ("journal-books-" + cfg.suffix).c_str());
+
+            // 4. Book detail
+            app.journalUI_.setDetailBookId(book.id);
+            snapshot(app, ("journal-book-detail-" + cfg.suffix).c_str());
+            app.journalUI_.setDetailBookId("");
+
+            // 5. History
+            app.journalUI_.setTab(3);
+            snapshot(app, ("journal-history-" + cfg.suffix).c_str());
+
+            // 6. Goals modal
+            app.journalUI_.openGoals();
+            snapshot(app, ("journal-goals-" + cfg.suffix).c_str());
+            app.journalUI_.back();
+
+            // 7. Delete confirmation modal
+            app.journalUI_.openDeleteConfirm(sampleSessionId);
+            snapshot(app, ("journal-delete-" + cfg.suffix).c_str());
+            app.journalUI_.back();
+
+            // 8. Reader mini panel
+            app.openBook(book);
+            app.journalUI_.showPreview();
+            app.screen_ = ScreenState::JournalPreview;
+            snapshot(app, ("journal-reader-preview-" + cfg.suffix).c_str());
+            app.journalUI_.hidePreview();
+            app.closeBook();
+        }
+
+        // Restore default landscape
+        SDL_SetWindowSize(app.window_, 1280, 720);
+        auto resetPrefs = app.appSettings_.get();
+        resetPrefs.displayOrientation = 0;
+        app.appSettings_.put(resetPrefs);
     }
     static void continuousReading(const fs::path &root) {
         PaperNxApp app(root); assert(app.init());

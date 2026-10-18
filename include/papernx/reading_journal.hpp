@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -51,6 +52,14 @@ struct PeriodStats {
     unsigned totalPeriodDays{};
 };
 
+// Explicit book state resolver to decouple live catalog and progress store states
+// from raw journal session logs.
+struct BookStateResolver {
+    std::function<double(const std::string &bookId, double historicProgress)> progressResolver{nullptr};
+    std::function<bool(const std::string &bookId, double historicProgress)> isCompleted{nullptr};
+    std::function<std::vector<std::string>()> knownBookIds{nullptr};
+};
+
 // Computes a fast, bounded fingerprint (max 8KB read) combining fileSize, head, and tail bytes.
 std::string computeBookFingerprint(const fs::path &filePath, std::uintmax_t fileSize);
 
@@ -72,7 +81,7 @@ public:
     unsigned dailyGoalMinutes() const { return dailyGoalMinutes_; }
     const std::vector<JournalSession> &sessions() const { return sessions_; }
     std::map<std::string,std::uint64_t> calendar() const;
-    std::vector<JournalBookTotal> books() const;
+    std::vector<JournalBookTotal> books(const BookStateResolver &resolver = {}) const;
     JournalTotals totals() const;
     std::uint64_t bookMilliseconds(const std::string &bookId) const;
     bool hasUnsavedChanges() const { return dirty_; }
@@ -91,11 +100,12 @@ public:
     fs::path exportDirectory() const { return directory_/"export"; }
 
     // Period aggregations & detailed queries
-    PeriodStats calculatePeriodStats(int period /*0=week, 1=month, 2=year*/, int offset=0, bool english=false) const;
+    PeriodStats calculatePeriodStats(int period /*0=week, 1=month, 2=year*/, int offset=0, bool english=false,
+                                    const BookStateResolver &resolver = {}) const;
     std::vector<JournalSession> sessionsForDay(const std::string &day) const;
     std::vector<JournalSession> sessionsForBook(const std::string &bookId) const;
-    JournalBookTotal bookTotal(const std::string &bookId) const;
-    std::pair<std::string, double> currentlyReading() const;
+    JournalBookTotal bookTotal(const std::string &bookId, const BookStateResolver &resolver = {}) const;
+    std::pair<std::string, double> currentlyReading(const BookStateResolver &resolver = {}) const;
 
 private:
     fs::path directory_;

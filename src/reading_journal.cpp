@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <limits>
 #include <sstream>
+#include <set>
 #include <system_error>
 #include <utility>
 
@@ -194,7 +195,7 @@ std::map<std::string,std::uint64_t> ReadingJournal::calendar() const {
     for(const auto &s:sessions_)for(const auto &day:s.days)days[day.first]+=day.second;
     return days;
 }
-std::vector<JournalBookTotal> ReadingJournal::books() const {
+std::vector<JournalBookTotal> ReadingJournal::books(const BookStateResolver &resolver) const {
     std::map<std::string,JournalBookTotal> acc;
     for(const auto &s:sessions_) {
         const auto cid = canonicalId(s.bookId);
@@ -208,6 +209,9 @@ std::vector<JournalBookTotal> ReadingJournal::books() const {
         if (metaIt != canonicalMetadata_.end()) {
             if (!metaIt->second.first.empty()) kv.second.title = metaIt->second.first;
             if (!metaIt->second.second.empty()) kv.second.author = metaIt->second.second;
+        }
+        if (resolver.progressResolver) {
+            kv.second.progress = resolver.progressResolver(kv.first, kv.second.progress);
         }
     }
     std::vector<JournalBookTotal> items;
@@ -506,7 +510,7 @@ bool ReadingJournal::exportCsv(const fs::path &targetPath) const {
     return !out.fail();
 }
 
-PeriodStats ReadingJournal::calculatePeriodStats(int period, int offset, bool en) const {
+PeriodStats ReadingJournal::calculatePeriodStats(int period, int offset, bool en, const BookStateResolver &resolver) const {
     PeriodStats st;
     const auto cal = calendar();
     const auto today = nowDate();
@@ -745,10 +749,27 @@ PeriodStats ReadingJournal::calculatePeriodStats(int period, int offset, bool en
         }
     }
 
-    auto allBooks = books();
+    auto allBooks = books(resolver);
     st.finishedBooks = 0;
+    std::set<std::string> countedFinished;
     for (const auto &b : allBooks) {
-        if (b.progress >= 0.99) ++st.finishedBooks;
+        const bool completed = resolver.isCompleted ? resolver.isCompleted(b.id, b.progress) : (b.progress >= 0.99);
+        if (completed) {
+            ++st.finishedBooks;
+            countedFinished.insert(b.id);
+        }
+    }
+    if (resolver.knownBookIds && resolver.isCompleted) {
+        for (const auto &id : resolver.knownBookIds()) {
+            const auto cid = canonicalId(id);
+            if (!countedFinished.count(cid) && !countedFinished.count(id)) {
+                if (resolver.isCompleted(id, 0.0)) {
+                    ++st.finishedBooks;
+                    countedFinished.insert(cid);
+                    countedFinished.insert(id);
+                }
+            }
+        }
     }
 
     return st;
@@ -775,8 +796,8 @@ std::vector<JournalSession> ReadingJournal::sessionsForBook(const std::string &b
     return out;
 }
 
-JournalBookTotal ReadingJournal::bookTotal(const std::string &bookId) const {
-    const auto all = books();
+JournalBookTotal ReadingJournal::bookTotal(const std::string &bookId, const BookStateResolver &resolver) const {
+    const auto all = books(resolver);
     const auto cid = canonicalId(bookId);
     for (const auto &b : all) {
         if (b.id == cid || b.id == bookId) return b;
@@ -784,13 +805,14 @@ JournalBookTotal ReadingJournal::bookTotal(const std::string &bookId) const {
     return {};
 }
 
-std::pair<std::string, double> ReadingJournal::currentlyReading() const {
-    const auto all = books();
+std::pair<std::string, double> ReadingJournal::currentlyReading(const BookStateResolver &resolver) const {
+    const auto all = books(resolver);
     if (all.empty()) return {"", 0.0};
     for (const auto &b : all) {
-        if (b.progress < 0.99) return {b.id, b.progress};
+        const bool completed = resolver.isCompleted ? resolver.isCompleted(b.id, b.progress) : (b.progress >= 0.99);
+        if (!completed && b.progress < 0.99) return {b.id, b.progress};
     }
-    return {all[0].id, all[0].progress};
+    return {"", 0.0};
 }
 
 } // namespace papernx
