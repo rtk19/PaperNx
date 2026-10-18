@@ -24,6 +24,7 @@ int main() {
     assert(classifyPdfGesture({-40,0,1280,30})==PdfGesture::Pan);
     assert(classifyPdfGesture({-240,15,1280,230,false,false,-1.1f})==PdfGesture::PageNext);
     assert(classifyPdfGesture({-240,15,1280,230,false,false,0.05f})==PdfGesture::Pan);
+    assert(classifyPdfGesture({-240,15,1280,230,false,false,1.1f})==PdfGesture::Pan); // Opposite release direction must not flip a page.
     const auto path=std::filesystem::temp_directory_path()/"papernx-foundations-settings.db";
     std::filesystem::remove(path); std::filesystem::remove(path.string()+".bak");
     AppSettingsStore store(path); AppPreferences pref;
