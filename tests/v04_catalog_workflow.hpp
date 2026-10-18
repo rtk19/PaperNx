@@ -13,8 +13,23 @@ static void v04CatalogWorkflow(const fs::path &parent){
     finger(app,SDL_FINGERUP,x,y);assert(app.catalogPanel_==PaperNxApp::CatalogPanel::Actions&&!app.doc_);
     snapshot(app,"v04-book-context");
     choose(1);assert(app.progressStore_.get(book.id).favorite);
+    // Status actions must persist, filter into the right tab and visibly identify the selection.
+    choose(2);assert(app.catalog_.get(book.id).status==ReadingStatus::Reading);
+    assert(app.catalogRows()[2].second.find("✓ ")==0);
+    app.category_=Category::ContinueReading;app.updateVisibleBooks();
+    assert(std::any_of(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &candidate){return candidate.id==book.id;}));
+    app.category_=Category::All;app.updateVisibleBooks();
     choose(4);assert(app.catalog_.get(book.id).status==ReadingStatus::Completed);
-    const auto location=app.progressStore_.get(book.id).page;choose(3);assert(app.catalog_.get(book.id).status==ReadingStatus::NotStarted);assert(app.progressStore_.get(book.id).page==location);
+    assert(app.catalogRows()[4].second.find("✓ ")==0);
+    app.category_=Category::Completed;app.updateVisibleBooks();
+    assert(std::any_of(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &candidate){return candidate.id==book.id;}));
+    app.category_=Category::All;app.updateVisibleBooks();
+    const auto location=app.progressStore_.get(book.id).page;choose(3);assert(app.catalog_.get(book.id).status==ReadingStatus::NotStarted);
+    assert(app.catalogRows()[3].second.find("✓ ")==0);
+    assert(app.progressStore_.get(book.id).page==location);
+    app.category_=Category::Unread;app.updateVisibleBooks();
+    assert(std::any_of(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &candidate){return candidate.id==book.id;}));
+    app.category_=Category::All;app.updateVisibleBooks();
     choose(6);assert(app.catalogPanel_==PaperNxApp::CatalogPanel::Metadata);
     app.requestCatalogText(1,"Yaşar Kemal");assert(app.catalogPanel_==PaperNxApp::CatalogPanel::Text);app.commitCatalogText();
     app.requestCatalogText(2,"Roman");app.commitCatalogText();assert(app.catalog_.get(book.id).author=="Yaşar Kemal");
