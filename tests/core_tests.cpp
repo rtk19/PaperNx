@@ -514,9 +514,16 @@ int main() {
         AppSettingsStore settings(path); assert(!settings.load());
         AppPreferences app; app.uiTheme = 2; app.language = 1; app.libraryLayout = 1;
         app.sort = 4; app.toolbar = 1; app.defaultBrowserPath = "sdmc:/Kitaplar/Çiçek";
-        settings.put(app); assert(settings.save()); assert(settings.save());
+        // Old independent chrome settings are migrated into unified mode.
+        app.chromePolicy=2;app.customUiTheme=4;
+        settings.put(app);
+        assert(settings.get().chromePolicy==0);
+        assert(settings.save()); assert(settings.save());
         AppSettingsStore restart(path); assert(restart.load());
         assert(restart.get().uiTheme == 2 && restart.get().language == 1 && restart.get().libraryLayout == 1);
+        assert(restart.get().chromePolicy==0); // Never resurrect legacy custom chrome.
+        ReaderPreferences paper;paper.theme=2;paper.backgroundColor=0xe8d6b3;paper.textColor=0x4b3828;
+        // Test through the application renderer in the SDL suite; core only checks migration.
         assert(restart.get().sort == 4 && restart.get().toolbar == 1 && restart.get().defaultBrowserPath == app.defaultBrowserPath);
         std::ofstream(path, std::ios::trunc) << "corrupt cache must recover settings";
         assert(restart.load() && restart.get().sort == 4);
