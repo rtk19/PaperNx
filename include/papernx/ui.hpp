@@ -70,7 +70,7 @@ inline void settingsRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std
     surface(r,rect,focused?pal.card:pal.header);
     StepperLayout layout(rect); int height=0; type.measureText(type.uiFont(),label,nullptr,&height);
     if(layout.label.w>0) type.renderText(r,type.uiFont(),ui::label(label),layout.label.x,rect.y+(rect.h-height)/2,pal.fg,layout.label.w);
-    button(r,type,layout.minus,"−",pal,false,false,false);
+    button(r,type,layout.minus,"-",pal,false,false,false);
     button(r,type,layout.plus,"+",pal,false,false,false);
     int width=0; type.measureText(type.uiFont(),value,&width,&height);
     type.renderText(r,type.uiFont(),value,layout.value.x+(layout.value.w-width)/2,rect.y+(rect.h-height)/2,pal.fg,layout.value.w);

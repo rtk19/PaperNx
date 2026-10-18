@@ -2,6 +2,7 @@
 #include "../src/main.cpp"
 #undef main
 #include "papernx/switch_compat.h"
+#include "papernx/focus.hpp"
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -28,6 +29,8 @@ struct AppTest {
     }
     static void settingsControl(PaperNxApp &app,int row,bool right=true) {
         int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).control(row);
+        app.aaRow_=row;
+        if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
         tap(app,float(r.x+int(r.w*(right?.75:.25)))/w,float(r.y+28)/h);
     }
     static void settingsTab(PaperNxApp &app,int tab) {
@@ -41,9 +44,10 @@ struct AppTest {
     static void closeNavigation(PaperNxApp &app) { int w,h; app.getWindowSize(w,h); tap(app,float(w-128)/w,116.f/h); }
     #include "v03_app_workflow.hpp"
     #include "v03_stress_workflow.hpp"
+    #include "v04_ui_workflow.hpp"
     static void snapshot(PaperNxApp &app, const char *name) {
         for (int i = 0; i < 15; ++i) { app.render(); SDL_Delay(10); app.processCompletedThumbnails(); }
-        app.render(); int w, h; app.getWindowSize(w, h);
+        app.render(); int w, h; SDL_GetRendererOutputSize(app.renderer_, &w, &h);
         SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
         assert(surface);
         assert(SDL_RenderReadPixels(app.renderer_, nullptr, surface->format->format, surface->pixels, surface->pitch) == 0);
@@ -226,8 +230,8 @@ struct AppTest {
             const int page = app.currentPage_;
             finger(app, SDL_FINGERDOWN, .5f, .6f); finger(app, SDL_FINGERMOTION, .5f, .3f); finger(app, SDL_FINGERUP, .5f, .3f);
             assert(app.currentPage_ == page && app.pdfPanY_ > 0);
-            app.handleDirectional(100000, 100000); int maxPan = app.pdfPanY_;
-            app.handleDirectional(100000, 100000); assert(app.pdfPanY_ == maxPan);
+            app.handleAnalog(100000, 100000); int maxPan = app.pdfPanY_;
+            app.handleAnalog(100000, 100000); assert(app.pdfPanY_ == maxPan);
             snapshot(app, "pdf-fit-width-filter");
             app.setPdfView(0); assert(app.pdfZoom_ == 1 && app.pdfPanY_ == 0);
             tap(app, .75f, .5f); assert(app.currentPage_ == 1);
@@ -307,20 +311,17 @@ struct AppTest {
         assert(app.screen_ == ScreenState::Reader && app.currentPage_ > 1);
         const auto stableMark = px_document_make_bookmark(app.doc_, app.currentPage_);
         pad(app, SDL_CONTROLLER_BUTTON_START); assert(app.screen_ == ScreenState::AaModal);
-        pad(app, SDL_CONTROLLER_BUTTON_Y);
-        pad(app, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
-        assert(app.currentFontFamily_ == 1);
-        pad(app, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
-        const int oldLineHeight = app.currentLineHeight_;
-        pad(app, SDL_CONTROLLER_BUTTON_DPAD_UP);
-        assert(app.currentLineHeight_ > oldLineHeight);
-        pad(app, SDL_CONTROLLER_BUTTON_Y);
-        const int oldMargin = app.currentMargin_;
-        pad(app, SDL_CONTROLLER_BUTTON_DPAD_UP);
-        assert(app.currentMargin_ > oldMargin);
-        pad(app, SDL_CONTROLLER_BUTTON_Y);
-        pad(app, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
-        assert(app.currentTextAlign_ == 1);
+        const auto original=app.currentStyle();
+        pad(app,SDL_CONTROLLER_BUTTON_DPAD_DOWN);assert(app.aaRow_==1 && app.currentFontFamily_==original.fontFamily);
+        pad(app,SDL_CONTROLLER_BUTTON_A);assert(app.currentFontFamily_==(original.fontFamily+1)%3);
+        pad(app,SDL_CONTROLLER_BUTTON_DPAD_UP);assert(app.aaRow_==0);
+        pad(app,SDL_CONTROLLER_BUTTON_A);assert(app.settingsEditing_);
+        pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.currentFontSize_==original.fontSize+2);
+        pad(app,SDL_CONTROLLER_BUTTON_B);assert(!app.settingsEditing_ && app.currentFontSize_==original.fontSize);
+        pad(app,SDL_CONTROLLER_BUTTON_A);pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);pad(app,SDL_CONTROLLER_BUTTON_A);
+        assert(!app.settingsEditing_ && app.currentFontSize_==original.fontSize+2);
+        pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.aaTab_==1);
+        assert(app.currentMargin_==original.margin && app.currentLineHeight_==original.lineHeight);
         int page = app.currentPage_;
         pad(app, SDL_CONTROLLER_BUTTON_B); assert(app.currentPage_ == page);
         app.currentFontFamily_ = 1;
@@ -340,7 +341,7 @@ struct AppTest {
         SDL_Event axis{}; axis.type = SDL_CONTROLLERAXISMOTION;
         axis.caxis.axis = SDL_CONTROLLER_AXIS_TRIGGERRIGHT; axis.caxis.value = 30000;
         app.handleEvent(axis, running); assert(app.pdfZoom_ == 1.5f);
-        app.zoomPdf(5); app.handleDirectional(100000, 100000);
+        app.zoomPdf(5); app.handleAnalog(100000, 100000);
         assert(app.pdfPanX_ >= 0 && app.pdfPanY_ > 0);
         int oldPan = app.pdfPanY_;
         SDL_Event touch{}; touch.type = SDL_FINGERDOWN; touch.tfinger.fingerId = 1;
@@ -349,7 +350,7 @@ struct AppTest {
         assert(app.pdfPanY_ < oldPan);
         touch.type = SDL_FINGERUP; app.handleEvent(touch, running);
         pad(app, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
-        assert(app.currentPage_ == 1 && app.pdfPanX_ == 0 && app.pdfPanY_ == 0);
+        assert(app.currentPage_ == 1 && app.pdfZoom_==5 && app.pdfPanX_>=0 && app.pdfPanY_>=0);
         pad(app, SDL_CONTROLLER_BUTTON_RIGHTSTICK); assert(app.pdfZoom_ == 1);
         SDL_Event pinch{}; pinch.type = SDL_MULTIGESTURE; pinch.mgesture.numFingers = 2; pinch.mgesture.dDist = 0.1f;
         app.handleEvent(pinch, running); assert(app.pdfZoom_ > 1);
@@ -542,6 +543,7 @@ int main() {
     fs::create_directories(root / "books");
     fs::create_directory_symlink(fs::absolute("fonts"),root / "fonts");
     fs::copy("tests/fixtures/sample_book.epub",root / "books" / "scroll.epub");
+    AppTest::v04UiWorkflow(root);
     AppTest::continuousReading(root);
     AppTest::captureV03Screens(root);
     AppTest::v03Workflow(root);

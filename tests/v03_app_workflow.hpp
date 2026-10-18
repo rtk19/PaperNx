@@ -31,6 +31,8 @@ static void v03Control(PaperNxApp &app,int row,bool right=true) {
     for(int attempt=0;attempt<8;++attempt) {
         auto r=layout.control(row); r.y-=int(app.settingsScroll_);
         if(r.y>=layout.content.y && r.y+r.h<=layout.content.y+layout.content.h) {
+            app.aaRow_=row;
+            if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
             v03RectTap(app,r,right?.75f:.25f); return;
         }
         float x=float(layout.content.x+layout.content.w/2)/w;
