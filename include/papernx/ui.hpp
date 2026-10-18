@@ -50,6 +50,10 @@ inline void button(SDL_Renderer *r, Typography &type, SDL_Rect rect, const std::
     pressed=!disabled && (pressed || (pointerDown && contains(rect,pointerX,pointerY)));
     auto fill=selected?(pressed?blendColor(pal.accent,pal.bg,12):pal.accent):pressed?pal.cardBorder:focused?pal.card:pal.header;
     surface(r,rect,fill);
+    // Consistent tactile button boundary across paper, sepia and dark palettes.
+    SDL_SetRenderDrawColor(r,pal.cardBorder.r,pal.cardBorder.g,pal.cardBorder.b,255);
+    SDL_Rect border{rect.x,rect.y,rect.w-1,rect.h-1};
+    if(border.w>0 && border.h>0) SDL_RenderDrawRect(r,&border);
     if(focused || editing) focusRing(r,rect,pal,editing);
     int tw=0,th=0; type.measureText(type.buttonFont(),label,&tw,&th,rect.w-24);
     type.renderText(r,type.buttonFont(),label,rect.x+std::max(12,(rect.w-tw)/2),rect.y+(rect.h-th)/2,
@@ -72,8 +76,8 @@ inline void settingsRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std
     if(layout.label.w>0) type.renderText(r,type.uiFont(),ui::label(label),layout.label.x,rect.y+(rect.h-height)/2,pal.fg,layout.label.w);
     button(r,type,layout.minus,"-",pal,false,false,false);
     button(r,type,layout.plus,"+",pal,false,false,false);
-    int width=0; type.measureText(type.uiFont(),value,&width,&height);
-    type.renderText(r,type.uiFont(),value,layout.value.x+(layout.value.w-width)/2,rect.y+(rect.h-height)/2,pal.fg,layout.value.w);
+    int width=0; type.measureText(type.buttonFont(),value,&width,&height);
+    type.renderText(r,type.buttonFont(),value,layout.value.x+std::max(0,(layout.value.w-width)/2),rect.y+(rect.h-height)/2,pal.fg,layout.value.w);
     if(focused || editing) focusRing(r,rect,pal,editing);
 }
 inline void favorite(SDL_Renderer *r,SDL_Rect rect,const ThemePalette &pal,bool selected) {
