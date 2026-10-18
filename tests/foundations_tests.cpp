@@ -32,7 +32,7 @@ int main() {
     pref.preservePdfZoom=false; pref.paperTexture=2;
     store.put(pref); assert(store.save());
     AppSettingsStore loaded(path); assert(loaded.load());
-    assert(loaded.get().uiTheme==2 && loaded.get().chromePolicy==2 && loaded.get().customUiTheme==5);
+    assert(loaded.get().uiTheme==2 && loaded.get().chromePolicy==0 && loaded.get().customUiTheme==5); // Legacy custom chrome is ignored.
     assert(loaded.get().displayOrientation==2 && !loaded.get().preservePdfZoom && loaded.get().paperTexture==2);
     std::filesystem::remove(path); std::filesystem::remove(path.string()+".bak");
 }
