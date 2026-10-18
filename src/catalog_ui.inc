@@ -4,6 +4,7 @@ enum class CatalogPanel { None, Actions, Details, Metadata, Collections, Collect
     Browse, Values, Hidden, Statistics, DeleteConfirm, Text };
 CatalogStore catalog_{root_/"data"/"catalog.txt"};
 bool catalogSavePending_{false};
+Uint32 catalogSaveRetryAt_{0};
 ReadingStatsStore readingStats_{root_/"data"/"reading-stats.txt"};
 CatalogPanel catalogPanel_{CatalogPanel::None}, textReturn_{CatalogPanel::None};
 Book actionBook_;
