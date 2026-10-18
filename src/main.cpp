@@ -544,6 +544,8 @@ private:
     }
 
     void processCompletedThumbnails() {
+        // A reader opening has priority over background library cover uploads.
+        if(coversPaused_)return;
         std::vector<LoadedThumb> toUpload;
         {
             std::lock_guard<std::mutex> lock(completedMutex_);
