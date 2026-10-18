@@ -22,6 +22,8 @@ int main() {
     assert(classifyPdfGesture({-240,15,1280,230,false,true})==PdfGesture::Ignore);
     assert(classifyPdfGesture({5,5,1280,30})==PdfGesture::Tap);
     assert(classifyPdfGesture({-40,0,1280,30})==PdfGesture::Pan);
+    assert(classifyPdfGesture({-240,15,1280,230,false,false,-1.1f})==PdfGesture::PageNext);
+    assert(classifyPdfGesture({-240,15,1280,230,false,false,0.05f})==PdfGesture::Pan);
     const auto path=std::filesystem::temp_directory_path()/"papernx-foundations-settings.db";
     std::filesystem::remove(path); std::filesystem::remove(path.string()+".bak");
     AppSettingsStore store(path); AppPreferences pref;

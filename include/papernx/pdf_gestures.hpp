@@ -8,6 +8,7 @@ struct PdfGestureSample {
     float dx{0},dy{0},viewportWidth{1280};
     std::uint32_t durationMs{0};
     bool multiTouch{false},uiInteraction{false};
+    float releaseVelocityX{0.f};
 };
 struct PdfGestureThresholds {
     float distanceFraction{.12f},minimumDistance{90},dominance{2.4f},velocity{.65f},tapDistance{12};
@@ -20,10 +21,14 @@ inline PdfGesture classifyPdfGesture(const PdfGestureSample &s,const PdfGestureT
     if(s.multiTouch) return PdfGesture::Pinch;
     const float x=std::abs(s.dx),y=std::abs(s.dy);
     if(std::hypot(x,y)<=t.tapDistance) return PdfGesture::Tap;
+    if(s.releaseVelocityX!=0.f && std::abs(s.releaseVelocityX)<0.15f) return PdfGesture::Pan;
     if(s.durationMs>0 && s.durationMs<=t.maximumDurationMs &&
        x>=std::max(t.minimumDistance,s.viewportWidth*t.distanceFraction) &&
-       x>=y*t.dominance && x/s.durationMs>=t.velocity)
-        return s.dx<0?PdfGesture::PageNext:PdfGesture::PagePrevious;
+       x>=y*t.dominance) {
+        float effectiveVelocity = (s.releaseVelocityX!=0.f) ? std::abs(s.releaseVelocityX) : (x/float(s.durationMs));
+        if(effectiveVelocity>=t.velocity)
+            return s.dx<0?PdfGesture::PageNext:PdfGesture::PagePrevious;
+    }
     return PdfGesture::Pan;
 }
 }

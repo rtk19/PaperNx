@@ -380,6 +380,9 @@ private:
     bool pdfMoved_{false};
     SDL_FingerID pdfFinger_{0};
     float pdfTouchX_{0}, pdfTouchY_{0};
+    float pdfLastMotionX_{0.f};
+    Uint32 pdfLastMotionTick_{0};
+    float pdfReleaseVelocityX_{0.f};
     std::string currentErrorMessage_;
 
     // Table of contents and bookmarks
@@ -1526,6 +1529,8 @@ private:
                     pdfDragging_ = true; pdfMoved_ = false; pdfFinger_ = e.tfinger.fingerId;
                     pdfTouchX_ = e.tfinger.x; pdfTouchY_ = e.tfinger.y;
                     pdfGestureStart_=SDL_GetTicks();pdfStartPanX_=pdfPanX_;pdfStartPanY_=pdfPanY_;
+                    pdfLastMotionX_ = e.tfinger.x; pdfLastMotionTick_ = pdfGestureStart_;
+                    pdfReleaseVelocityX_ = 0.f;
                 }
                 return;
             }
@@ -1552,6 +1557,13 @@ private:
 #endif
             if (pdfDragging_ && e.tfinger.fingerId == pdfFinger_) {
                 int w, h; getWindowSize(w, h);
+                Uint32 now = SDL_GetTicks();
+                Uint32 dt = now - pdfLastMotionTick_;
+                if (dt >= 8) {
+                    pdfReleaseVelocityX_ = ((e.tfinger.x - pdfLastMotionX_) * w) / float(dt);
+                    pdfLastMotionX_ = e.tfinger.x;
+                    pdfLastMotionTick_ = now;
+                }
                 pdfPanX_ -= static_cast<int>((e.tfinger.x - pdfTouchX_) * w);
                 pdfPanY_ -= static_cast<int>((e.tfinger.y - pdfTouchY_) * h);
                 pdfTouchX_ = e.tfinger.x; pdfTouchY_ = e.tfinger.y;
@@ -1591,7 +1603,9 @@ private:
                 if (e.tfinger.fingerId == pdfFinger_) {
                     pdfDragging_ = false;
                     int w,h;getWindowSize(w,h);
-                    PdfGestureSample sample{(e.tfinger.x-pressX_)*w,(e.tfinger.y-pressY_)*h,float(w),std::max(1u,SDL_GetTicks()-pdfGestureStart_),false,false};
+                    Uint32 now = SDL_GetTicks();
+                    if (now - pdfLastMotionTick_ > 80) pdfReleaseVelocityX_ = 0.05f;
+                    PdfGestureSample sample{(e.tfinger.x-pressX_)*w,(e.tfinger.y-pressY_)*h,float(w),std::max(1u,now-pdfGestureStart_),false,false,pdfReleaseVelocityX_};
                     auto classification=classifyPdfGesture(sample);
                     if(classification==PdfGesture::PageNext || classification==PdfGesture::PagePrevious) {
                         pdfPanX_=pdfStartPanX_;pdfPanY_=pdfStartPanY_;turnPage(classification==PdfGesture::PageNext?1:-1);
@@ -2011,6 +2025,7 @@ private:
                 searchQuery_.clear();
                 updateVisibleBooks();
             } else if (screen_ == ScreenState::Reader) {
+                if (toolbarVisible_) { toolbarVisible_ = false; dirty_ = true; return; }
                 closeBook();
             } else {
                 running = false;
