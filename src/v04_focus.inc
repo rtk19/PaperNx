@@ -71,7 +71,7 @@
         else if(id.rfind("file.",0)==0){browserSelected_=index("file.");reveal(browserScroll_,browserSelected_*64.f,56,float(h-128));}
         else if(id.rfind("toc.",0)==0){tocSelected_=index("toc.");reveal(tocScroll_,tocSelected_*56.f,56,float(h-208));}
         else if(id.rfind("bookmark.",0)==0 && id.rfind("bookmark.delete.",0)!=0 && id!="bookmark.add"){bmSelected_=index("bookmark.");reveal(bookmarkScroll_,bmSelected_*56.f,56,float(h-280));}
-        else if(id.rfind("quick.",0)==0 && id!="quick.close"){quickFocus_=index("quick.");auto r=quickSheet(w,h);reveal(quickScroll_,quickFocus_*60.f,56,float(r.h-44));}
+        else if(id.rfind("quick.",0)==0 && id!="quick.close" && id!="quick.orientation"){quickFocus_=index("quick.");auto r=quickSheet(w,h);reveal(quickScroll_,quickFocus_*60.f,56,float(r.h-44));}
         dirty_=true;
     }
     bool moveFocus(int dx,int dy) {
