@@ -22,7 +22,7 @@ Shared typography/stepper components, reader-coordinated chrome, explicit settin
 - **Global & Per-Book Customization:** Shared global typography defaults apply to all books. Individual books can optionally be customized or reset to inherit global settings.
 - **Genuine Continuous EPUB Scrolling:** Real pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, seamless chapter boundary transitions, and logical reading anchor preservation. Paginated horizontal reading mode remains fully supported.
 - **Persistent Bounded Cover Cache:** Fast 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries on disk, with stat invalidation, checksum protection, automatic recovery, and immediate vector fallback artwork.
-- **Curated Theme Palettes:** Paper, Ivory, Sepia, Slate, Dark, and OLED Black palettes tailored for Nintendo Switch LCD and OLED screens.
+- **One Global Appearance:** Choose from nine natural-paper presets in Settings → Application → General Theme. The library, top bar, settings, menus and EPUB reader share this palette; per-book appearance is optional and must be enabled explicitly. PDF filters change document pixels, not the global interface theme.
 - **Bilingual Interface:** Real Turkish and English interface localization. Book metadata, TOC titles, and reading contents remain authentic and untranslated.
 - **PDF Navigation:** Fit page, fit width, zoom, touch pan, and whole-page filters (Original, Dark, Sepia, Invert).
 - **Data Safety:** Backward-compatible migration (PAPERNX-1..5 to PAPERNX-6) with immutable backups (`.pre-v6-vN.bak`) created prior to migration.
@@ -46,7 +46,7 @@ Captured from the actual native application using SDL:
 *Reading colors coordinate with settings chrome.*
 
 ![Dark PDF settings](verification/screenshots/v04-dark-pdf-settings.png)
-*PDF filter and chrome share a coherent dark appearance.*
+*Historical v0.4 screenshot: PDF content filters are separate from the unified global interface appearance. Updated candidate requires fresh visual/device verification.*
 
 Both software portrait rotations are captured in [clockwise](verification/screenshots/v04-portrait-cw-library.png) and [counterclockwise](verification/screenshots/v04-portrait-ccw-library.png) physical output screenshots. Rotate the screen image as you would hold the Switch; the application output itself is rotated once.
 
