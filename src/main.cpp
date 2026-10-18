@@ -637,8 +637,11 @@ private:
     void queueStyleChange() {
         auto style=currentStyle();
         if(globalSettings_ || !style.styleOverride) storeDefaults();
-        if(doc_) saveCurrentPosition();
+        // Avoid a synchronous MuPDF anchor walk on each touch stepper press.
+        // The prepared layout preserves the old anchor at publication; closeBook
+        // also persists the current state if the user exits before publication.
         if(doc_ && px_document_is_epub(doc_)) { ++layoutGeneration_; layoutPending_=true; layoutDue_=SDL_GetTicks()+140; }
+        else if(doc_) saveCurrentPosition();
         dirty_=true;
     }
     void cancelLayout() {
