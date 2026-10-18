@@ -153,6 +153,22 @@ static void v04UiWorkflow(const fs::path &parent) {
         finger(app,SDL_FINGERDOWN,.2f,.5f);finger(app,SDL_FINGERMOTION,.8f,.5f);finger(app,SDL_FINGERUP,.8f,.5f);assert(app.currentPage_==0);
         finger(app,SDL_FINGERDOWN,.5f,.7f);app.pdfGestureStart_=SDL_GetTicks()-600;finger(app,SDL_FINGERMOTION,.3f,.7f);finger(app,SDL_FINGERUP,.3f,.7f);assert(app.currentPage_==0);
         app.closeBook();
+        // Opt-in book styling remains isolated when the global palette changes.
+        app.openBook(epub);
+        auto bookStyle=app.currentStyle();
+        bookStyle.styleOverride=1;bookStyle.theme=5;
+        bookStyle.backgroundColor=0x000000;bookStyle.textColor=0xeae7df;
+        app.applyStyle(bookStyle);app.saveCurrentPosition();
+        app.openSettings(true,5);
+        app.applyGlobalPaperPreset(1); // Soft Ivory, globally
+        assert(app.currentTheme_==5 && app.extraStyle_.styleOverride==1);
+        assert(app.extraStyle_.backgroundColor==0x000000);
+        app.dismissSettings();app.closeBook();
+        assert(app.palette().bg.r==0xf7 && app.palette().bg.g==0xf3); // Library is Ivory
+        app.openBook(epub);
+        assert(app.currentTheme_==5 && app.extraStyle_.styleOverride==1);
+        assert(app.extraStyle_.backgroundColor==0x000000); // Book stays OLED
+        app.closeBook();
         for(auto size:{std::pair<int,int>{640,480},{1920,1080}}){SDL_SetWindowSize(app.window_,size.first,size.second);snapshot(app,size.first==640?"v04-library-640":"v04-library-1920");}
     }
     {AppSettingsStore store(root/"data"/"settings.txt");assert(store.load() && store.get().displayOrientation==0);}
