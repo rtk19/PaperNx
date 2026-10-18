@@ -66,7 +66,7 @@ static void v04UiWorkflow(const fs::path &parent) {
             assert(defaults.textColor==0x4b3828 && defaults.styleOverride==0);
             assert(app.globalPaperPresetIndex()==4);
             assert(app.palette().bg.r==0xe8 && app.palette().bg.g==0xd6);
-            snapshot(app,"v04-unified-global-library-sepia");
+            snapshot(app,"v04-unified-global-settings-sepia");
             closeSettings(app);
             assert(app.appSettings_.save());
             app.flushProgress();
