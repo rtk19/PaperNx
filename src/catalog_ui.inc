@@ -164,17 +164,27 @@ void activateCatalogRow(int index){
             // Status and progress are one user intent. Catalog label alone is not
             // sufficient: unread=0%, completed=100%, reading=real position.
             // Do not erase bookmarks, per-book appearance, or journal sessions.
-            auto updated=progressStore_.get(actionBook_.id);
+            const auto oldProgress=progressStore_.get(actionBook_.id);
+            auto updated=oldProgress;
             applyManualReadingStatus(updated,newStatus,std::time(nullptr));
-            if(saveCatalogChange([&]{
+            // Save position FIRST, then catalog label. On either failure, restore
+            // the previous in-memory state and attempt durable compensation.
+            // A torn cross-file transaction is detected by regression/fault tests.
+            progressStore_.put(actionBook_.id,updated);
+            progressDirty_=true;
+            if(!progressStore_.save()) {
+                progressStore_.put(actionBook_.id,oldProgress);
+                currentErrorMessage_="Reading status unchanged: progress write failed.";
+            } else if(!saveCatalogChange([&]{
                     auto e=catalog_.get(actionBook_.id);
                     e.status=newStatus;catalog_.put(actionBook_.id,e);
                })) {
-                progressStore_.put(actionBook_.id,updated);
-                progressDirty_=true;
-                if(!progressStore_.save()) {
-                    currentErrorMessage_="Reading status changed; progress could not be saved.";
-                } else progressDirty_=false;
+                progressStore_.put(actionBook_.id,oldProgress);
+                progressDirty_=!progressStore_.save();
+                if(progressDirty_)
+                    currentErrorMessage_="Status rollback failed. Check SD card before changing books.";
+            } else {
+                progressDirty_=false;
                 catalogFocus_=action;
                 updateVisibleBooks();
             }
