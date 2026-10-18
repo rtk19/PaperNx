@@ -51,7 +51,21 @@
         if(choiceKind_==0){currentFontFamily_=choiceIndex_;queueStyleChange();}
         if(choiceKind_==1){a.displayOrientation=choiceIndex_;appSettings_.put(a);pageCache_.clear();if(doc_ && px_document_is_epub(doc_)){++layoutGeneration_;layoutPending_=true;layoutDue_=SDL_GetTicks()+100;}else if(doc_)setPdfView(extraStyle_.pdfViewMode);}
         if(choiceKind_==7)applyGlobalPaperPreset(choiceIndex_);
-        if(choiceKind_==5){extraStyle_.pdfColorMode=choiceIndex_;pageCache_.clear();if(doc_)saveCurrentPosition();else storeDefaults();}
+        if(choiceKind_==5){
+            // A PDF filter is a document-specific choice, not a global UI theme.
+            // Persist only the changed field to avoid slow synchronous MuPDF
+            // anchor/bookmark traversal on every filter selection.
+            extraStyle_.pdfColorMode=choiceIndex_;pageCache_.clear();
+            if(doc_) {
+                auto saved=progressStore_.get(currentBookId_);
+                saved.pdfColorMode=choiceIndex_;
+                progressStore_.put(currentBookId_,saved);progressDirty_=true;
+            } else {
+                auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
+                defaults.pdfColorMode=choiceIndex_;
+                progressStore_.put("PAPERNX_DEFAULTS",defaults);progressDirty_=true;
+            }
+        }
         if(choiceKind_==6){a.paperTexture=choiceIndex_;pageCache_.clear();}
         if(choiceKind_==1 || choiceKind_==6){appSettings_.put(a);persistAppSettings();}
         choiceKind_=-1;choiceDragging_=false;choiceTouchActive_=false;gestureTracker_.reset();activeFingers_.clear();dirty_=true;
