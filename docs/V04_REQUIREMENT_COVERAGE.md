@@ -5,7 +5,7 @@ Release target `v0.4.0-rc1`; source verified against Docker desktop/switch toolc
 | Requirement | Implementation / evidence route | Status |
 |---|---|---|
 | Native shared components, SemiBold, separate settings labels/steppers | `ui.hpp`, `typography.cpp`, OFL fonts; `papernx_ui_component_tests`, `v04-settings-focus-landscape.png` | PASS |
-| Reading/application/custom chrome policy, PDF filters, modal palette | `readerChromePalette`, application palette selection; `v04-sepia-epub-settings.png`, `v04-dark-pdf-settings.png` | PASS |
+| Unified global appearance and legacy theme-policy migration | `PAPERNX_DEFAULTS` is the canonical source, `AppSettingsStore::put` neutralizes legacy chrome policies, one nine-preset picker in Application settings; desktop regression cases for global/per-book themes and PDF document filters | IMPLEMENTED — physical Switch pending |
 | Visible focused/selected/pressed/editing states | Focus rings, `FocusManager`, settingsEditing_ with A/B workflow; `v04UiWorkflow` | PASS |
 | D-pad default page turns, zoomed PDF turns | Reader handler + app workflow; `v04UiWorkflow` | PASS |
 | Fast flick vs slow pan, pinch/modal isolation | `pdf_gestures.hpp` sampled release velocity; `foundations_tests`, `v04UiWorkflow` | PASS |
