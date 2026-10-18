@@ -88,6 +88,7 @@ public:
     bool deleteSession(std::uint64_t sessionId);
     bool exportJson(const fs::path &targetPath) const;
     bool exportCsv(const fs::path &targetPath) const;
+    fs::path exportDirectory() const { return directory_/"export"; }
 
     // Period aggregations & detailed queries
     PeriodStats calculatePeriodStats(int period /*0=week, 1=month, 2=year*/, int offset=0, bool english=false) const;
