@@ -39,7 +39,7 @@ All books, cover art caches, reading progress, and personal reading journal stat
 - **Bilingual UI:** Native English and Turkish interface translations. Book titles, table of contents, and document contents remain in their authentic original language.
 - **Persistent Bounded Cover Cache:** 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries with file stat validation, CRC integrity checks, automatic recovery, and immediate vector placeholder fallbacks.
 - **Reading Journal & Offline Stats:** Tracks reading minutes, sessions, completion percentages, streaks, and period stats entirely offline on SD card.
-- **Zero Data Loss Guarantee:** User settings and reading records are written atomically (`.tmp` write followed by atomic rename) with backup rotation (`.pre-v6-vN.bak`). Upgrades will **never** overwrite or reset your books, bookmarks, or reading logs.
+- **Data Protection & Recovery:** Settings and reading records use verified temporary writes, backup/recovery paths and retries to reduce data-loss risk. The installer does not ship user databases. **Back up `books/` and `data/` before upgrading:** sudden power loss and SD failure can still cause loss.
 
 ---
 
@@ -56,7 +56,7 @@ All books, cover art caches, reading progress, and personal reading journal stat
 sdmc:/switch/PaperNX/
 ├── PaperNX.nro          # Application binary with embedded fonts & assets
 ├── books/               # Place your EPUB and PDF books here
-└── fonts/               # Optional custom fonts (NotoSans, NotoSerif, OFL.txt)
+└── fonts/               # Bundled fonts and OFL notice (also embedded in the NRO)
 ```
 
 ### Upgrading from a Previous Version
@@ -64,7 +64,7 @@ sdmc:/switch/PaperNX/
 Simply extract the new `PaperNX.nro` into `sdmc:/switch/PaperNX/PaperNX.nro`.
 
 > [!IMPORTANT]
-> The official release package contains only application files, fonts, and an empty `books/` placeholder. It **never contains** `data/`, `logs/`, or user databases, ensuring your existing reading records, bookmarks, collections, and custom themes are preserved intact.
+> The official release package contains only application files, fonts, and an empty `books/` placeholder. It **never contains** `data/`, `logs/`, or user databases, reducing the risk of overwriting existing reading records, bookmarks, collections and custom themes. Back up `books/` and `data/` before upgrading.
 
 ---
 
@@ -157,7 +157,7 @@ Tüm kitaplarınız, kapak önbelleğiniz, okuma geçmişiniz ve okuma günlüğ
 - **Çift Dilli Arayüz:** Doğal Türkçe ve İngilizce dil desteği. Kitap içerikleri ve içindekiler orijinal dilinde korunur.
 - **Disk Üzerinde Kapak Önbelleği:** 150×210 RGB24 boyutunda, 32 MiB / 512 dosya ile sınırlandırılmış hızlı kapak önbelleği; sağlama toplamı doğrulaması ve anında beliren şık vektörel kapak yer tutucuları.
 - **Okuma Günlüğü ve Çevrimdışı İstatistikler:** Okuma süresi, oturumlar, tamamlama oranları ve serileri tamamen yerel olarak takip eder.
-- **Sıfır Veri Kaybı Garantisi:** Kullanıcı verileri atomik olarak yazılır (`.tmp` dosyası ardından atomik yeniden adlandırma). Güncellemeler mevcut kitaplarınızı, yer imlerinizi ve ayarlarınızı **asla silmez veya üzerine yazmaz**.
+- **Veri Koruma ve Kurtarma:** Geçici dosya, yedekleme ve kurtarma mekanizmaları veri kaybı riskini azaltır. Paket kullanıcı veritabanlarını içermez; ancak SD kart arızası veya güç kesintisinde kayıp mümkündür. Güncellemeden önce **`books/` ve `data/` klasörlerini yedekleyin**.
 
 ### Kurulum
 

@@ -1,8 +1,8 @@
-# v0.4 performance results
+# PaperNX — Historical v0.4 desktop performance measurements
 
-Historical v0.3 data is preserved in [V03_PERFORMANCE_RESULTS.md](V03_PERFORMANCE_RESULTS.md).
+**Not a v0.9.0 physical Switch benchmark.** These v0.4-era values are retained for engineering comparison. The original measurement artifact `verification/v04-ui-latency.json` and older v0.3 reports were removed from the tracked repository; the raw samples are no longer independently reviewable here.
 
-Measured v0.4 desktop pipeline timings (recorded in `verification/v04-ui-latency.json` across 32 iterations under the Docker SDL software renderer; CPU event-to-present return):
+Reported 32-iteration Docker SDL software-renderer CPU event-to-present-return measurements:
 
 | Metric | p50 | p95 | Worst | Notes |
 |---|---|---|---|---|
@@ -26,9 +26,9 @@ Current engineering improvements:
 - Finger-down pressed feedback on primary controls.
 - Cached text measurements and stable font metrics in `Typography`.
 - Fast single-pass scroll and clipping in choice popup.
-- Hardware-tuned PDF flick classifier with sampled release velocity.
+- PDF flick gesture defaults tested on desktop with displacement/duration and average-velocity thresholds; real Switch hardware tuning remains outstanding.
 - Direct rotated target presentation without double copying.
-- Book-scoped appearance: atomic canvas and reader chrome synchronization during asynchronous reflow; zero mixed-color frames.
+- Book-scoped appearance: coordinated canvas and reader chrome updates during asynchronous reflow; frame-perfect hardware rendering has not been demonstrated.
 - Background metadata extraction for cached covers without UI thread blocking (bounded to 2 updates per frame).
 
 Note: Desktop SDL software renderer timings measure CPU event-to-present return and do not include physical Switch touchscreen scanning, physical display scanout, or micro-SD latency. Physical hardware latency and feel remain **UNVERIFIED** until on-device acceptance testing.

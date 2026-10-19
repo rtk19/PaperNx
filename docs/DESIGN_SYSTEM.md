@@ -1,4 +1,4 @@
-# PaperNX native design system — v0.4
+# PaperNX native design system — v0.4-origin design used by v0.9.0
 
 SDL2 drawing, SDL_ttf typography and MuPDF document rendering remain native. Sources: `ui.hpp`, `theme.hpp`, `orientation.hpp`, `focus.hpp`, `typography.cpp`, `main.cpp` and screen include fragments. No web engine/framework.
 
@@ -6,7 +6,7 @@ Shared geometry: 56-pixel touch target, 16 gap, 12 radius, 64 settings cadence. 
 
 Noto Sans Regular and OFL Noto Sans SemiBold supply actual distinct UI weights. Noto Serif remains for reading. Button font metrics drive vertical placement; UTF-8 truncation avoids broken Turkish characters. Reader typography is independent of UI size. Text measurement and raster texture caches must be bounded and reused; renderer-thread texture upload only.
 
-`ThemePalette` centralizes background, foreground, muted, accent, card, border and header. `readerChromePalette` follows content colors by default; Follow Application and Custom UI are explicit policies. Dark/Invert PDF uses dark chrome; Sepia uses warm chrome. Library restores global app palette. UI controls are never filtered as document pixels. Nine paper presets use RGB overrides without renumbering existing six-theme persistence identifiers.
+`ThemePalette` centralizes background, foreground, muted, accent, card, border and header. The current unified reader chrome follows active document appearance, and the library restores the global palette. Legacy Follow Application/Custom UI policy fields remain readable for migrations but are **not separate visible v0.9.0 choices**. PDF pixel filtering does not directly filter UI widgets. Nine paper presets use RGB overrides without renumbering historical persistence identifiers.
 
 `ui::button`, `ui::settingsRow`, `StepperLayout`, surfaces and focus rings share geometry for hit testing. Numeric rows have left label and independent right decrement/value/increment. Focus adds a three-pixel outline; editing adds an underline; selected and pressed states remain separate. Destructive text uses contrast-aware red. New components must not implement focus solely by hue or by toggling the preference.
 

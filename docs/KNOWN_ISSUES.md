@@ -1,15 +1,26 @@
-# v0.4 known issues and release limits
+# PaperNX v0.9.0 — Known limitations and validation gaps
 
-All new Switch hardware checks, including both portrait rotations, sleep/resume, touch latency, SD errors and controller reconnect, are **UNVERIFIED**. Previous physical recordings are v0.3 defect evidence. Use [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md); no stable release before new acceptance.
+Not every limitation here is a reproduced defect. Distinguish implemented behavior, postponed features and unverified hardware-dependent paths.
 
-- Final automated/source/package gates are recorded in [TEST_RESULTS.md](TEST_RESULTS.md). Pure helper tests do not prove every focus target or small-window layout.
-- PDF flick defaults are a conservative displacement/duration/average-velocity heuristic. They are not physical Switch tuned, release-velocity sampled or fully edge-aware. Ordinary slow pan takes precedence; real thresholds require hardware retest.
-- PDF Dark/Sepia/Invert filters map page colors and matching reader chrome (Dark: RGB 28,30,32; Sepia: RGB 236,224,198) without mutating the global library appearance. Note that whole-page raster filtering affects embedded illustrations as well as text. Crop, column-aware navigation, OCR and reflow are **DEFERRED**.
-- Catalog identity is existing path plus file size. Moving/renaming/replacing a book can create a new identity; automatic progress/metadata reconciliation is **DEFERRED**. OPF subjects and Calibre/EPUB3 series indices are extracted on opening; independently normalized multiple author/genre entities and pre-open full-library extraction remain limited.
-- Confirmed deletion is limited to scanned regular EPUB/PDF files beneath the allowed root. There is no undo/trash, arbitrary file manager or race-immune descriptor-based deletion claim. Device tests must use disposable copies. Shelf deletion never deletes files.
-- Stats are conservative measured activity, not eye tracking. Idle cutoff can count a short pause and exclude a long reading interval without input. ETA needs evidence; chapter ETA and full annual/calendar visualization are **DEFERRED** unless explicitly implemented in the final report.
-- Progress anchors retain the prior fallback for malformed EPUB markup; geometric restoration may differ slightly after relayout. Keep backups and original books.
-- FAT/SD interruption durability differs from desktop. Flushed replacement/backup recovery reduces risk but cannot prove power-loss guarantees.
-- External fonts, full gesture remapping, dictionary datasets, annotations, in-book search, CBZ/CBR, OCR, AI recaps and optional wireless services are **DEFERRED** under the [roadmap gates](PRODUCT_ROADMAP_2026.md). No supported-format claim is made for comic archives.
+## P1 — Real Nintendo Switch validation
 
-Historical limitations are preserved in [V03_KNOWN_ISSUES.md](V03_KNOWN_ISSUES.md); they are not automatically closed by this update.
+The published v0.9.0 NRO has **35/35 physical-device acceptance checks marked UNVERIFIED** in [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md). Priority cases: Joy-Con-detached touch, both portrait modes/touch mapping, PDF gestures, restart and sleep/resume, docked/handheld, controller reconnect, SD write errors and Unicode glyph rendering. Passing native desktop tests and producing AArch64 NRO bytes do not prove physical compatibility.
+
+## Known implementation constraints
+
+- **Storage:** Temporary writes, backup recovery and retries lower corruption risk, but power failure, FAT/SD limitations and interrupted writes can still lose unsaved progress. Back up `books/` and `data/` before updating. No absolute zero-data-loss guarantee.
+- **Book identity:** Primarily path and file-size based; moving or replacing books can produce a new identity without automatically merging records.
+- **EPUB position restoration:** Malformed/image-only chapters can use approximate geometric fallbacks after relayout.
+- **PDF:** Whole-page pixel transformations also affect images/illustrations. No built-in PDF crop, true text reflow, OCR or column-aware reading. Flick thresholds are not hardware-tuned.
+- **File management:** Deletion uses separate explicit confirmation and path/type checks. No trash or undo; test only on disposable copies.
+- **Reading statistics:** Active time and finish estimates use interaction-derived heuristics, not proof the screen was being read. Chapter ETA and some advanced calendar reports are not guaranteed.
+- **Catalog metadata:** Before opening a document, normalized separate authors/subjects and automatic moved-file reconciliation remain limited.
+- **Physical ergonomics:** Focus visibility, long labels, tablet-size layout, rotations and sleep/restart still require on-device confirmation.
+
+## Planned / not included in v0.9.0
+
+Dictionary, annotations/highlights, EPUB in-book search, CBZ/CBR, PDF reflow/OCR, arbitrary gesture remapping and optional connectivity are not claimed as shipping capabilities. See [roadmap](PRODUCT_ROADMAP_2026.md).
+
+## Evidence
+
+[Reported automated tests](TEST_RESULTS.md) · [Current published digests](RELEASE_REPORT.md) · [Hardware acceptance](DEVICE_TEST_PLAN.md). Removed `V03_*` files are not current references.

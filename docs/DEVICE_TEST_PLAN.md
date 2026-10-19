@@ -1,6 +1,6 @@
-# PaperNX v0.4 device acceptance
+# PaperNX v0.9.0 — Physical Switch acceptance checklist
 
-Candidate: `v0.4.0-rc1`. Record NRO SHA256, Switch model, firmware/homebrew launch mode, language and book names. Every item below is **UNVERIFIED** until this candidate is tested physically. The supplied v0.3 recordings establish prior app operation and defects; they do not validate these changes.
+Target the [published v0.9.0 NRO](https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0) (GitHub-reported SHA256: `9020d67962b5dda01b7da2405a5d023631e47e3a4e3be96662e4a48ad292b9ef`). Record Switch model, firmware, Homebrew Menu launch mode, installed NRO hash, language and sample books. Every check below remains **UNVERIFIED** for v0.9.0 pending actual device execution. Earlier v0.3 videos and desktop simulations are not v0.9.0 hardware pass evidence.
 
 | # | Check | Result |
 |---|---|---|
@@ -40,4 +40,4 @@ Candidate: `v0.4.0-rc1`. Record NRO SHA256, Switch model, firmware/homebrew laun
 | 34 | All nine paper presets, background/text swatches, cancel/defaults, contrast warning | UNVERIFIED |
 | 35 | Off/Soft/Natural texture readability; images unaffected | UNVERIFIED |
 
-Never use a valuable original for deletion testing. First back up `books/` and `data/`; copy a disposable EPUB/PDF into the allowed books root. Test cancel first, then explicit confirmation. Shelf deletion must leave book files intact. Do not publish a stable release until new device acceptance and remaining P0 checks are resolved.
+Never use a valuable original for deletion testing. First back up `books/` and `data/`; copy a disposable EPUB/PDF into the allowed books root. Test cancel first, then explicit confirmation. Shelf deletion must leave book files intact. The public v0.9.0 Release exists, but **real-device acceptance has not been demonstrated**; do not describe it as hardware-validated until the matrix and any P0 failures have been resolved.

@@ -1,42 +1,60 @@
-﻿# Switch derleme
+# PaperNX v0.9.0 — Nintendo Switch build and installation
 
-Fiziksel Switch uyumluluğu UNVERIFIED; bu yönerge gerçek ARM64/NRO derlemesi içindir.
+This guide follows the checked-in [Dockerfile](../Dockerfile), [Compose service](../compose.yaml), `scripts/verify-switch.sh`, `Makefile` and `scripts/package_release.py`. The commands were checked against source scripts; they **were not executed on the maintainer's Windows PC during this documentation-only update**.
+
+## Requirements
+
+Windows 11 with Docker Desktop (WSL 2 backend, Linux containers) or Linux with Docker Engine/Compose; Git; available disk space and network access for initial devkitPro packages and pinned MuPDF 1.23.11 source. Container volumes map the repository root to `/work`.
+
+## Build from Windows Terminal / PowerShell or Linux shell
 
 ```bash
+git clone https://github.com/ysfbz/PaperNx.git
+cd PaperNx
 docker compose build switch
 docker compose run --rm switch
 ```
 
-İmaj devkitPro devkitA64 taban digest'ine sabitlenmiştir. `dkp-pacman` ile devkitA64/libnx
-ve Switch portlibs kurulumu/güncellemesi yapılır. Gerçek paket sürümleri
-`verification/switch-packages.txt` dosyasına yazılır; paket deposunun gelecekte aynı
-sürümleri vermesi garanti edilmez. MuPDF arşivinin SHA256 değeri sabittir.
-
-Docker içindeki işlem:
+The `switch` service's default command runs `bash scripts/verify-switch.sh`. Explicitly equivalent after building the image:
 
 ```bash
-export PATH="$DEVKITPRO/portlibs/switch/bin:$PATH"
-bash scripts/build-mupdf-switch.sh /work/prefix-mupdf-switch
-export MUPDF_PREFIX=/work/prefix-mupdf-switch
-make all -j4
-python3 scripts/verify_artifacts.py
-python3 scripts/package_release.py PaperNX.nro --destination dist --version v0.1.0-rc1
+docker compose run --rm switch bash scripts/verify-switch.sh
 ```
 
-C++17, `-fno-exceptions`, `-fno-rtti` ve C11 kullanılır. ELF C++ linker ile bağlanır.
-HarfBuzz ve FreeType, SDL2_ttf ile ortak portlibs sürümünden alınır. MuPDF'nin diğer
-üçüncü taraf bağımlılıkları `libmupdf-third.a` içindedir. SDL2/SDL2_ttf, HarfBuzz,
-FreeType, bzip2, PNG, JPEG, zlib, libm ve libnx linker grubuna dahildir.
+The script validates/downloads MuPDF 1.23.11 with pinned source SHA256 `478f2a167feae2a291c8b8bc5205f2ce2f09f09b574a6eb0525bfad95a3cfe66`, verifies/reuses the AArch64 prefix, captures source/build receipts, runs `make all -B -j4`, inspects ELF/NRO/NACP/branding/RomFS, collects SDK/MuPDF license notices, packages `dist/v0.9.0/` and verifies ZIP integrity.
 
-MuPDF kaynağının kendi başlıkları önce seçilir. Sistem font bağımlılıklarının include
-klasörleri ayrı verilir; eski portlibs MuPDF başlıkları derlemeye karışmaz. Arşivlerin
-**tüm üyeleri** AArch64 kontrolünden geçer. Önbellek compiler/flag/uyumluluk ve font
-arşiv hash'leriyle doğrulanır; arşiv SHA256 değerleri tekrar kontrol edilir.
+The Dockerfile pins its base-image digest but executes `dkp-pacman -Syu`; installed SDK package versions may change. A published release digest does not imply arbitrary future builds will be byte-identical.
 
-NACP sürümü `0.1.0-rc1`; varsayılan libnx ikonu kullanılır. `elf2nro`, `romfs/`
-klasörünü dahil eder. Doğrulayıcı ELF machine=183, NRO0 segment sınırları, ASET/NACP,
-RomFS dizinleri ve gömülü fontların kaynakla eşitliğini denetler.
-Bu kontroller konsolda başlatma veya fiziksel bellek kullanımını kanıtlamaz.
+## NACP and assets
 
-`dist/` gerçek NRO'yu, SD ZIP'ini, SHA256 dosyalarını ve manifest'i içerir.
-Genel Docker prune komutları kullanılmaz.
+[Makefile](../Makefile) defines `APP_TITLE = PaperNX`, `APP_AUTHOR = Yusuf Buzrul`, `APP_VERSION = 0.9.0`, `ICON = assets/branding/PaperNX-icon-switch.jpg` and `ROMFS = romfs`. The RomFS bundles Noto Sans Regular/SemiBold, Noto Serif and its OFL notice.
+
+## Distribution files
+
+`dist/v0.9.0/` contains `PaperNX.nro`, `PaperNX-switch-v0.9.0.zip`, `PaperNX-licenses-v0.9.0.zip`, three `.sha256` files and `manifest.json` (local receipt). The microSD ZIP contains:
+
+```text
+switch/
+  PaperNX/
+    PaperNX.nro
+    books/                  (empty)
+    fonts/
+      NotoSans-Regular.ttf
+      NotoSans-SemiBold.ttf
+      NotoSerif-Regular.ttf
+      OFL.txt
+```
+
+Extract the Switch ZIP to the microSD root (`sdmc:/`), put EPUB/PDF books in `sdmc:/switch/PaperNX/books/`, and open PaperNX from Homebrew Menu. On upgrade, back up `books/` and `data/` first. The distribution does not contain existing user databases. License/SDK notices ship separately in `PaperNX-licenses-v0.9.0.zip`.
+
+## Optional desktop regression runs
+
+```bash
+docker compose build desktop
+docker compose run --rm desktop bash scripts/verify-desktop.sh
+docker compose run --rm desktop bash scripts/verify-pinned-desktop.sh
+docker compose run --rm desktop bash scripts/verify-v04.sh native
+docker compose run --rm desktop bash scripts/verify-v04.sh sanitizers
+```
+
+`verify-pinned-desktop.sh` prepares the `prefix-mupdf-desktop` needed by the pinned-native v04 scripts. The historical `verify-v04.sh` name remains in use for v0.9.0. Desktop tests are not a substitute for [35 real-device checks](DEVICE_TEST_PLAN.md). See [release artifact hashes](RELEASE_REPORT.md).

@@ -16,8 +16,8 @@ Security updates and bug fixes are provided for the following releases:
 **PaperNX** is designed as a **completely offline** application for the Nintendo Switch:
 - **No Network Connectivity:** PaperNX does not open TCP/UDP sockets, perform HTTP/HTTPS requests, or communicate with external servers.
 - **No Cloud Services or Accounts:** No personal identifiers, credentials, or telemetry data are collected or transmitted.
-- **MicroSD Isolation:** All reads and writes are restricted to document directories (`sdmc:/switch/PaperNX/books/`) and application state directories (`sdmc:/switch/PaperNX/data/`).
-- **Memory Safety:** Memory-critical components (document parsing and layout via MuPDF, typography via SDL2_ttf/FreeType) are validated with GCC/Clang AddressSanitizer and UndefinedBehaviorSanitizer suites on every release.
+- **MicroSD Scope:** Application state is stored under `sdmc:/switch/PaperNX/data/`. The built-in browser can open user-selected documents from other permitted directories on the SD card; PaperNX does not claim strict OS-level filesystem sandboxing.
+- **Memory-safety testing:** The v0.9.0 release-preparation report records AddressSanitizer and UndefinedBehaviorSanitizer test passes. Tests reduce risk but cannot certify that all malformed documents or device-specific execution paths are vulnerability-free.
 
 ---
 

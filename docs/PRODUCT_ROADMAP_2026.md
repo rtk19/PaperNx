@@ -1,8 +1,8 @@
 # PaperNX product roadmap — 2026
 
-Updated 18 October 2026. This is an offline native C++17/SDL2/MuPDF reader. Inspiration describes broad product capabilities, not licensed access to competitor assets, services or proprietary data. Implementation and physical acceptance are separate; see [coverage](V04_REQUIREMENT_COVERAGE.md).
+Updated to describe the publicly available v0.9.0 source and future candidates. This is an offline native C++17/SDL2/MuPDF reader. Inspiration denotes possible capabilities, not licensed access to competitor assets, services or a delivery promise. Source implementation and physical acceptance are separate; see [current status](STATUS.md), [known limitations](KNOWN_ISSUES.md) and [device plan](DEVICE_TEST_PLAN.md).
 
-v0.4 prioritizes shared readable UI, coherent reading chrome, visible controller navigation/edit mode, zoomed PDF page turns, touch feedback, portrait rotation, paper presets/swatches, safe library management, metadata overlays, author/genre groups, collections, fallback covers, Page Flip and basic offline reading statistics/goals. Final verification is recorded in [TEST_RESULTS.md](TEST_RESULTS.md). All new hardware checks remain UNVERIFIED.
+Work originating in v0.4 (shared reader chrome, settings/focus, PDF/EPUB gestures, portrait output, themes, catalog and reading journal) is integrated into the published v0.9.0 source. Automated tests are reported in [TEST_RESULTS.md](TEST_RESULTS.md); physical device checks remain UNVERIFIED. Some table rows retain historical v0.4 scope terminology.
 
 | Inspiration / candidate | Status | Technical acceptance gate |
 |---|---|---|
@@ -37,4 +37,4 @@ v0.4 prioritizes shared readable UI, coherent reading chrome, visible controller
 
 Performance policy: renderer-thread SDL texture work only; MuPDF ownership explicit; bounded page/cover queues, 32 MiB/512-entry cover disk cache; never rasterize a complete book. Dictionary/OCR/AI/TTS datasets are separate license, CPU, RAM and storage gates. Generative inference is not assumed feasible on Switch. Benchmark p50/p95/worst on the target hardware before promotion.
 
-Safety policy: preserve books and progress; metadata remains a sidecar. Keep migration backups. Recoverable flushed replacement reduces interruption risk but is not a guarantee of FAT power-loss durability. No telemetry, cloud login, browser engine or mandatory network dependency. Stable publishing remains gated by new physical acceptance.
+Safety policy: preserve books and progress; metadata remains a sidecar. Keep migration backups. Recoverable flushed replacement reduces interruption risk but is not a guarantee of FAT power-loss durability. No telemetry, cloud login, browser engine or mandatory network dependency. v0.9.0 is publicly available, but any claim of hardware-validated stability still requires physical acceptance.

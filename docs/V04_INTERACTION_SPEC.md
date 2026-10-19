@@ -1,6 +1,6 @@
-# v0.4 interaction specification
+# PaperNX interaction specification — historical v0.4 design integrated into v0.9.0
 
-Source is authoritative; full automated/hardware coverage is recorded separately. No physical v0.4 acceptance is claimed.
+This technical design originated in v0.4; published v0.9.0 source is authoritative where behavior has since evolved. Automated tests are reported in [TEST_RESULTS.md](TEST_RESULTS.md); **physical v0.9.0 acceptance remains UNVERIFIED**, as tracked in [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md).
 
 Reader D-pad Left/Right turns paginated EPUB/PDF pages, including zoomed PDF. Continuous EPUB Up/Down scrolls; Left/Right performs the implemented chapter/page-equivalent route. PDF Up/Down pans vertically when zoomed; left analog pans; ZL/ZR adjusts zoom. Shoulder page turns remain compatibility shortcuts, never the sole route. Center tap toggles reader tools; toolbar and + menu expose settings, navigation and library return to touch.
 

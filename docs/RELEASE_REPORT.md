@@ -1,56 +1,40 @@
-# PaperNX v0.9.0 Release Verification Report
+# PaperNX v0.9.0 — Release verification report
 
-**Release Target:** `v0.9.0`  
-**Application Title:** `PaperNX`  
-**Author / Copyright Holder:** `Yusuf Buzrul`  
-**Date:** 2026-10-19  
-**Platform:** Nintendo Switch (devkitA64, libnx, Horizon OS) / POSIX Desktop (Linux x86_64)
+**Published:** [v0.9.0](https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0), 19 October 2026  
+**Tag source commit:** `135df6be80a622d12ce59c173b31068da1844e17`  
+**Application / author:** PaperNX / Yusuf Buzrul  
+**Distribution:** Nintendo Switch AArch64 homebrew. Linux/desktop targets exist for development, not as separately published platform ports.
 
----
+## Published release artifacts
 
-## Engineering Quality & Test Gates Summary
+| File | Bytes | SHA256 (GitHub Release digest) |
+|---|---:|---|
+| [`PaperNX.nro`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX.nro) | 48,090,067 | `9020d67962b5dda01b7da2405a5d023631e47e3a4e3be96662e4a48ad292b9ef` |
+| [`PaperNX-switch-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-switch-v0.9.0.zip) | 33,261,595 | `99b8ef910277a67992993112c73d0e5c2bfef651e481dfd97581a036baa18bd0` |
+| [`PaperNX-licenses-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-licenses-v0.9.0.zip) | 190,942 | `9c4c0d1f2042479c4723cbbaa3a83d0ce9c0584180a53d94127c575170fff859` |
 
-All automated engineering gates have completed with a **100% pass rate** across all execution modes:
+Three corresponding `.sha256` sidecar assets are also published. **Verification scope:** The values above were checked against the *current published GitHub Release asset API*, rather than copied from older local reports. In this documentation session, actual binary downloads and independent recalculation of SHA256 **were not possible**. To perform independent byte-level verification, download an artifact and check `sha256sum <file>`, or on Windows `Get-FileHash <file> -Algorithm SHA256`, comparing both the table and its sidecar.
 
-| Test Gate | Scope | Status | Result Details |
-|---|---|:---:|---|
-| **Portable Suite** | Core logic & headless mock components | **PASS** | 7/7 tests passed (100%) |
-| **Native Suite** | Full application, UI components, MuPDF document bridge | **PASS** | 11/11 tests passed (100%) |
-| **Release Native Suite** | Optimized C++17 release binary build & full test pass | **PASS** | 11/11 tests passed (100%) |
-| **Sanitizers Suite** | AddressSanitizer (ASan) & UndefinedBehaviorSanitizer (UBSan) | **PASS** | 11/11 tests passed (0 leaks, 0 errors) |
-| **Switch AArch64 Cross-Build** | devkitA64 toolchain, libnx, static MuPDF 1.23.11, RomFS | **PASS** | AArch64 ELF PIE & NRO0 generated |
-| **Packaging & Verification** | Minimal SD layout, license compliance ZIP, SHA256 hashes | **PASS** | Verified via `verify_distribution.py` |
+Older local report hashes `f05651ba…` (NRO) and `60220685…` (Switch ZIP) belong to a different build; they must **not** be used for the current Release. Local `dist/v0.9.0/manifest.json` is a build receipt and is not an additional public download.
 
----
+## Build and automated quality gates
 
-## Release Artifacts
+The v0.9.0 release-preparation report records:
 
-Distribution Directory: `dist/v0.9.0/`
-
-| Artifact | Size (Bytes) | SHA256 Checksum |
+| Check | Reported outcome | Reproduce with |
 |---|---|---|
-| `PaperNX.nro` | 48,085,971 | `f05651ba40305460ebcfdd626d01d7a33f24aefdedfa57eeb31fc48e30decf81` |
-| `PaperNX-switch-v0.9.0.zip` | 33,260,644 | `6022068562fb2f74e673162d54589c92f10c23635440f65d819127e2ae4c4ed8` |
-| `PaperNX-licenses-v0.9.0.zip` | 190,942 | `9c4c0d1f2042479c4723cbbaa3a83d0ce9c0584180a53d94127c575170fff859` |
-| `manifest.json` | 2,371 | Complete distribution descriptor |
+| Portable C++17 | PASS, 7/7 | `scripts/verify-v04.sh portable` |
+| Native SDL/MuPDF | PASS, 11/11 | `scripts/verify-v04.sh native` |
+| Native Release | PASS, 11/11 | `scripts/verify-v04.sh release` |
+| ASan/UBSan and leak detection | PASS, 11/11 | `scripts/verify-v04.sh sanitizers` |
+| Switch AArch64 ELF, NRO, NACP, icon, RomFS | PASS reported | `scripts/verify-switch.sh` |
+| Minimal ZIP / separate license ZIP validation | PASS reported | `scripts/verify_distribution.py` |
+| Physical Nintendo Switch (35 checks) | **UNVERIFIED** | [Device test plan](DEVICE_TEST_PLAN.md) |
 
----
+These are outcomes reported by the prior build process, **not newly executed by this documentation change**. A successful GitHub Actions run for the exact final tagged commit was not independently found; historical `verification/` logs are no longer tracked.
 
-## Binary Metadata & Architecture
+The repository [Makefile](../Makefile) specifies NACP title `PaperNX`, author `Yusuf Buzrul`, version `0.9.0` and icon `assets/branding/PaperNX-icon-switch.jpg`. The verifier checks AArch64 ELF/NRO0 and embedded RomFS fonts (NotoSans Regular/SemiBold, NotoSerif and OFL notice). The Switch ZIP ships `switch/PaperNX/PaperNX.nro`, bundled fonts and an empty `books/` placeholder; the license notices are a **separate ZIP**. No user `data/` or `logs/` is installed, reducing overwrite risk but **not guaranteeing zero data loss** during power/SD failures.
 
-- **Target Architecture:** ARM64 / AArch64 (ELF64 Position-Independent Executable, machine 183)
-- **NACP Metadata:**
-  - Name: `PaperNX`
-  - Author: `Yusuf Buzrul`
-  - Version: `0.9.0`
-- **Embedded Icon:** 256×256 baseline JPEG (`b47198387614a9e66a570d7faaefff0fa496033d4481060316a086059b506bb5`)
-- **RomFS Image:** Embedded fonts (`NotoSans-Regular.ttf`, `NotoSans-SemiBold.ttf`, `NotoSerif-Regular.ttf`, `OFL.txt`)
-- **Implementation SHA256:** `8d87b5458e95f3a998b70c20f15549e4e8d05335af5d5e4fd34d41d45148513a`
-- **Minimal SD Distribution:** Package includes only `switch/PaperNX/PaperNX.nro`, `fonts/`, and empty `books/`. No test artifacts, user databases (`data/`), or log files are bundled, guaranteeing zero data loss on existing user installations.
+**Physical acceptance:** Real Switch operation, touch/portrait, sleep/resume, controller reconnection and media failure remain **UNVERIFIED**. [Build guide](BUILD_SWITCH.md) · [Test report](TEST_RESULTS.md) · [Known limitations](KNOWN_ISSUES.md).
 
----
-
-## Hardware Acceptance Note
-
-- **Automated Validation:** All unit tests, rendering pipelines, memory checks, and format verifications passed.
-- **Physical Device Status:** Handheld touch and portrait rotation features are verified via SDL desktop simulation; awaiting physical Nintendo Switch hardware test acceptance according to [DEVICE_TEST_PLAN.md](DEVICE_TEST_PLAN.md).
+A documentation-only commit on `main` does not alter the published `v0.9.0` tag or binaries.

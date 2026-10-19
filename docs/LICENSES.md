@@ -1,23 +1,15 @@
-﻿# Lisanslar ve kaynak
+# PaperNX v0.9.0 — License and corresponding source
 
-- PaperNX: [AGPL-3.0](../LICENSE).
-- MuPDF 1.23.11: dağıtım arşivindeki `COPYING` ve üçüncü taraf bildirimleri; kaynak
-  [Artifex deposu](https://github.com/ArtifexSoftware/mupdf/tree/1.23.11).
-- Noto Sans/Serif: [OFL](../fonts/OFL.txt); aynı dosya SD font dizininde ve RomFS'tedir.
-- libnx 4.12.0: [upstream izin bildirimi](https://github.com/switchbrew/libnx/blob/v4.12.0/LICENSE.md).
-- SDL2 2.28.5: [zlib bildirimi](https://github.com/libsdl-org/SDL/blob/release-2.28.5/LICENSE.txt).
-- HarfBuzz 10.0.1: [COPYING](https://github.com/harfbuzz/harfbuzz/blob/10.0.1/COPYING).
-- FreeType: portlibs içindeki FTL/GPLv2 seçenek bildirimleri pakete kopyalanır.
-- MuPDF'nin JPEG, OpenJPEG, JBIG2, zlib, LCMS, Gumbo, MuJS, Extract ve diğer kaynak
-  bildirimleri seçilmiş kaynak dağıtımından toplanır. SDL2_ttf ve diğer portlibs'in
-  kurulu lisans dosyaları da dahil edilir.
+PaperNX is [AGPL-3.0](../LICENSE) software developed by Yusuf Buzrul with AI assistance.
 
-`collect_licenses.py` kaynak ve SDK bildirimlerini toplar; sabit sürüm ek bildirimleri
-`scripts/license-notices/` içindedir. ZIP, bunları `switch/PaperNX/licenses/` altında taşır.
-`SOURCE.txt` upstream kaynak adreslerini içerir. Derlemede kullanılan paket sürümleri
-`verification/switch-packages.txt` ile kaydedilir.
+The [GitHub v0.9.0 Release](https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0) separates user-installable files and license notices:
 
-Genel dağıtımda AGPL'nin karşılık gelen kaynak, değişiklikler ve derleme tariflerine
-ilişkin koşulları uygulanmalıdır; yalnızca bir lisans dosyası eklemek bu yükümlülükleri
-tek başına yerine getirmez. Bu oturumda GitHub stable release yayınlanmamıştır.
-Kaynak deposu ve kullanılan MuPDF arşivine erişim sürüm paketiyle birlikte korunmalıdır.
+- `PaperNX-switch-v0.9.0.zip`: microSD NRO, font copies/OFL and an empty books directory. It **does not** install `switch/PaperNX/licenses/`.
+- `PaperNX-licenses-v0.9.0.zip`: the project `LICENSE` plus collected third-party notices under `third-party-licenses/`.
+- [Tagged source code](https://github.com/ysfbz/PaperNx/tree/v0.9.0) and build scripts: the corresponding PaperNX implementation.
+
+Major dependencies: [MuPDF 1.23.11](https://github.com/ArtifexSoftware/mupdf/tree/1.23.11) (AGPL/COPYING and third-party material), libnx, SDL2/SDL2_ttf, FreeType, HarfBuzz, JPEG/PNG/zlib-related libraries and [Noto OFL fonts](../fonts/OFL.txt). The exact SDK dependency version depends on the build environment; the Dockerfile pins the base image digest but installs updates from devkitPro repositories.
+
+`scripts/build-mupdf-switch.sh` verifies the MuPDF source tarball checksum; `scripts/collect_licenses.py` collects notices and `SOURCE.txt`; `scripts/verify-switch.sh` adds SDK notice files; `scripts/package_release.py` produces the **separate** license ZIP.
+
+AGPL/third-party redistribution may require complete corresponding source and appropriate build/install information. A notices archive alone does not replace those obligations. See [build guide](BUILD_SWITCH.md) and [current Release Report](RELEASE_REPORT.md).

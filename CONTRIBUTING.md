@@ -52,7 +52,7 @@ docker compose run --rm switch bash scripts/verify-switch.sh
 2. **Memory Safety & RAII:** Manage dynamic resources using RAII principles. All tests must pass cleanly under ASan and UBSan without memory leaks or undefined behavior.
 3. **Bilingual Localization:** Any user-facing string must be localized in both English and Turkish in `include/papernx/localization.hpp`. English is the default language.
 4. **Touch & Ergonomics:** Ensure touch targets have a minimum dimension of 56px. Maintain controller shortcuts as secondary inputs.
-5. **Data Integrity:** Reading bookmarks, user settings, and library databases must be saved atomically (`.tmp` write followed by atomic filesystem rename) to prevent corruption if the console powers off during a write.
+5. **Data Integrity:** Reading bookmarks, user settings, and library databases must be saved atomically (`.tmp` write followed by atomic filesystem rename) to reduce corruption risk and support recovery. Do not promise guaranteed durability under sudden power loss or SD failure.
 
 ---
 

@@ -1,4 +1,6 @@
-﻿# Mimari
+﻿# PaperNX — Mimari notlar
+
+Bu doküman tarihsel mimari açıklamaları da içerir. Güncel v0.9.0 kapsamı, fiziksel doğrulama durumu ve derleme yönergeleri için [STATUS.md](STATUS.md), [KNOWN_ISSUES.md](KNOWN_ISSUES.md) ve [BUILD_SWITCH.md](BUILD_SWITCH.md) esas alınmalıdır.
 
 PaperNX çevrimdışı C++17 uygulamasıdır. `main.cpp` SDL olaylarını ve ekran durumlarını yönetir;
 `core.cpp` kitap tarama/arama ve kayıtları; `gestures.cpp` dokunma ve çubuk tekrarlarını;

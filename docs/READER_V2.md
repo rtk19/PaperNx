@@ -1,7 +1,7 @@
-# Reader v2 implementation notes
+# Reader v2 — historical implementation notes (pre-v0.9.0)
 
 Baseline main: `338fa80aab0cbeb5f27d3d04dce2c9efacd3c566` (fetched 2026-10-17).
-Branch: `feat/touch-reader-settings-v2`. No merge to main is authorized by this delivery.
+Historical branch: `feat/touch-reader-settings-v2`. The no-merge instruction applied to that earlier delivery only and is **not** current guidance; the development branch has since been retired. Current status: [STATUS.md](STATUS.md), [BUILD_SWITCH.md](BUILD_SWITCH.md), [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## Persistence
 

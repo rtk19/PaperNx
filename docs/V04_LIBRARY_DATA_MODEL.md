@@ -1,4 +1,4 @@
-# v0.4 local catalog and reading statistics
+# PaperNX catalogue and reading statistics — v0.4-origin model incorporated in v0.9.0
 
 The catalog lives in `data/catalog.txt`; reading statistics live in
 `data/reading-stats.txt`. Neither file replaces or migrates `data/progress.txt`.
