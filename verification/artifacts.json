@@ -1,7 +1,7 @@
 {
   "source": {
-    "git_revision": "8d342da5d2cfb5912b79c9b5c1f24344b8e3e0c3",
-    "implementation_sha256": "7bf7d818d8ae71e5cebaef1c34921a0ee1eff3f87d77fae2d1f8ea9014dacece"
+    "git_revision": "6d3d49bd134e96324d0ff91806e41c94c760a6e5",
+    "implementation_sha256": "8d87b5458e95f3a998b70c20f15549e4e8d05335af5d5e4fd34d41d45148513a"
   },
   "elf": {
     "architecture": "AArch64",
@@ -10,8 +10,8 @@
   },
   "nro": {
     "version": 0,
-    "declared_size": 46288896,
-    "actual_size": 48081875,
+    "declared_size": 46292992,
+    "actual_size": 48085971,
     "segments": [
       {
         "name": ".text",
@@ -26,21 +26,21 @@
       {
         "name": ".data",
         "offset": 45756416,
-        "size": 532480
+        "size": 536576
       }
     ]
   },
   "assets": {
     "icon": {
-      "offset": 46288952,
+      "offset": 46293048,
       "size": 13795
     },
     "nacp": {
-      "offset": 46302747,
+      "offset": 46306843,
       "size": 16384
     },
     "romfs": {
-      "offset": 46319131,
+      "offset": 46323227,
       "size": 1762744
     }
   },
@@ -58,6 +58,6 @@
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "758ae03c42acf3ca3a040dce60c62fa000426cf00019f40614f2aa4a54b48a8c",
+  "nro_sha256": "f05651ba40305460ebcfdd626d01d7a33f24aefdedfa57eeb31fc48e30decf81",
   "hardware": "UNVERIFIED"
 }

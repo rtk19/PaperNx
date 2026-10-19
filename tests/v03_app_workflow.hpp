@@ -198,13 +198,14 @@ static void v03Workflow(const fs::path &parent) {
         assert(globalStyle.theme==chosen.theme && globalStyle.backgroundColor==chosen.background);
         assert(app.appSettings_.get().uiTheme==chosen.theme && app.appSettings_.get().chromePolicy==0);
         assert(app.palette().bg.r==Uint8(chosen.background>>16));
-        v03Control(app,5); assert(app.appSettings_.get().language==1);
+        assert(app.appSettings_.get().language==1);
+        v03Control(app,5); assert(app.appSettings_.get().language==0);
         v03CloseSettings(app); snapshot(app,"v03-professional-library");
     }
     {
         PaperNxApp app(root); assert(app.init() && !app.controller_);
         assert(app.appSettings_.get().uiTheme==globalThemeAfterSelection);
-        assert(app.appSettings_.get().language==1);
+        assert(app.appSettings_.get().language==0);
         v03OpenLibraryBook(app,secondId);
         assert(app.currentTheme_==4 && app.extraStyle_.styleOverride==1 && app.continuous());
         assert(app.currentPage_==bookBPage && std::abs(app.scrollY_-bookBY)<1 && app.progressStore_.get(secondId).favorite);

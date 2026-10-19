@@ -512,19 +512,26 @@ int main() {
     {
         const auto path = root / "app-settings";
         AppSettingsStore settings(path); assert(!settings.load());
-        AppPreferences app; app.uiTheme = 2; app.language = 1; app.libraryLayout = 1;
+        // PaperNX v0.9 default language is English (1) on clean install
+        assert(settings.get().language == 1);
+        AppPreferences app; app.uiTheme = 2; app.language = 0; app.libraryLayout = 1; // set to Turkish (0)
         app.sort = 4; app.toolbar = 1; app.defaultBrowserPath = "sdmc:/Kitaplar/Çiçek";
         // Old independent chrome settings are migrated into unified mode.
         app.chromePolicy=2;app.customUiTheme=4;
         settings.put(app);
         assert(settings.get().chromePolicy==0);
+        assert(settings.get().language==0);
         assert(settings.save()); assert(settings.save());
         AppSettingsStore restart(path); assert(restart.load());
-        assert(restart.get().uiTheme == 2 && restart.get().language == 1 && restart.get().libraryLayout == 1);
+        assert(restart.get().uiTheme == 2 && restart.get().language == 0 && restart.get().libraryLayout == 1);
         assert(restart.get().chromePolicy==0); // Never resurrect legacy custom chrome.
         assert(restart.get().sort == 4 && restart.get().toolbar == 1 && restart.get().defaultBrowserPath == app.defaultBrowserPath);
         std::ofstream(path, std::ios::trunc) << "corrupt cache must recover settings";
-        assert(restart.load() && restart.get().sort == 4);
+        assert(restart.load() && restart.get().sort == 4 && restart.get().language == 0);
+        // Switch to English (1) and verify persistence
+        app.language = 1;
+        settings.put(app); assert(settings.save());
+        AppSettingsStore restartEn(path); assert(restartEn.load() && restartEn.get().language == 1);
         app.uiTheme = -100; app.language = 99; app.sort = 999;
         settings.put(app); assert(settings.get().uiTheme == 0 && settings.get().language == 1 && settings.get().sort == 4);
     }

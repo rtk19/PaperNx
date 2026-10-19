@@ -49,7 +49,7 @@ ELF Header:
   Version:                           0x1
   Entry point address:               0x0
   Start of program headers:          64 (bytes into file)
-  Start of section headers:          70970240 (bytes into file)
+  Start of section headers:          70983520 (bytes into file)
   Flags:                             0x0
   Size of this header:               64 (bytes)
   Size of program headers:           56 (bytes)
@@ -59,8 +59,8 @@ ELF Header:
   Section header string table index: 36
 {
   "source": {
-    "git_revision": "8d342da5d2cfb5912b79c9b5c1f24344b8e3e0c3",
-    "implementation_sha256": "7bf7d818d8ae71e5cebaef1c34921a0ee1eff3f87d77fae2d1f8ea9014dacece"
+    "git_revision": "6d3d49bd134e96324d0ff91806e41c94c760a6e5",
+    "implementation_sha256": "8d87b5458e95f3a998b70c20f15549e4e8d05335af5d5e4fd34d41d45148513a"
   },
   "elf": {
     "architecture": "AArch64",
@@ -69,8 +69,8 @@ ELF Header:
   },
   "nro": {
     "version": 0,
-    "declared_size": 46288896,
-    "actual_size": 48081875,
+    "declared_size": 46292992,
+    "actual_size": 48085971,
     "segments": [
       {
         "name": ".text",
@@ -85,21 +85,21 @@ ELF Header:
       {
         "name": ".data",
         "offset": 45756416,
-        "size": 532480
+        "size": 536576
       }
     ]
   },
   "assets": {
     "icon": {
-      "offset": 46288952,
+      "offset": 46293048,
       "size": 13795
     },
     "nacp": {
-      "offset": 46302747,
+      "offset": 46306843,
       "size": 16384
     },
     "romfs": {
-      "offset": 46319131,
+      "offset": 46323227,
       "size": 1762744
     }
   },
@@ -117,18 +117,18 @@ ELF Header:
     "fonts/NotoSerif-Regular.ttf",
     "fonts/OFL.txt"
   ],
-  "nro_sha256": "758ae03c42acf3ca3a040dce60c62fa000426cf00019f40614f2aa4a54b48a8c",
+  "nro_sha256": "f05651ba40305460ebcfdd626d01d7a33f24aefdedfa57eeb31fc48e30decf81",
   "hardware": "UNVERIFIED"
 }
-[OK] Release package created: dist/v0.4.0-journal/PaperNX-switch-v0.4.0-journal.zip
-[OK] SHA256: ec32e2beb1f1137164dc4e323d14d0dd8a44792566f03690d6608bf3e4af2c51
+[OK] Release package created: dist/v0.9.0/PaperNX-switch-v0.9.0.zip
+[OK] SHA256: 6022068562fb2f74e673162d54589c92f10c23635440f65d819127e2ae4c4ed8
 {
   "result": "PASS",
-  "zip_sha256": "ec32e2beb1f1137164dc4e323d14d0dd8a44792566f03690d6608bf3e4af2c51",
-  "nro_sha256": "758ae03c42acf3ca3a040dce60c62fa000426cf00019f40614f2aa4a54b48a8c",
-  "nacp_version": "0.4.0-journal",
+  "zip_sha256": "6022068562fb2f74e673162d54589c92f10c23635440f65d819127e2ae4c4ed8",
+  "nro_sha256": "f05651ba40305460ebcfdd626d01d7a33f24aefdedfa57eeb31fc48e30decf81",
+  "nacp_version": "0.9.0",
   "license_files": 59,
-  "zip_members": 86,
+  "zip_members": 7,
   "elf": {
     "architecture": "AArch64",
     "machine": 183,

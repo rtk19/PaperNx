@@ -23,6 +23,12 @@ int main() {
     const std::string title="İstanbul Masalları — Çığlık ve Şiir";
     assert(localizeUiText(title,1)==title);
     assert(localizeUiText("EPUB",1)=="EPUB");
+    assert(localizeUiText("PaperNX'ten çık",1)=="Exit PaperNX");
+    assert(localizeUiText("Yazı boyutu",1)=="Font size");
+    assert(localizeUiText("Satır aralığı",1)=="Line height");
+    assert(localizeUiText("Ekran yönü",1)=="Display orientation");
+    assert(localizeUiText("Günlüğüm",1)=="My journal");
+    assert(localizeUiText("Kitabı sil",1)=="Delete book");
     assert(localizeUiText("Kitaplık",42)=="Kitaplık");
     assert(localizeUiText("Kitaplık",0)=="Kitaplık");
     std::cout << "localization tests passed\n";

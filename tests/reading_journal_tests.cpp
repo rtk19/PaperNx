@@ -119,14 +119,20 @@ void run(){
     assert(!aliasReload.deleteSession(99999)); // non-existent session
 
     // 3. Export JSON & CSV Tests
+    std::time_t nowTime = std::time(nullptr);
+    std::tm *nowTm = std::localtime(&nowTime);
+    char todayBuf[32];
+    std::snprintf(todayBuf, sizeof(todayBuf), "%04d-%02d-%02d", nowTm->tm_year + 1900, nowTm->tm_mon + 1, nowTm->tm_mday);
+    const std::string todayStr = todayBuf;
+
     ReadingJournal exportJournal(dir / "export_test");
     exportJournal.interaction(1000);
     exportJournal.setDailyGoalMinutes(30);
     exportJournal.setIdleMinutes(5);
-    step(exportJournal, 1000, 1792367880, "2026-10-18");
+    step(exportJournal, 1000, nowTime, todayStr);
     for (std::uint64_t t = 2000; t <= 61000; t += 1000)
-        step(exportJournal, t, 1792367880 + std::int64_t(t / 1000), "2026-10-18");
-    exportJournal.pause(62000, 1792367942);
+        step(exportJournal, t, nowTime + std::int64_t(t / 1000), todayStr);
+    exportJournal.pause(62000, nowTime + 62);
 
     const auto jsonPath = dir / "export_test" / "export" / "test.json";
     const auto csvPath = dir / "export_test" / "export" / "test.csv";

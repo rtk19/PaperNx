@@ -101,10 +101,9 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
             raise FileNotFoundError(f"Required bundled font asset missing: {fpath}")
 
     with ZipFile(archive_path, "w", ZIP_DEFLATED, compresslevel=9) as z:
-        # Standard Switch SD Card directory structure:
+        # Standard Minimal Switch SD Card directory structure:
         # sdmc:/switch/PaperNX/
         write_entry(z, "switch/PaperNX/books/", "")
-        write_entry(z, "switch/PaperNX/data/", "")
         write_entry(z, "switch/PaperNX/fonts/", "")
 
         # Write NRO binary
@@ -115,28 +114,25 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
             fpath = fonts_dir / f
             write_entry(z, f"switch/PaperNX/fonts/{f}", fpath.read_bytes())
 
-        notices = repo_root / "third-party-licenses"
-        if notices.is_dir():
-            for notice in sorted(notices.rglob("*")):
-                if notice.is_file():
-                    write_entry(z, "switch/PaperNX/licenses/" + notice.relative_to(notices).as_posix(), notice.read_bytes())
-        # Include README and LICENSE if available
-        readme = repo_root / "README.md"
-        if readme.is_file():
-            write_entry(z, "switch/PaperNX/README.md", readme.read_bytes())
-        for name in ("PRODUCT_ROADMAP_2026.md", "SWITCH_UX_AUDIT_2026-10-17.md", "DEVICE_TEST_PLAN.md", "DESIGN_SYSTEM.md", "TOUCH_CONTROLS_V03.md", "TOUCH_CONTROLS_V04.md", "V03_REQUIREMENT_COVERAGE.md", "SWITCH_V04_UX_AUDIT.md", "V04_INTERACTION_SPEC.md", "V04_LIBRARY_DATA_MODEL.md", "V04_REQUIREMENT_COVERAGE.md", "TEST_RESULTS.md", "PERFORMANCE_RESULTS.md", "KNOWN_ISSUES.md", "STATUS.md", "RELEASE_REPORT.md", "READING_JOURNAL_HANDOFF.md"):
-            doc = repo_root / "docs" / name
-            if doc.is_file():
-                write_entry(z, "switch/PaperNX/docs/" + name, doc.read_bytes())
-
-        license_file = repo_root / "LICENSE"
-        if license_file.is_file():
-            write_entry(z, "switch/PaperNX/LICENSE", license_file.read_bytes())
-
         # Verify no path traversal in created archive
         for info in z.infolist():
             if info.filename.startswith("/") or ".." in info.filename:
                 raise ValueError(f"Security error: dangerous relative path in archive '{info.filename}'")
+
+    # Open-source compliance: package licenses and third-party notices into separate release asset
+    licenses_archive_name = f"PaperNX-licenses-{version}.zip"
+    licenses_archive_path = destination / licenses_archive_name
+    with ZipFile(licenses_archive_path, "w", ZIP_DEFLATED, compresslevel=9) as lz:
+        license_file = repo_root / "LICENSE"
+        if license_file.is_file():
+            write_entry(lz, "LICENSE", license_file.read_bytes())
+        notices = repo_root / "third-party-licenses"
+        if notices.is_dir():
+            for notice in sorted(notices.rglob("*")):
+                if notice.is_file():
+                    write_entry(lz, "third-party-licenses/" + notice.relative_to(notices).as_posix(), notice.read_bytes())
+    lic_digest = hashlib.sha256(licenses_archive_path.read_bytes()).hexdigest()
+    (destination / f"{licenses_archive_name}.sha256").write_text(f"{lic_digest}  {licenses_archive_name}\n", encoding="utf-8")
 
     with ZipFile(archive_path) as check:
         if check.testzip() is not None:
@@ -161,6 +157,10 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
         "name": archive_name,
         "version": version,
         "sha256": digest,
+        "licenses_archive": {
+            "name": licenses_archive_name,
+            "sha256": lic_digest
+        },
         "nro": {
             "sha256": nro_digest,
             "declared_size": nro_meta["declared_size"],
@@ -180,8 +180,8 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Package PaperNX release ZIP for Nintendo Switch")
     parser.add_argument("nro", type=Path, help="Path to compiled PaperNX.nro")
-    parser.add_argument("--destination", "--dist", type=Path, default=Path("dist/v0.4.0-rc3"), help="Output directory")
-    parser.add_argument("--version", default="v0.4.0-rc3", help="Release version tag")
+    parser.add_argument("--destination", "--dist", type=Path, default=Path("dist/v0.9.0"), help="Output directory")
+    parser.add_argument("--version", default="v0.9.0", help="Release version tag")
     parser.add_argument("--build-receipt", type=Path, help="Validate pre/post-build source and NRO hash against this receipt")
     parser.add_argument("--repo-root", type=Path, default=Path("."), help="Path to repository root")
 

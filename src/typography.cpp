@@ -42,7 +42,7 @@ Typography::~Typography() {
         }
         fonts[i] = nullptr;
     }
-    titleFont_ = uiFont_ = smallFont_ = readerFont_ = nullptr;
+    titleFont_ = uiFont_ = smallFont_ = readerFont_ = sectionFont_ = buttonFont_ = nullptr;
 }
 
 TTF_Font *Typography::findAndLoad(const std::vector<std::string> &candidates, int ptSize) {

@@ -56,8 +56,8 @@ ROMFS	:=	romfs
 ICON := assets/branding/PaperNX-icon-switch.jpg
 
 APP_TITLE	:=	PaperNX
-APP_AUTHOR	:=	ysfbz
-APP_VERSION	:=	0.4.0-journal
+APP_AUTHOR	:=	Yusuf Buzrul
+APP_VERSION	:=	0.9.0
 
 #---------------------------------------------------------------------------------
 # options for code generation

@@ -5,7 +5,7 @@ namespace papernx {
 
 struct AppPreferences {
     int uiTheme{0}; // Legacy on-disk compatibility; the global ReaderPreferences theme is authoritative.
-    int language{0}; // 0 Turkish, 1 English
+    int language{1}; // 0 Turkish, 1 English (Default in v0.9.0: English)
     int libraryLayout{0}; // 0 grid, 1 list
     int sort{0}; // papernx::Sort
     int toolbar{0}; // 0 auto-hide, 1 persistent

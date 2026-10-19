@@ -1,10 +1,10 @@
 {
   "result": "PASS",
-  "zip_sha256": "ec32e2beb1f1137164dc4e323d14d0dd8a44792566f03690d6608bf3e4af2c51",
-  "nro_sha256": "758ae03c42acf3ca3a040dce60c62fa000426cf00019f40614f2aa4a54b48a8c",
-  "nacp_version": "0.4.0-journal",
+  "zip_sha256": "6022068562fb2f74e673162d54589c92f10c23635440f65d819127e2ae4c4ed8",
+  "nro_sha256": "f05651ba40305460ebcfdd626d01d7a33f24aefdedfa57eeb31fc48e30decf81",
+  "nacp_version": "0.9.0",
   "license_files": 59,
-  "zip_members": 86,
+  "zip_members": 7,
   "elf": {
     "architecture": "AArch64",
     "machine": 183,

@@ -1,106 +1,218 @@
-<p align="center"><img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX" width="160"></p>
+<p align="center">
+  <img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX Logo" width="160">
+</p>
 
-| **English** | [Türkçe](README.tr.md) |
-|:---:|:---:|
+<h1 align="center">PaperNX</h1>
 
-# PaperNX
+<p align="center">
+  <strong>Native, offline EPUB and PDF reader for the Nintendo Switch.</strong>
+</p>
 
-A **native, fully offline EPUB/PDF reader for Nintendo Switch**, built with C++17, SDL2, and MuPDF. Designed with a touchscreen-first interface for comfortable reading with the Joy-Con controllers detached. Books, covers, and reading records stay on your microSD card; no account, cloud service, or browser engine is required.
-
-**v0.4.0-rc3 - development release candidate.** Final desktop, sanitizer, Release and Switch artifact gates are tracked in [test results](docs/TEST_RESULTS.md). New physical Switch acceptance, including portrait, is **UNVERIFIED**. Previous v0.3 test results do not validate this candidate.
-
----
-
-## v0.4 changes
-
-Shared typography/stepper components, reader-coordinated chrome, explicit settings editing, zoomed PDF flick/page controls, portrait rotation, nine paper presets and visual swatches extend the existing reader. Library catalog actions, author/genre groups, collections and offline reading statistics are tracked precisely in the [requirement matrix](docs/V04_REQUIREMENT_COVERAGE.md); pending acceptance is not advertised as passed. [Controls](docs/TOUCH_CONTROLS_V04.md), [data model](docs/V04_LIBRARY_DATA_MODEL.md), [known limits](docs/KNOWN_ISSUES.md).
-
-## Key Capabilities in v0.3
-
-- **Touchscreen-First Ergonomics:** Always discoverable top-right `+` quick-action sheet across library, reader, and file browser. Large 56px minimum touch targets with visual feedback. Controllers remain supported as optional shortcuts.
-- **Reading Preferences & Live Preview:** Comprehensive 6-section settings modal (Reading, Page Layout, Appearance, Navigation, PDF, Application) featuring an interactive live preview reflecting font family, size, line height, margins, alignment, paragraph spacing, and indentation.
-- **Global & Per-Book Customization:** Shared global typography defaults apply to all books. Individual books can optionally be customized or reset to inherit global settings.
-- **Genuine Continuous EPUB Scrolling:** Real pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, seamless chapter boundary transitions, and logical reading anchor preservation. Paginated horizontal reading mode remains fully supported.
-- **Persistent Bounded Cover Cache:** Fast 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries on disk, with stat invalidation, checksum protection, automatic recovery, and immediate vector fallback artwork.
-- **One Global Appearance:** Choose from nine natural-paper presets in Settings → Application → General Theme. The library, top bar, settings, menus and EPUB reader share this palette; per-book appearance is optional and must be enabled explicitly. PDF filters change document pixels, not the global interface theme.
-- **Bilingual Interface:** Real Turkish and English interface localization. Book metadata, TOC titles, and reading contents remain authentic and untranslated.
-- **PDF Navigation:** Fit page, fit width, zoom, touch pan, and whole-page filters (Original, Dark, Sepia, Invert).
-- **Data Safety:** Backward-compatible migration (PAPERNX-1..5 to PAPERNX-6) with immutable backups (`.pre-v6-vN.bak`) created prior to migration.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_3.0-blue.svg" alt="AGPL-3.0 License"></a>
+  <a href="https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0"><img src="https://img.shields.io/badge/Release-v0.9.0-brightgreen.svg" alt="Release v0.9.0"></a>
+  <img src="https://img.shields.io/badge/Platform-Nintendo_Switch-e60012.svg" alt="Platform Nintendo Switch">
+  <img src="https://img.shields.io/badge/Language-C%2B%2B17%20%2F%20C11-00599C.svg" alt="Language C++17 / C11">
+  <img src="https://img.shields.io/badge/GUI-SDL2-black.svg" alt="GUI SDL2">
+  <img src="https://img.shields.io/badge/Engine-MuPDF_1.23.11-red.svg" alt="Engine MuPDF">
+</p>
 
 ---
 
-## Actual v0.4 desktop screenshots
+## Overview
 
-Captured from the actual native application using SDL:
+**PaperNX** is a native, lightweight, and fully offline document reader built specifically for the Nintendo Switch using modern C++17, C11, SDL2, and MuPDF. Designed from the ground up for comfortable handheld reading with Joy-Con controllers detached, PaperNX delivers a fluid touchscreen-first reading experience.
 
-![PaperNX Library](verification/screenshots/v04-library-1920.png)
-*Native library capture; desktop rendering does not establish physical Switch acceptance.*
+All books, cover art caches, reading progress, and personal reading journal statistics stay strictly on your microSD card. No user account, no cloud telemetry, and no browser engines are required.
 
-![Book actions](verification/screenshots/v04-book-context.png)
-*Long press or controller X opens book actions.*
+> [!NOTE]
+> **Default Language:** PaperNX starts in **English** by default. Full **Turkish** localization is built-in and can be selected at any time via **Settings → Application → Language** (`+` button or <kbd>Y</kbd>). Your choice is saved and persists across app restarts.
 
-![Reading Settings & Live Preview](verification/screenshots/v04-settings-focus-landscape.png)
-*Separate label/value controls and visible controller focus.*
+---
 
-![Sepia reader settings](verification/screenshots/v04-sepia-epub-settings.png)
-*Reading colors coordinate with settings chrome.*
+## Key Features
 
-![Dark PDF settings](verification/screenshots/v04-dark-pdf-settings.png)
-*Historical v0.4 screenshot: PDF content filters are separate from the unified global interface appearance. Updated candidate requires fresh visual/device verification.*
+- **Touchscreen-First Ergonomics:** Every navigation and reading action has a direct, responsive touch target (56px minimum touch targets with visual feedback). Joy-Con and Pro Controller buttons remain supported as optional shortcuts.
+- **Continuous Vertical EPUB Scrolling:** Smooth pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, and seamless chapter transitions with logical anchor tracking. Traditional paginated horizontal reading mode is also fully supported.
+- **Robust PDF Engine:** Powered by MuPDF 1.23.11 with fit-to-width, fit-to-page, touch drag-to-pan, zoom, and non-destructive document color filters (Original, Dark, Sepia, Invert).
+- **Unified Paper Appearance:** Choose from nine natural paper color presets (e.g., Pure White, Warm Book, Classic Sepia, Cream, Charcoal, Midnight Dark). The library, navigation chrome, menus, and EPUB viewer share a coordinated palette.
+- **Bilingual UI:** Native English and Turkish interface translations. Book titles, table of contents, and document contents remain in their authentic original language.
+- **Persistent Bounded Cover Cache:** 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries with file stat validation, CRC integrity checks, automatic recovery, and immediate vector placeholder fallbacks.
+- **Reading Journal & Offline Stats:** Tracks reading minutes, sessions, completion percentages, streaks, and period stats entirely offline on SD card.
+- **Zero Data Loss Guarantee:** User settings and reading records are written atomically (`.tmp` write followed by atomic rename) with backup rotation (`.pre-v6-vN.bak`). Upgrades will **never** overwrite or reset your books, bookmarks, or reading logs.
 
-Both software portrait rotations are captured in [clockwise](verification/screenshots/v04-portrait-cw-library.png) and [counterclockwise](verification/screenshots/v04-portrait-ccw-library.png) physical output screenshots. Rotate the screen image as you would hold the Switch; the application output itself is rotated once.
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="verification/screenshots/v04-library-1920.png" alt="PaperNX Library" width="700">
+  <br><em>Touchscreen library grid with cover cache and quick action bar</em>
+</p>
+
+<p align="center">
+  <img src="verification/screenshots/v04-settings-focus-landscape.png" alt="Settings & Live Preview" width="700">
+  <br><em>Comprehensive settings panel with real-time typography preview</em>
+</p>
+
+<p align="center">
+  <img src="verification/screenshots/v04-sepia-epub-settings.png" alt="Sepia Reading Theme" width="700">
+  <br><em>Unified warm sepia appearance across reader and chrome</em>
+</p>
 
 ---
 
 ## Installation & Upgrade
 
-1. Download the release package from `dist/v0.4.0-rc3/PaperNX-switch-v0.4.0-rc3.zip`.
-2. Extract and merge the `switch/` directory into the root of your Switch microSD card.
-3. Place your EPUB and PDF files in `switch/PaperNX/books/` or browse existing folders using **Browse SD**.
-4. Launch PaperNX from the Homebrew Menu.
+### Clean Install
+
+1. Download the release archive [`PaperNX-switch-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-switch-v0.9.0.zip).
+2. Extract the archive directly to the root of your Switch microSD card (`sdmc:/`).
+3. Place your `.epub` and `.pdf` files into `sdmc:/switch/PaperNX/books/` (or use the built-in file browser to access any directory).
+4. Launch **PaperNX** from the Homebrew Menu.
 
 ```text
 sdmc:/switch/PaperNX/
-├── PaperNX.nro
-├── books/
-├── data/
-├── fonts/     (NotoSans-Regular.ttf, NotoSans-SemiBold.ttf, NotoSerif-Regular.ttf, OFL.txt)
-├── licenses/
-└── docs/
+├── PaperNX.nro          # Application binary with embedded fonts & assets
+├── books/               # Place your EPUB and PDF books here
+└── fonts/               # Optional custom fonts (NotoSans, NotoSerif, OFL.txt)
 ```
 
+### Upgrading from a Previous Version
+
+Simply extract the new `PaperNX.nro` into `sdmc:/switch/PaperNX/PaperNX.nro`.
+
 > [!IMPORTANT]
-> The release ZIP only updates application executables, fonts, documentation, and license notices. It will **never overwrite** your existing books, reading records, bookmarks, or custom settings. Always preserve `books/` and `data/` when upgrading.
+> The official release package contains only application files, fonts, and an empty `books/` placeholder. It **never contains** `data/`, `logs/`, or user databases, ensuring your existing reading records, bookmarks, collections, and custom themes are preserved intact.
 
 ---
 
-## Touch & Controller Navigation
+## Touch & Controller Controls
 
-Every essential action has a touch route. Physical controller bindings are optional shortcuts:
+All essential features are fully operable via touchscreen. Physical controller bindings are available as optional shortcuts:
 
-| Action | Touch Route | Controller Shortcut |
+| Action | Touch Gesture | Controller Button |
 |---|---|---|
-| **Quick Actions / Menu** | Tap top-right `+` button | Plus (+) |
-| **Open Book** | Tap book card in library or row in browser | A |
-| **Page Turns (Paginated EPUB)** | Tap left/right 30% zones or swipe horizontally | L / R, D-pad Left / Right |
-| **Continuous EPUB Scroll** | Drag vertically up/down | Right stick / D-pad Up / Down |
-| **Toggle Reader Toolbar** | Tap center reading zone | A |
-| **Reading Settings (Aa)** | Tap `+` → Okuma ayarları / Reading settings | X |
-| **Library Settings** | Tap `+` → Okuma ayarları (no book required) | X |
-| **Application Appearance** | Tap `+` → Uygulama görünümü (Theme & Language) | Y |
-| **PDF Zoom & Pan** | Tap −/+ in toolbar; drag zoomed page | ZL / ZR; Left stick |
-| **Table of Contents** | Tap `+` → İçindekiler / Contents → select chapter | Minus (-) |
-| **Bookmarks** | Tap `+` → Yer imleri / Bookmarks | Left shoulder click |
-| **Favorite Book** | Tap star icon on library book card | Left stick click |
-| **Return to Library** | Tap `+` → Kitaplığa dön / Return to library | B |
-| **Exit Application** | Tap `+` → PaperNX’ten çık / Exit PaperNX | Home / B (in root) |
+| **Quick Menu / Options** | Tap top-right `+` button | <kbd>+</kbd> (Plus) |
+| **Open Book** | Tap book card in library or file browser | <kbd>A</kbd> |
+| **Page Turns (Paginated EPUB)** | Tap left/right 30% screen edges or swipe horizontally | <kbd>L</kbd> / <kbd>R</kbd> or D-Pad Left / Right |
+| **Continuous Scroll (EPUB)** | Drag vertically up / down | Right Stick or D-Pad Up / Down |
+| **Toggle Reading Toolbar** | Tap screen center | <kbd>A</kbd> |
+| **Reading Settings (Aa)** | Tap `+` → *Reading settings* | <kbd>X</kbd> |
+| **Appearance & Theme** | Tap `+` → *Appearance & Language* | <kbd>Y</kbd> |
+| **Table of Contents** | Tap `+` → *Table of Contents* | <kbd>-</kbd> (Minus) |
+| **Bookmarks** | Tap `+` → *Bookmarks* | <kbd>ZL</kbd> / Left Bumper |
+| **PDF Zoom & Pan** | Tap −/+ on toolbar; drag zoomed page | <kbd>ZL</kbd> / <kbd>ZR</kbd>; Left Stick |
+| **Favorite Book** | Tap star icon on library card | Left Stick Click (<kbd>L3</kbd>) |
+| **Return to Library** | Tap `+` → *Return to library* | <kbd>B</kbd> |
+| **Exit PaperNX** | Tap `+` → *Exit PaperNX* | <kbd>Home</kbd> / <kbd>B</kbd> (in root) |
 
 ---
 
-## Verification & Architecture
+## Building from Source
 
-- **Test Evidence:** [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md)
-- **Product Roadmap:** [docs/PRODUCT_ROADMAP_2026.md](docs/PRODUCT_ROADMAP_2026.md)
-- **Physical Acceptance Plan:** [docs/DEVICE_TEST_PLAN.md](docs/DEVICE_TEST_PLAN.md)
-- **Design Tokens:** [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)
-- **Known Issues:** [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)
+PaperNX provides reproducible containerized builds using Docker.
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/) and Docker Compose
+- Git
+
+### Build for Nintendo Switch (Target AArch64)
+
+```bash
+git clone https://github.com/ysfbz/PaperNx.git
+cd PaperNx
+
+# Build the Switch NRO binary and release distribution
+docker compose run --rm switch bash scripts/verify-switch.sh
+```
+
+The resulting artifacts are written to `dist/v0.9.0/`:
+- `PaperNX.nro`: Nintendo Switch executable with embedded RomFS assets
+- `PaperNX-switch-v0.9.0.zip`: Clean microSD distribution package
+- `PaperNX-licenses-v0.9.0.zip`: Open-source license documentation
+
+### Build & Test on Desktop (Linux / macOS / WSL)
+
+```bash
+# Run unit, integration, and UI component tests natively
+docker compose run --rm desktop bash scripts/verify-v04.sh native
+
+# Run memory sanitizer checks (ASan / UBSan)
+docker compose run --rm desktop bash scripts/verify-v04.sh sanitizers
+```
+
+---
+
+## Open Source Compliance & Licensing
+
+PaperNX is free software developed by **Yusuf Buzrul** and licensed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
+
+This software includes third-party libraries and fonts licensed under permissive and copyleft open-source terms (MuPDF, libnx, SDL2, SDL2_ttf, FreeType, HarfBuzz, libjpeg-turbo, libpng, zlib, and Noto fonts). Third-party license notices are archived in [`PaperNX-licenses-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-licenses-v0.9.0.zip) and under `third-party-licenses/`.
+
+---
+
+<details>
+<summary><strong>🇹🇷 Türkçe Açıklama / Turkish Documentation (Genişletmek için tıklayın)</strong></summary>
+
+<br>
+
+### Genel Bakış
+
+**PaperNX**, Nintendo Switch için modern C++17, C11, SDL2 ve MuPDF kullanılarak geliştirilmiş, **yerel ve tamamen çevrimdışı bir EPUB ve PDF okuyucudur**. Joy-Con kumandaları konsoldan ayrılmış durumdayken rahatça kitap okuyabilmeniz amacıyla dokunmatik odaklı olarak tasarlanmıştır.
+
+Tüm kitaplarınız, kapak önbelleğiniz, okuma geçmişiniz ve okuma günlüğü istatistikleriniz yalnızca microSD kartınızda saklanır. Kullanıcı hesabı, bulut bağlantısı veya web tarayıcı motoru gerektirmez.
+
+> [!NOTE]
+> **Varsayılan Dil:** PaperNX temiz kurulumda varsayılan olarak **İngilizce** başlar. Eksiksiz **Türkçe** arayüz desteği dahili olarak mevcuttur ve **Ayarlar → Uygulama → Dil** (`+` butonu veya <kbd>Y</kbd>) üzerinden istendiğinde seçilebilir. Tercihiniz kaydedilir ve yeniden başlatmalarda korunur.
+
+### Temel Özellikler
+
+- **Dokunmatik Odaklı Ergonomi:** Tüm eylemler doğrudan ve hassas dokunmatik hedeflerle yönetilir (56px minimum dokunmatik alan). Kumandalar isteğe bağlı kısayol olarak desteklenir.
+- **Gerçek Dikey Sürekli EPUB Kaydırma:** Sahte sayfa hissi olmadan akıcı dikey piksel kaydırma, ayarlanabilir momentum ve pürüzsüz bölüm geçişleri. Klasik sayfalı yatay okuma modu da eksiksiz korunur.
+- **Güçlü PDF Motoru:** MuPDF 1.23.11 tabanlı; genişliğe/sayfaya sığdırma, serbest kaydırma, yakınlaştırma ve belge renk filtreleri (Orijinal, Koyu, Sepya, Ters).
+- **Bütünleşik Kâğıt Görünümü:** Dokuz doğal kâğıt teması (Beyaz, Kitap Kâğıdı, Klasik Sepya, Krem, Koyu Kömür, Gece vb.). Kitaplık, araç çubukları ve okuma pencereleri ortak renk paletini paylaşır.
+- **Çift Dilli Arayüz:** Doğal Türkçe ve İngilizce dil desteği. Kitap içerikleri ve içindekiler orijinal dilinde korunur.
+- **Disk Üzerinde Kapak Önbelleği:** 150×210 RGB24 boyutunda, 32 MiB / 512 dosya ile sınırlandırılmış hızlı kapak önbelleği; sağlama toplamı doğrulaması ve anında beliren şık vektörel kapak yer tutucuları.
+- **Okuma Günlüğü ve Çevrimdışı İstatistikler:** Okuma süresi, oturumlar, tamamlama oranları ve serileri tamamen yerel olarak takip eder.
+- **Sıfır Veri Kaybı Garantisi:** Kullanıcı verileri atomik olarak yazılır (`.tmp` dosyası ardından atomik yeniden adlandırma). Güncellemeler mevcut kitaplarınızı, yer imlerinizi ve ayarlarınızı **asla silmez veya üzerine yazmaz**.
+
+### Kurulum
+
+1. Güncel sürüm arşivini [`PaperNX-switch-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-switch-v0.9.0.zip) indirin.
+2. Arşivi Switch microSD kartınızın ana dizinine (`sdmc:/`) çıkartın.
+3. `.epub` ve `.pdf` kitaplarınızı `sdmc:/switch/PaperNX/books/` dizinine yerleştirin.
+4. Homebrew Menu üzerinden **PaperNX** uygulamasını başlatın.
+
+### Dokunmatik ve Kumanda Kısayolları
+
+| İşlem | Dokunmatik Yol | Kumanda Kısayolu |
+|---|---|---|
+| **Hızlı Menü / İşlemler** | Sağ üstteki `+` butonuna dokunun | <kbd>+</kbd> (Plus) |
+| **Kitap Açma** | Kitap kartına veya gezgindeki satıra dokunun | <kbd>A</kbd> |
+| **Sayfa Çevirme (Sayfalı EPUB)** | Sağ/sol %30 kenara dokunun veya kaydırın | <kbd>L</kbd> / <kbd>R</kbd> veya Yön Tuşları Sol / Sağ |
+| **Sürekli EPUB Kaydırma** | Dikey olarak yukarı / aşağı sürükleyin | Sağ Çubuk veya Yön Tuşları Yukarı / Aşağı |
+| **Araç Çubuğunu Göster/Gizle** | Ekranın ortasına dokunun | <kbd>A</kbd> |
+| **Okuma Ayarları (Aa)** | `+` → *Okuma ayarları* | <kbd>X</kbd> |
+| **Uygulama Görünümü ve Dil** | `+` → *Uygulama görünümü* | <kbd>Y</kbd> |
+| **İçindekiler** | `+` → *İçindekiler* | <kbd>-</kbd> (Minus) |
+| **Yer İmleri** | `+` → *Yer imleri* | <kbd>ZL</kbd> / Sol Omuz |
+| **PDF Yakınlaştırma ve Kaydırma** | Çubukta −/+, büyütülmüş sayfayı sürükleyin | <kbd>ZL</kbd> / <kbd>ZR</kbd>; Sol Çubuk |
+| **Favorilere Ekleme** | Kitap kartındaki yıldıza dokunun | Sol Çubuk Tıklama (<kbd>L3</kbd>) |
+| **Kitaplığa Dönüş** | `+` → *Kitaplığa dön* | <kbd>B</kbd> |
+| **Uygulamadan Çıkış** | `+` → *PaperNX’ten çık* | <kbd>Home</kbd> / <kbd>B</kbd> (ana ekranda) |
+
+### Lisans ve Telif Hakkı
+
+PaperNX, **Yusuf Buzrul** tarafından geliştirilmiş olup **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)** kapsamında lisanslanmıştır. Kullanılan üçüncü taraf kütüphanelerin lisansları `PaperNX-licenses-v0.9.0.zip` içinde sunulmaktadır.
+
+</details>
+
+---
+
+## Author & Maintainer
+
+**Yusuf Buzrul**  
+- GitHub: [@ysfbz](https://github.com/ysfbz)  
+- Repository: [https://github.com/ysfbz/PaperNx](https://github.com/ysfbz/PaperNx)

@@ -13,7 +13,7 @@ struct Tokens {
 };
 inline int pointerX=0,pointerY=0;
 inline bool pointerDown=false;
-inline int language=0;
+inline int language=1;
 inline std::string label(const std::string &text) { return localizeUiText(text,language); }
 inline void pointer(int x,int y,bool down) { pointerX=x; pointerY=y; pointerDown=down; }
 inline bool contains(SDL_Rect r, int x, int y) { return x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h; }

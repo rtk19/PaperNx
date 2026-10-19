@@ -9,6 +9,11 @@
 namespace papernx {
 namespace fs = std::filesystem;
 
+constexpr const char *APP_TITLE = "PaperNX";
+constexpr const char *APP_AUTHOR = "Yusuf Buzrul";
+constexpr const char *APP_VERSION = "0.9.0";
+constexpr const char *APP_VERSION_FULL = "v0.9.0";
+
 enum class Format { Epub, Pdf, Unsupported };
 enum class Sort { Title, Author, Filename, Modified, LastRead };
 enum class Category { All, ContinueReading, Recent, Favorites, Unread, Completed };

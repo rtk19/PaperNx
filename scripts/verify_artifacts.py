@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 import hashlib
 import json
 import argparse
@@ -8,7 +8,7 @@ from artifact_validation import validate_assets, read_romfs, validate_elf, sourc
 from package_release import validate_nro
 
 parser = argparse.ArgumentParser(description="Validate the real Switch ELF/NRO and embedded assets")
-parser.add_argument("--version", default="0.3.0-rc1")
+parser.add_argument("--version", default="0.9.0")
 args = parser.parse_args()
 assert __debug__, "Artifact checks require enabled assertions"
 elf = Path("PaperNX.elf").read_bytes()
@@ -21,7 +21,7 @@ assert nro[icon["offset"]:icon["offset"] + icon["size"]] == Path("assets/brandin
 nacp = assets["nacp"]
 nacp_data = nro[nacp["offset"]:nacp["offset"] + nacp["size"]]
 assert nacp_data[:512].split(b"\0")[0] == b"PaperNX"
-assert nacp_data[512:768].split(b"\0")[0] == b"ysfbz"
+assert nacp_data[512:768].split(b"\0")[0] == b"Yusuf Buzrul"
 assert nacp_data[0x3060:0x3070].split(b"\0")[0].decode() == args.version.removeprefix("v"), "NACP version mismatch"
 files = read_romfs(nro, assets["romfs"])
 for name in ("NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
