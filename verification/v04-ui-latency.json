@@ -1,6 +1,0 @@
-{
-  "environment": "Docker SDL dummy software renderer; CPU event-to-present-return only; physical visible latency UNVERIFIED",
-  "tap_to_pressed_present": {"p50_ms":13.2508,"p95_ms":22.3335,"worst_ms":30.3381},
-  "tap_to_action_present": {"p50_ms":26.9411,"p95_ms":45.0675,"worst_ms":51.9095},
-  "focus_to_present": {"p50_ms":13.1697,"p95_ms":23.3011,"worst_ms":24.6776}
-}

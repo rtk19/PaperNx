@@ -888,14 +888,14 @@ private:
             else if(index==2) screen_=ScreenState::TocModal;
             else if(index==3) screen_=ScreenState::BookmarksModal;
             else if(index==4) { screen_=ScreenState::Reader; toolbarVisible_=true; }
-            else if(action=="Önceki konuma dön") { jumpBack(); screen_=ScreenState::Reader; }
-            else if(action=="Önceki bölüm") { chapterJump(-1); screen_=ScreenState::Reader; }
-            else if(action=="Sonraki bölüm") { chapterJump(1); screen_=ScreenState::Reader; }
-            else if(action==catLabel("Bu kitabın istatistikleri","This book's statistics")){
+            else if(action=="Önceki konuma dön" || action=="Return to previous location") { jumpBack(); screen_=ScreenState::Reader; }
+            else if(action=="Önceki bölüm" || action=="Previous chapter") { chapterJump(-1); screen_=ScreenState::Reader; }
+            else if(action=="Sonraki bölüm" || action=="Next chapter") { chapterJump(1); screen_=ScreenState::Reader; }
+            else if(action==catLabel("Bu kitabın istatistikleri","This book's statistics") || action=="Bu kitabın istatistikleri" || action=="This book's statistics"){
                 journalUI_.showPreview();screen_=ScreenState::JournalPreview;
             }
-            else if(action==catLabel("Saklanan konuma dön","Return to saved place"))returnToPageFlip();
-            else if(action==catLabel("Bu konumu sakla · Sayfa gezintisi","Keep this place · Page Flip"))pinPageFlip();
+            else if(action==catLabel("Saklanan konuma dön","Return to saved place") || action=="Saklanan konuma dön" || action=="Return to saved place")returnToPageFlip();
+            else if(action==catLabel("Bu konumu sakla · Sayfa gezintisi","Keep this place · Page Flip") || action=="Bu konumu sakla · Sayfa gezintisi" || action=="Keep this place · Page Flip")pinPageFlip();
             else quickMenu_=helpMenu_=true;
         } else if(screen_==ScreenState::FileBrowser) {
             if(index==0) screen_=ScreenState::Library;
@@ -920,7 +920,7 @@ private:
     }
     void renderQuickMenu(int w,int h,const ThemePalette &pal) {
         auto r=quickSheet(w,h); ui::surface(renderer_,r,pal.card,16);
-        typography_->renderText(renderer_,typography_->smallFont(),helpMenu_?"DOKUNMA REHBERİ · Kapatmak için dokun":"HIZLI İŞLEMLER",r.x+20,r.y+12,pal.muted,r.w-200);
+        typography_->renderText(renderer_,typography_->smallFont(),ui::label(helpMenu_?"DOKUNMA REHBERİ · Kapatmak için dokun":"HIZLI İŞLEMLER"),r.x+20,r.y+12,pal.muted,r.w-200);
         if(!helpMenu_)ui::button(renderer_,*typography_,{r.x+r.w-164,r.y+4,148,36},
                                  catLabel("Yatay / Dikey","Rotate"),pal);
         if(helpMenu_) {
@@ -2442,7 +2442,7 @@ private:
         if(colorEditing_<0 && choiceKind_<0)paintFocus();
         if(colorEditing_>=0) {
             auto panel=colorPanel(w,h);ui::surface(renderer_,panel,pal.card,16);
-            typography_->renderText(renderer_,typography_->titleFont(),colorEditing_?"Arka plan rengi":"Metin rengi",panel.x+24,panel.y+16,pal.fg);
+            typography_->renderText(renderer_,typography_->titleFont(),ui::label(colorEditing_?"Arka plan rengi":"Metin rengi"),panel.x+24,panel.y+16,pal.fg);
             int cell=(panel.w-48)/4;
             for(int i=0;i<16;++i) {
                 SDL_Rect r{panel.x+24+(i%4)*cell,panel.y+72+(i/4)*60,cell-8,52};
@@ -2450,7 +2450,7 @@ private:
                 if(i==swatchFocus_)ui::focusRing(renderer_,r,pal);
             }
             if(readingContrast(readingColor(extraStyle_.backgroundColor,pal.bg),readingColor(extraStyle_.textColor,pal.fg))<4.5)
-                typography_->renderText(renderer_,typography_->smallFont(),"D\u00fc\u015f\u00fck kontrast",panel.x+24,panel.y+316,pal.accent);
+                typography_->renderText(renderer_,typography_->smallFont(),ui::label("Düşük kontrast"),panel.x+24,panel.y+316,pal.accent);
             ui::button(renderer_,*typography_,{panel.x+24,panel.y+348,(panel.w-64)/2,56},"Vazge\u00e7",pal);
             ui::button(renderer_,*typography_,{panel.x+panel.w/2+8,panel.y+348,(panel.w-64)/2,56},"Kaydet",pal,true);
         }
@@ -2629,8 +2629,9 @@ private:
         int first=int(browserScroll_/64);
         for(int i=first;i<int(browserEntries_.size());++i) {
             int y=112+i*64-int(browserScroll_); if(y>=h-16) break;
+            const std::string itemPrefix = browserEntries_[i].isDirectory ? ui::label("Klasör   ") : ui::label("Kitap    ");
             ui::button(renderer_,*typography_,{32,y,w-64,56},
-                std::string(browserEntries_[i].isDirectory?"Klasör   ":"Kitap    ")+browserEntries_[i].path.filename().u8string(),pal,false,false,false,false);
+                itemPrefix+browserEntries_[i].path.filename().u8string(),pal,false,false,false,false);
         }
         SDL_RenderSetClipRect(renderer_,nullptr);
         if(browserEntries_.empty()) typography_->renderText(renderer_,typography_->uiFont(),ui::label("Bu klasörde EPUB veya PDF bulunamadı."),48,164,pal.muted,w-96);
@@ -2729,12 +2730,12 @@ private:
             SDL_Rect textArea{l.preview.x+margin,l.preview.y+60,l.preview.w-margin*2,l.preview.h-96};
             SDL_RenderSetClipRect(renderer_,&textArea);
             int y=textArea.y;
-            y+=typography_->renderParagraph(renderer_,font,"Bir sayfa, bir dünya",{textArea.x,y,textArea.w,textArea.h},rp.fg,step,true,0)+step/2;
+            y+=typography_->renderParagraph(renderer_,font,ui::label("Bir sayfa, bir dünya"),{textArea.x,y,textArea.w,textArea.h},rp.fg,step,true,0)+step/2;
             int indent=currentFontSize_*extraStyle_.indentation/100;
-            y+=typography_->renderParagraph(renderer_,font,"İstanbul’da güneş doğarken, çığlık çığlığa uçan kuşlar şehrin üstünde süzülüyordu.",
+            y+=typography_->renderParagraph(renderer_,font,ui::label("İstanbul’da güneş doğarken, çığlık çığlığa uçan kuşlar şehrin üstünde süzülüyordu."),
                 {textArea.x,y,textArea.w,textArea.y+textArea.h-y},rp.fg,step,currentTextAlign_!=0,indent);
             y+=currentFontSize_*extraStyle_.paragraphSpacing/100;
-            typography_->renderParagraph(renderer_,font,"Öğrenmek, düşünmek ve hayal kurmak için bir sayfa daha çevir. Güzel bir gün!",
+            typography_->renderParagraph(renderer_,font,ui::label("Öğrenmek, düşünmek ve hayal kurmak için bir sayfa daha çevir. Güzel bir gün!"),
                 {textArea.x,y,textArea.w,std::max(0,textArea.y+textArea.h-y)},rp.fg,step,currentTextAlign_!=0,indent);
             SDL_RenderSetClipRect(renderer_,nullptr);
             if(readingContrast(rp.bg,rp.fg)<4.5) typography_->renderText(renderer_,typography_->smallFont(),ui::label("Düşük kontrast"),l.preview.x+20,l.preview.y+l.preview.h-34,pal.accent);

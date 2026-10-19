@@ -6,8 +6,32 @@ namespace papernx {
 // UI labels only. Never pass document text, metadata, chapter titles or user notes.
 // 0 = Turkish, 1 = English. Other values conservatively preserve the source.
 inline std::string localizeUiText(const std::string &text, int language) {
-    if (language != 1) return text;
     using Label = std::pair<const char *, const char *>;
+    if (language != 1) {
+        if (language == 0) {
+            static constexpr Label enToTr[] = {
+                {"Settings could not be saved", "Ayarlar kaydedilemedi"},
+                {"Book metadata could not be saved", "Kitap bilgileri kaydedilemedi"},
+                {"Reading goal could not be saved", "Okuma hedefi kaydedilemedi"},
+                {"Reading status unchanged: progress write failed.", "Okuma durumu değişmedi: ilerleme yazılamadı."},
+                {"Status rollback failed. Check SD card before changing books.", "Durum geri alınamadı. Kitap değiştirmeden önce SD kartı kontrol edin."},
+                {"Portrait output unavailable; landscape restored", "Dikey çıktı kullanılamıyor; yatay görünüme dönüldü"},
+                {"Could not save. Check the SD card; saving will retry.", "Kaydedilemedi. SD kartı kontrol edin; kayıt yeniden denenecek."},
+                {"Could not save. Check SD card; save will be retried.", "Kaydedilemedi. SD kartı kontrol edin; kayıt yeniden denenecek."}
+            };
+            for (const auto &l : enToTr) if (text == l.first) return l.second;
+            static constexpr Label enToTrPrefixes[] = {
+                {"Reading journal not saved: ", "Okuma günlüğü kaydedilemedi: "},
+                {"Catalog could not be saved: ", "Katalog kaydedilemedi: "}
+            };
+            for (const auto &p : enToTrPrefixes) {
+                const std::string prefix = p.first;
+                if (text.compare(0, prefix.size(), prefix) == 0)
+                    return std::string(p.second) + text.substr(prefix.size());
+            }
+        }
+        return text;
+    }
     static constexpr Label labels[] = {
         {"Kitaplığa dön","Back to library"}, {"Kitaplık","Library"},
         {"Okuma ayarları · Aa","Reading settings · Aa"}, {"Okuma ayarları","Reading settings"},
@@ -140,7 +164,58 @@ inline std::string localizeUiText(const std::string &text, int language) {
         {"Seri","Series"},
         {"Tür","Genre"},
         {"Yazarlar, türler ve koleksiyonlar","Authors, genres and collections"},
-        {"Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"}
+        {"Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"},
+        {"Genel tema · Kitaplığa uygulanır","Global theme · Applied to library"},
+        {"Bu kitabın teması · Genel temaya dön","This book's theme · Return to global"},
+        {"Genel temayı kullanıyor · Bu kitabı özelleştir","Using global theme · Customize this book"},
+        {"Saklanan konuma dön","Return to saved place"},
+        {"Bu konumu sakla · Sayfa gezintisi","Keep this place · Page Flip"},
+        {"Bu kitabın istatistikleri","This book's statistics"},
+        {"Geri dön","Go back"},
+        {"Hedeflerim","My goals"},
+        {"Arka plan rengi","Background color"},
+        {"Metin rengi","Text color"},
+        {"Düzenle","Edit"},
+        {"Yeniden adlandır","Rename"},
+        {"Koleksiyon oluştur","Create collection"},
+        {"Koleksiyonları yönet","Manage collections"},
+        {"Koleksiyon yönet","Manage collection"},
+        {"Koleksiyonu kaldır","Delete collection"},
+        {"Kitap işlemleri","Book actions"},
+        {"Kitap bilgisi","Book details"},
+        {"Kitap bilgileri","Book metadata"},
+        {"Grup seçin","Select a group"},
+        {"Gizlenen kitaplar","Hidden books"},
+        {"Kalıcı silinsin mi?","Delete permanently?"},
+        {"Kalıcı olarak sil","Delete permanently"},
+        {"Geri sil","Backspace"},
+        {"Henüz okunmadı","Not read yet"},
+        {"Başlanmadı","Not started"},
+        {"Otomatik","Automatic"},
+        {"Henüz öğe yok","No items"},
+        {"Kitaplık gezgini","Browse library"},
+        {"Kitaplığı gez","Browse library"},
+        {"PDF renkleri Görünüm sekmesinden ayarlanır.","PDF colors are adjusted in Appearance."},
+        {"Bir sayfa, bir dünya","One page, one world"},
+        {"İstanbul’da güneş doğarken, çığlık çığlığa uçan kuşlar şehrin üstünde süzülüyordu.","As the morning sun rises over the horizon, birds soar peacefully across the waking city."},
+        {"Öğrenmek, düşünmek ve hayal kurmak için bir sayfa daha çevir. Güzel bir gün!","Turn another page to discover, imagine, and learn. It is a wonderful day to read!"},
+        {"Hata: JSON aktarılamadı","Error: Could not export JSON"},
+        {"Hata: CSV aktarılamadı","Error: Could not export CSV"},
+        {"15 dk","15 min"},
+        {"30 dk","30 min"},
+        {"45 dk","45 min"},
+        {"Settings could not be saved","Settings could not be saved"},
+        {"Book metadata could not be saved","Book metadata could not be saved"},
+        {"Reading goal could not be saved","Reading goal could not be saved"},
+        {"Ayarlar kaydedilemedi","Settings could not be saved"},
+        {"Kitap bilgileri kaydedilemedi","Book metadata could not be saved"},
+        {"Okuma hedefi kaydedilemedi","Reading goal could not be saved"},
+        {"Reading status unchanged: progress write failed.","Reading status unchanged: progress write failed."},
+        {"Status rollback failed. Check SD card before changing books.","Status rollback failed. Check SD card before changing books."},
+        {"Portrait output unavailable; landscape restored","Portrait output unavailable; landscape restored"},
+        {"Okuma durumu değişmedi: ilerleme yazılamadı.","Reading status unchanged: progress write failed."},
+        {"Durum geri alınamadı. Kitap değiştirmeden önce SD kartı kontrol edin.","Status rollback failed. Check SD card before changing books."},
+        {"Dikey çıktı kullanılamıyor; yatay görünüme dönüldü","Portrait output unavailable; landscape restored"}
     };
     for (const auto &label : labels) if (text == label.first) return label.second;
     // Some bundled font paths lack U+2212; support the ASCII control variant.
@@ -166,7 +241,14 @@ inline std::string localizeUiText(const std::string &text, int language) {
         {"−    Yakınlaştırma: %","−    Zoom: %"}, {"Bölüm ","Chapter "},
         {"Klasör   ","Folder   "}, {"Kitap    ","Book    "},
         {"Kitap açılamadı: ","Could not open book: "}, {"Düzen hazırlanamadı: ","Could not prepare layout: "},
-        {"Yeniden boyutlandırma hatası: ","Resize error: "}
+        {"Yeniden boyutlandırma hatası: ","Resize error: "},
+        {"Son okuma: ","Last read: "}, {"İlerleme: ","Progress: "},
+        {"Bugün: ","Today: "}, {"Toplam: ","Total: "},
+        {"Tahmini kalan: ","Estimated remaining: "}, {"Geri getir: ","Restore: "},
+        {"Reading journal not saved: ","Reading journal not saved: "},
+        {"Catalog could not be saved: ","Catalog could not be saved: "},
+        {"Okuma günlüğü kaydedilemedi: ","Reading journal not saved: "},
+        {"Katalog kaydedilemedi: ","Catalog could not be saved: "}
     };
     for (const auto &p : prefixes) {
         const std::string prefix = p.first;

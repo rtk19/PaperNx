@@ -1,6 +1,6 @@
-# v0.4 touch and controller controls
+# PaperNX Touch and Controller Controls
 
-See [interaction specification](V04_INTERACTION_SPEC.md) for thresholds, coordinate transforms and modal safety; [device acceptance](DEVICE_TEST_PLAN.md) remains UNVERIFIED.
+Controls overview for touch gestures and Nintendo Switch controllers.
 
 | Action | Touch | Controller |
 |---|---|---|

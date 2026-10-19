@@ -61,9 +61,10 @@ inline void button(SDL_Renderer *r, Typography &type, SDL_Rect rect, const std::
 }
 // Professional e-reader list action: left-aligned label, separate focus/selection,
 // restrained divider, and consistent typography across modal and quick-action lists.
-inline void menuRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &label,
+inline void menuRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &rawLabel,
                     const ThemePalette &pal,bool selected=false,bool focused=false,bool destructive=false) {
     if(rect.w<=0||rect.h<=0)return;
+    const std::string label = ui::label(rawLabel);
     const auto fill=selected?pal.accent:(pointerDown&&contains(rect,pointerX,pointerY)?pal.cardBorder:pal.card);
     surface(r,rect,fill,8);
     SDL_SetRenderDrawColor(r,pal.cardBorder.r,pal.cardBorder.g,pal.cardBorder.b,255);
@@ -87,7 +88,7 @@ struct StepperLayout {
 inline void settingsRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &label,
                         const std::string &value,const ThemePalette &pal,bool focused=false,bool editing=false) {
     surface(r,rect,focused?pal.card:pal.header);
-    StepperLayout layout(rect); int height=0; type.measureText(type.uiFont(),label,nullptr,&height);
+    StepperLayout layout(rect); int height=0; type.measureText(type.uiFont(),ui::label(label),nullptr,&height);
     if(layout.label.w>0) type.renderText(r,type.uiFont(),ui::label(label),layout.label.x,rect.y+(rect.h-height)/2,pal.fg,layout.label.w);
     button(r,type,layout.minus,"-",pal,false,false,false);
     button(r,type,layout.plus,"+",pal,false,false,false);

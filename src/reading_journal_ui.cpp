@@ -931,10 +931,10 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
             label(en, "Okuma serisi", "Reading streak")
         };
         const std::string sValues[] = {
-            std::to_string(stats.daysRead) + (en ? " days" : " gün"),
+            std::to_string(stats.daysRead) + (en ? (stats.daysRead == 1 ? " day" : " days") : " gün"),
             std::to_string(stats.averageSessionMinutes) + (en ? " min" : " dk"),
             std::to_string(stats.finishedBooks),
-            std::to_string(stats.streakDays) + (en ? " days" : " gün")
+            std::to_string(stats.streakDays) + (en ? (stats.streakDays == 1 ? " day" : " days") : " gün")
         };
         for (int i = 0; i < 4; ++i) {
             SDL_Rect tRc = l.metricTiles[i];
@@ -1194,9 +1194,9 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
 
         // Presets row: 15, 30, 45, Off
         int preW = (pw - 48 - 3 * 10) / 4;
-        ui::button(r, font, {pxM + 24, pyM + 182, preW, 52}, "15 dk", pal, journal.dailyGoalMinutes() == 15, false, false);
-        ui::button(r, font, {pxM + 24 + 1 * (preW + 10), pyM + 182, preW, 52}, "30 dk", pal, journal.dailyGoalMinutes() == 30, false, false);
-        ui::button(r, font, {pxM + 24 + 2 * (preW + 10), pyM + 182, preW, 52}, "45 dk", pal, journal.dailyGoalMinutes() == 45, false, false);
+        ui::button(r, font, {pxM + 24, pyM + 182, preW, 52}, label(en, "15 dk", "15 min"), pal, journal.dailyGoalMinutes() == 15, false, false);
+        ui::button(r, font, {pxM + 24 + 1 * (preW + 10), pyM + 182, preW, 52}, label(en, "30 dk", "30 min"), pal, journal.dailyGoalMinutes() == 30, false, false);
+        ui::button(r, font, {pxM + 24 + 2 * (preW + 10), pyM + 182, preW, 52}, label(en, "45 dk", "45 min"), pal, journal.dailyGoalMinutes() == 45, false, false);
         ui::button(r, font, {pxM + 24 + 3 * (preW + 10), pyM + 182, preW, 52}, label(en, "Kapalı", "Off"), pal, journal.dailyGoalMinutes() == 0, false, false);
 
         ui::button(r, font, {pxM + 24, pyM + 250, pw - 48, 56}, label(en, "Tamam", "Done"), pal, true, false, false);
@@ -1219,7 +1219,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
         textSmall(r, font, label(en, "Konum: ", "Path: ") + exportDirStr, pxM + 24, pyM + 104, pal.muted, pw - 48);
 
         if (!exportMessage_.empty()) {
-            textSmall(r, font, exportMessage_, pxM + 24, pyM + 132, pal.accent, pw - 48);
+            textSmall(r, font, ui::label(exportMessage_), pxM + 24, pyM + 132, pal.accent, pw - 48);
         }
 
         int btnW = (pw - 60) / 2;

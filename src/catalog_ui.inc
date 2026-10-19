@@ -289,7 +289,7 @@ void renderCatalogPanel(int w,int h,const ThemePalette &pal){
     ui::button(renderer_,*typography_,{r.x+r.w-124,r.y+12,108,56},catLabel("Geri","Back"),pal,false,false,true,false);
     // Persisted catalog errors must remain visible above the modal, not hidden under it.
     if(!currentErrorMessage_.empty())
-        typography_->renderText(renderer_,typography_->smallFont(),currentErrorMessage_,r.x+20,r.y+60,
+        typography_->renderText(renderer_,typography_->smallFont(),ui::label(currentErrorMessage_),r.x+20,r.y+60,
                                 ui::destructiveColor(pal),r.w-44);
     if(catalogPanel_==CatalogPanel::Text){
         typography_->renderWrapped(renderer_,typography_->uiFont(),inputText_+"|",{r.x+20,r.y+80,r.w-40,64},pal.fg);

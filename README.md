@@ -43,25 +43,6 @@ All books, cover art caches, reading progress, and personal reading journal stat
 
 ---
 
-## Screenshots
-
-<p align="center">
-  <img src="verification/screenshots/v04-library-1920.png" alt="PaperNX Library" width="700">
-  <br><em>Touchscreen library grid with cover cache and quick action bar</em>
-</p>
-
-<p align="center">
-  <img src="verification/screenshots/v04-settings-focus-landscape.png" alt="Settings & Live Preview" width="700">
-  <br><em>Comprehensive settings panel with real-time typography preview</em>
-</p>
-
-<p align="center">
-  <img src="verification/screenshots/v04-sepia-epub-settings.png" alt="Sepia Reading Theme" width="700">
-  <br><em>Unified warm sepia appearance across reader and chrome</em>
-</p>
-
----
-
 ## Installation & Upgrade
 
 ### Clean Install
@@ -89,7 +70,7 @@ Simply extract the new `PaperNX.nro` into `sdmc:/switch/PaperNX/PaperNX.nro`.
 
 ## Touch & Controller Controls
 
-All essential features are fully operable via touchscreen. Physical controller bindings are available as optional shortcuts:
+All essential features are fully operable via touchscreen. Physical controller bindings are available as optional shortcuts (see [docs/TOUCH_CONTROLS.md](docs/TOUCH_CONTROLS.md) for full gesture reference):
 
 | Action | Touch Gesture | Controller Button |
 |---|---|---|
@@ -147,7 +128,7 @@ docker compose run --rm desktop bash scripts/verify-v04.sh sanitizers
 
 ## Open Source Compliance & Licensing
 
-PaperNX is free software developed by **Yusuf Buzrul** and licensed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
+PaperNX is free software developed by **Yusuf Buzrul with AI assistance** and licensed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
 
 This software includes third-party libraries and fonts licensed under permissive and copyleft open-source terms (MuPDF, libnx, SDL2, SDL2_ttf, FreeType, HarfBuzz, libjpeg-turbo, libpng, zlib, and Noto fonts). Third-party license notices are archived in [`PaperNX-licenses-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-licenses-v0.9.0.zip) and under `third-party-licenses/`.
 
@@ -187,6 +168,8 @@ Tüm kitaplarınız, kapak önbelleğiniz, okuma geçmişiniz ve okuma günlüğ
 
 ### Dokunmatik ve Kumanda Kısayolları
 
+Tüm temel özellikler dokunmatik ekran üzerinden doğrudan yönetilebilir. Fiziksel kumanda tuşları isteğe bağlı kısayol olarak desteklenmektedir (ayrıntılı jest kılavuzu için [docs/TOUCH_CONTROLS.md](docs/TOUCH_CONTROLS.md) belgesine bakın):
+
 | İşlem | Dokunmatik Yol | Kumanda Kısayolu |
 |---|---|---|
 | **Hızlı Menü / İşlemler** | Sağ üstteki `+` butonuna dokunun | <kbd>+</kbd> (Plus) |
@@ -205,7 +188,10 @@ Tüm kitaplarınız, kapak önbelleğiniz, okuma geçmişiniz ve okuma günlüğ
 
 ### Lisans ve Telif Hakkı
 
-PaperNX, **Yusuf Buzrul** tarafından geliştirilmiş olup **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)** kapsamında lisanslanmıştır. Kullanılan üçüncü taraf kütüphanelerin lisansları `PaperNX-licenses-v0.9.0.zip` içinde sunulmaktadır.
+PaperNX, **Yusuf Buzrul** tarafından yapay zekâ desteğiyle geliştirilmiştir ve **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)** kapsamında lisanslanmıştır. Kullanılan üçüncü taraf kütüphanelerin lisansları `PaperNX-licenses-v0.9.0.zip` içinde sunulmaktadır.
+
+- Yusuf Buzrul tarafından yapay zekâ desteğiyle geliştirilmiştir.
+- Geliştirici profili: [https://github.com/ysfbz](https://github.com/ysfbz)
 
 </details>
 
@@ -214,5 +200,7 @@ PaperNX, **Yusuf Buzrul** tarafından geliştirilmiş olup **[GNU Affero General
 ## Author & Maintainer
 
 **Yusuf Buzrul**  
-- GitHub: [@ysfbz](https://github.com/ysfbz)  
+- Developed by Yusuf Buzrul with AI assistance.
+- GitHub: [@ysfbz](https://github.com/ysfbz) ([https://github.com/ysfbz](https://github.com/ysfbz))  
 - Repository: [https://github.com/ysfbz/PaperNx](https://github.com/ysfbz/PaperNx)
+

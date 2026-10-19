@@ -19,4 +19,9 @@ __pycache__/
 /third-party-licenses/
 *.nacp
 
-/verification/screenshots/*.bmp
+/verification/
+.ninja*
+.cache/
+Thumbs.db
+.vscode/
+.idea/
