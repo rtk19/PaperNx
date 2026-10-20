@@ -1,0 +1,89 @@
+{
+  "source": {
+    "git_revision": "a45a52ffa6a8ddc5a267416c71fbf942cde11f79",
+    "implementation_sha256": "05d181c7d05145a1462dcf2d877668118cd7d975b827959988e4b8c245b4bee2"
+  },
+  "build_receipt": {
+    "source_before": {
+      "git_revision": "a45a52ffa6a8ddc5a267416c71fbf942cde11f79",
+      "implementation_sha256": "05d181c7d05145a1462dcf2d877668118cd7d975b827959988e4b8c245b4bee2"
+    },
+    "source_after": {
+      "git_revision": "a45a52ffa6a8ddc5a267416c71fbf942cde11f79",
+      "implementation_sha256": "05d181c7d05145a1462dcf2d877668118cd7d975b827959988e4b8c245b4bee2"
+    },
+    "outputs": {
+      "PaperNX.elf": {
+        "sha256": "131fdfce9ed3324f7f16e7eda453ba1191729e294d5207ff74ec6ce0c3a890e5",
+        "bytes": 77238296,
+        "architecture": "AArch64",
+        "machine": 183,
+        "type": 3
+      },
+      "PaperNX.nro": {
+        "sha256": "41d2d0addbf276d42add3ca81119b4a018fd970dfc2d65c6f0098d59fc9e07bb",
+        "bytes": 49016723
+      }
+    }
+  },
+  "name": "PaperNX-switch-v0.12.0-reader.1.zip",
+  "version": "v0.12.0-reader.1",
+  "sha256": "b08cd326b1a92605c65f327959c29c70e995fb58bdcbe83b3838b01573241598",
+  "licenses_archive": {
+    "name": "PaperNX-licenses-v0.12.0-reader.1.zip",
+    "sha256": "4cb1861565bd783346c257e0dbd631635ed85964b18ea7ae4b13e1fa10509130"
+  },
+  "nro": {
+    "sha256": "41d2d0addbf276d42add3ca81119b4a018fd970dfc2d65c6f0098d59fc9e07bb",
+    "declared_size": 47132672,
+    "actual_size": 49016723,
+    "segments": [
+      {
+        "name": ".text",
+        "offset": 0,
+        "size": 9596928
+      },
+      {
+        "name": ".rodata",
+        "offset": 9596928,
+        "size": 36995072
+      },
+      {
+        "name": ".data",
+        "offset": 46592000,
+        "size": 540672
+      }
+    ],
+    "assets": {
+      "icon": {
+        "offset": 47132728,
+        "size": 13795
+      },
+      "nacp": {
+        "offset": 47146523,
+        "size": 16384
+      },
+      "romfs": {
+        "offset": 47162907,
+        "size": 1853816
+      }
+    }
+  },
+  "contents": [
+    "switch/PaperNX/books/",
+    "switch/PaperNX/fonts/",
+    "switch/PaperNX/PaperNX.nro",
+    "switch/PaperNX/fonts/NotoSans-Regular.ttf",
+    "switch/PaperNX/fonts/NotoSans-SemiBold.ttf",
+    "switch/PaperNX/fonts/NotoSerif-Regular.ttf",
+    "switch/PaperNX/fonts/OFL.txt",
+    "switch/PaperNX/fonts/NotoSansHebrew-Regular.ttf",
+    "switch/PaperNX/fonts/NotoSansHebrew-SemiBold.ttf",
+    "switch/PaperNX/fonts/NotoSerifHebrew-Regular.ttf",
+    "switch/PaperNX/fonts/NotoHebrew-OFL.txt",
+    "switch/PaperNX/fonts/HEBREW-SOURCE.md"
+  ],
+  "sd_root_target": "sdmc:/",
+  "verified_format": "NRO0",
+  "hardware_verified": false
+}
