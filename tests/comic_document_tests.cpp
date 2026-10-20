@@ -64,6 +64,15 @@ int main() {
     PxImage image{};assert(px_document_render(doc,0,200,320,&image,error,sizeof error));expectColor(image,230,45,30);px_image_free(&image);
     assert(px_document_render(doc,1,200,320,&image,error,sizeof error));expectColor(image,30,190,80);px_image_free(&image);
     assert(px_document_render(doc,2,200,320,&image,error,sizeof error));expectColor(image,255,255,255);px_image_free(&image);px_document_close(doc);
+    doc=px_document_open((root+"damaged-cover.cbz").c_str(),600,720,22,"",error,sizeof error);
+    assert(doc && px_document_render_thumbnail(doc,150,210,&image,error,sizeof error));expectColor(image,220,40,35);px_image_free(&image);px_document_close(doc);
+    for(const char *name:{"large-cover.cbz","large-cover.cbr","large-cover-rar4-solid.cbr"}) {
+        doc=px_document_open_limited((root+name).c_str(),600,720,22,"",error,sizeof error,16u*1024u*1024u);
+        assert(doc && !px_document_render_thumbnail(doc,150,210,&image,error,sizeof error));px_document_close(doc);
+        doc=px_document_open_limited((root+name).c_str(),600,720,22,"",error,sizeof error,96u*1024u*1024u);
+        if(!doc)std::cerr<<error<<"\n";
+        assert(doc && px_document_render_thumbnail(doc,150,210,&image,error,sizeof error));expectColor(image,230,70,30);px_image_free(&image);px_document_close(doc);
+    }
     assert(!px_document_open_limited((root+"sample.cbz").c_str(),600,720,22,"",error,sizeof error,1024));
     std::thread worker([]{for(int i=0;i<3;++i)standard("sample-rar4-solid.cbr");});
     for(int i=0;i<3;++i)standard("sample-rar4-solid.cbr");

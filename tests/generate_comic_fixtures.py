@@ -36,6 +36,7 @@ def main():
     archive(ROOT/'unsafe.cbz',entries+[('../outside.png',pages[0][1]),('/absolute.png',pages[0][1]),('.hidden/page.png',pages[0][1])])
     archive(ROOT/'empty.cbz',[('readme.txt',b'No image pages')])
     archive(ROOT/'broken-page.cbz',[(n,b'broken image' if 'Page2' in n else data) for n,data in pages])
+    archive(ROOT/'damaged-cover.cbz',[(n,b'broken image' if 'Page2' in n else data) for n,data in pages]+[('ComicInfo.xml',INFO.encode())])
     archive(ROOT/'bad-info.cbz',pages+[('ComicInfo.xml',b'<ComicInfo><Title>')])
     archive(ROOT/'huge-number.cbz',[('p'+('9'*160)+'.png',pages[0][1]),('p2.png',pages[1][1]),('p1.png',pages[2][1])])
     archive(ROOT/'unicode.cbz',[('日本語/עמוד2.PNG',pages[1][1]),('日本語/עמוד1.PNG',pages[2][1])])
@@ -50,6 +51,11 @@ def main():
     assets=ROOT/'image-assets'
     if assets.exists():
         archive(ROOT/'mixed-images.cbz',[(f.name,f.read_bytes()) for f in sorted(assets.iterdir())])
+    large=ROOT/'large-cover-source';large.mkdir(exist_ok=True)
+    # A typical scan needs over 40 MiB decoded, even though the PNG compresses well.
+    (large/'Page1.png').write_bytes(png(3000,4500,(230,70,30)))
+    (large/'ComicInfo.xml').write_text(INFO.replace('Image="1"','Image="0"'),encoding='utf-8')
+    archive(ROOT/'large-cover.cbz',[(f.name,f.read_bytes()) for f in sorted(large.iterdir())])
     print('Generated comic ZIP fixtures:',ROOT)
 
 if __name__=='__main__':main()

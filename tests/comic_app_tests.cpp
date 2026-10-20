@@ -24,7 +24,7 @@ struct AppTest {
     static void run(const fs::path &root) {
         PaperNxApp app(root);assert(app.init());assert(app.typography_->uiFont());ui::language=1;
         SDL_RendererInfo info{};SDL_GetRendererInfo(app.renderer_,&info);std::cout<<"Comic renderer: "<<info.name<<"\n";
-        assert(app.books_.size()==5);
+        assert(app.books_.size()==6);
         auto book=[&](const char *filename) {return *std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==filename;});};
         const Book cbz=book("sample.cbz"),rar=book("sample.cbr"),manga=book("manga.cbz"),broken=book("broken.cbz");
         assert(cbz.format==Format::Cbz && rar.format==Format::Cbr);
@@ -34,6 +34,53 @@ struct AppTest {
         const auto cachedCover=app.coverRepository_.read(cbz);assert(cachedCover);
         const auto *pixel=cachedCover->rgb.data()+(cachedCover->height/4)*cachedCover->stride+(cachedCover->width/4)*3;
         assert(std::abs(int(pixel[1])-185)<8); // ComicInfo FrontCover, not the first page.
+        // A real, compressed RAR5 scan exceeds the old 16 MiB thumbnail budget.
+        const Book large=book("large.cbr");app.getOrRenderThumbnail(large);
+        const Uint32 largeDeadline=SDL_GetTicks()+5000;
+        while(!app.thumbCache_.get("thumb_"+large.id) && SDL_GetTicks()<largeDeadline){SDL_Delay(10);app.processCompletedThumbnails();}
+        assert(app.thumbCache_.get("thumb_"+large.id));
+        app.openBook(large);app.zoomPdf(5);app.render();
+        const unsigned builds=app.comicTextureBuilds_;assert(builds>0);
+        app.setPdfView(0);app.zoomPdf(3);app.pdfPanY_=400;
+        auto imagePoint=[&]{int w,h;app.getWindowSize(w,h);float pw=0,ph=0;assert(px_document_page_size(app.doc_,0,&pw,&ph));
+            const float vw=app.fixedViewportWidth(w),vh=h-144,scale=std::min(vw/pw,vh/ph)*app.pdfZoom_;
+            return std::pair<float,float>{(.65f*w-app.currentMargin_-std::max(0.f,(vw-pw*scale)/2)+app.pdfPanX_)/scale,
+                (.45f*h-72-std::max(0.f,(vh-ph*scale)/2)+app.pdfPanY_)/scale};};
+        const auto focal=imagePoint();app.zoomPdf(4,.65f,.45f);const auto after=imagePoint();
+        assert(std::abs(focal.first-after.first)<4 && std::abs(focal.second-after.second)<4);
+        app.zoomPdf(5);app.pdfPanX_=200;app.pdfPanY_=600;app.toolbarVisible_=false;
+        app.toolbarVisible_=true;
+        touch(app,SDL_FINGERDOWN,.65f,.4f);touch(app,SDL_FINGERMOTION,.64f,.4f);touch(app,SDL_FINGERUP,.64f,.4f);
+        assert(app.pdfPanX_>200 && app.toolbarVisible_ && app.currentPage_==0);
+        app.pdfPanX_=0;
+        touch(app,SDL_FINGERDOWN,.5f,.4f);touch(app,SDL_FINGERMOTION,.6f,.4f);assert(app.pdfPanX_==0);
+        touch(app,SDL_FINGERMOTION,.59f,.4f);assert(app.pdfPanX_>0); // Immediate reversal at an edge.
+        touch(app,SDL_FINGERUP,.59f,.4f);
+        app.toolbarVisible_=false;app.pdfPanX_=200;
+        const auto begin=std::chrono::steady_clock::now();
+        touch(app,SDL_FINGERDOWN,.65f,.5f);
+        for(int frame=1;frame<=60;++frame){touch(app,SDL_FINGERMOTION,.65f-frame*(.2f/1280),.5f);app.render();}
+        assert(app.pdfPanX_==212); // Fractional motion accumulates instead of rounding away every event.
+        touch(app,SDL_FINGERUP,.65f-60*(.2f/1280),.5f);
+        app.zoomPdf(4);app.render();app.zoomPdf(5);app.render();
+        assert(app.comicTextureBuilds_==builds); // Neither panning nor zooming decodes/uploads another page.
+        std::cout<<"60 high-resolution comic pan frames: "<<std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-begin).count()<<" ms; new rasterizations: "<<app.comicTextureBuilds_-builds<<"\n";
+        app.pdfPanX_=200;app.pdfPanY_=600;
+        touch(app,SDL_FINGERDOWN,.6f,.5f);app.pdfLastMotionTick_=SDL_GetTicks()-16;
+        touch(app,SDL_FINGERMOTION,.5f,.5f);touch(app,SDL_FINGERUP,.5f,.5f);
+        assert(app.currentPage_==0 && app.panVelocityX_>0);
+        const int releasedX=app.pdfPanX_;app.panPhysicsTick_=SDL_GetTicks()-16;app.tickComicPan();assert(app.pdfPanX_>releasedX);
+        auto portrait=app.appSettings_.get();portrait.displayOrientation=1;app.appSettings_.put(portrait);
+        app.setPdfView(0);app.zoomPdf(5);app.panVelocityX_=app.panVelocityY_=0;app.render();
+        app.idlePrefetch();app.comicDetailDue_=SDL_GetTicks()-1;app.idlePrefetch();
+        assert(app.comicDetailTexture_ && !app.comicDetailKey_.empty());
+        portrait.displayOrientation=0;app.appSettings_.put(portrait);app.setPdfView(0);app.zoomPdf(5);
+        snapshot(app,"zoom-reset");
+        int width,height;app.getWindowSize(width,height);const auto reset=app.zoomResetRect(width,height);
+        touch(app,SDL_FINGERDOWN,float(reset.x+reset.w/2)/width,float(reset.y+reset.h/2)/height);
+        touch(app,SDL_FINGERUP,float(reset.x+reset.w/2)/width,float(reset.y+reset.h/2)/height);
+        assert(app.pdfZoom_==1 && app.pdfPanX_==0 && app.pdfPanY_==0 && app.canCurlPage() && !app.showZoomReset());
+        app.closeBook();
         app.openBook(cbz);assert(app.doc_ && app.comic() && app.pageCount_==3 && !app.comicReadingColors());
         assert(app.catalog_.apply(cbz).title=="The Signal — Issue 7");
         assert(app.catalog_.get(cbz.id).sourceSeries=="PaperNX Test Comics");
@@ -50,6 +97,11 @@ struct AppTest {
         app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.setPdfView(1);assert(app.pdfZoom_>=1);app.setPdfView(0);assert(app.canCurlPage());
+        app.zoomPdf(3);app.render();
+        int resetW,resetH;app.getWindowSize(resetW,resetH);const auto button=app.zoomResetRect(resetW,resetH);
+        app.handleTap(float(button.x+button.w/2)/resetW,float(button.y+button.h/2)/resetH);
+        assert(app.pdfZoom_==1 && app.extraStyle_.pdfViewMode==0 && app.canCurlPage());
+        app.turnPage(1);assert(app.pageTurnAnimation_.active);finish(app);
         app.openSettings(false,0);assert(app.settingsRows()==1);snapshot(app,"artwork-settings");app.dismissSettings();
         app.extraStyle_.pdfColorMode|=COMIC_READING_COLORS;app.queueStyleChange();
         assert(app.comicReadingColors());snapshot(app,"reader-palette");
@@ -83,7 +135,7 @@ struct AppTest {
         app.openBook(broken);app.currentPage_=1;assert(!app.getOrRenderPageTexture(1));assert(!app.pageRenderError_.empty());
         app.turnPage(1);assert(app.currentPage_==2 && app.getOrRenderPageTexture(2) && app.pageRenderError_.empty());app.closeBook();
         app.browserPath_=root/"external";app.scanBrowserDirectory();assert(app.browserEntries_.size()==1);
-        app.handleBrowserSelect();assert(app.comic() && app.books_.size()==6);app.closeBook();
+        app.handleBrowserSelect();assert(app.comic() && app.books_.size()==7);app.closeBook();
         app.flushProgress();
     }
 };
@@ -95,6 +147,7 @@ int main() {
     fs::create_directories(root/"books");fs::create_directories(root/"external");
     for(const auto &pair:std::vector<std::pair<std::string,std::string>>{{"sample.cbz","sample.cbz"},{"sample-rar4-solid.cbr","sample.cbr"},{"manga.cbz","manga.cbz"},{"broken-page.cbz","broken.cbz"}})
         fs::copy_file("tests/fixtures/comics/"+pair.first,root/"books"/pair.second);
+    fs::copy_file("tests/fixtures/comics/large-cover.cbr",root/"books"/"large.cbr");
     fs::copy_file("tests/fixtures/sample_book.epub",root/"books"/"sample.epub");
     fs::copy_file("tests/fixtures/comics/sample-rar5.cbr",root/"external"/"outside.CBR");
     fs::create_directory_symlink(fs::absolute("fonts"),root/"fonts");

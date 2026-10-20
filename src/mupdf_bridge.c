@@ -480,7 +480,15 @@ int px_document_render_thumbnail(PxDocument *d, int max_w, int max_h, PxImage *o
         fz_catch(d->ctx) { px_image_free(out); ok = 0; }
         if (ok) return 1;
     }
-    return px_document_render(d, d->comic?px_comic_cover_page(d->doc):0, max_w, max_h, out, err, cap);
+    if(d->comic) {
+        const int cover=px_comic_cover_page(d->doc);
+        if(px_document_render(d,cover,max_w,max_h,out,err,cap))return 1;
+        /* Bad optional cover art must not hide otherwise readable pages. */
+        for(int i=0;i<d->pages && i<8;++i)
+            if(i!=cover && px_document_render(d,i,max_w,max_h,out,err,cap))return 1;
+        return 0;
+    }
+    return px_document_render(d,0,max_w,max_h,out,err,cap);
 }
 
 void px_image_free(PxImage *i) {

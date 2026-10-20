@@ -5,7 +5,7 @@ exec > >(tee verification/switch.log) 2>&1
 export PATH="${DEVKITPRO}/portlibs/switch/bin:${PATH}"
 bash scripts/build-mupdf-switch.sh /work/prefix-mupdf-switch
 export MUPDF_PREFIX=/work/prefix-mupdf-switch
-version="${PAPERNX_RELEASE_VERSION:-v0.10.0-comics.1}"
+version="${PAPERNX_RELEASE_VERSION:-v0.10.0-comics.2}"
 release_dir="${PAPERNX_RELEASE_DIST:-dist/${version}}"
 python3 scripts/build_receipt.py start
 make all -B -j4

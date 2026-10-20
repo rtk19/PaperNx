@@ -91,6 +91,14 @@ int main() {
         assert(fs::exists(outside / (key + ".pnxc")));
         assert(fs::exists(outside / "sentinel.txt"));
     }
+    // Comic decoder upgrades invalidate old black cover pixels without touching progress/books.
+    Book legacy=book;legacy.path=(root/"scan.cbr").string();legacy.format=Format::Unsupported;
+    {std::ofstream out(legacy.path);out<<"original comic";}
+    CoverImage black=image;std::fill(black.rgb.begin(),black.rgb.end(),0);
+    CoverRepository comicCache(root/"comic-covers");assert(comicCache.write(legacy,black));
+    Book comic=legacy;comic.format=Format::Cbr;
+    assert(!comicCache.read(comic));assert(comicCache.write(comic,image));assert(comicCache.read(comic)->rgb==image.rgb);
+    assert(fs::exists(comic.path));
     fs::remove_all(root); // Dedicated unique test-owned directory only.
     std::cout << "cover repository tests passed\n";
 }

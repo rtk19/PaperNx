@@ -7,7 +7,7 @@
 <p align="center">Offline EPUB, PDF, CBZ and CBR reading on Nintendo Switch, with interactive paper curls.</p>
 
 <p align="center">
-  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1">Download this fork</a> ·
+  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.2">Download this fork</a> ·
   <a href="docs/COMICS.md">Comic reader guide</a> ·
   <a href="https://github.com/ysfbz/PaperNx">Original project</a> ·
   <a href="LICENSE">AGPL-3.0</a>
@@ -19,26 +19,26 @@
 
 The fork adds touch-controlled, perspective page curls and CBZ/CBR comic reading while retaining the original EPUB/PDF reader, offline library, reading journal and settings. The original project's authorship and license are preserved.
 
-**Current release: [v0.10.0-comics.1](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1), a prerelease.** Desktop tests, archive sanitizers, OpenGL rendering and the Switch build/package checks passed. Physical Nintendo Switch compatibility, frame rate and touch latency have **not yet been verified**.
+**Current release: [v0.10.0-comics.2](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.2), a prerelease.** Desktop tests, archive sanitizers, OpenGL rendering and the Switch build/package checks passed. Physical Nintendo Switch compatibility, frame rate and touch latency have **not yet been verified**.
 
 ## Downloads — use Release Assets
 
-Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
+Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.2) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
 
 | Asset | Purpose |
 |---|---|
-| [PaperNX-switch-v0.10.0-comics.1.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX-switch-v0.10.0-comics.1.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
-| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
-| [PaperNX-licenses-v0.10.0-comics.1.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX-licenses-v0.10.0-comics.1.zip) | Project and third-party license notices. |
-| [PaperNX-source-v0.10.0-comics.1.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX-source-v0.10.0-comics.1.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
-| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
-| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/manifest.json) | Binary hashes, build receipt and source revision. |
-| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
-| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/README.md) | Short installation and source reference to keep with the downloads. |
+| [PaperNX-switch-v0.10.0-comics.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/PaperNX-switch-v0.10.0-comics.2.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
+| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
+| [PaperNX-licenses-v0.10.0-comics.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/PaperNX-licenses-v0.10.0-comics.2.zip) | Project and third-party license notices. |
+| [PaperNX-source-v0.10.0-comics.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/PaperNX-source-v0.10.0-comics.2.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
+| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
+| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/manifest.json) | Binary hashes, build receipt and source revision. |
+| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
+| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.2/README.md) | Short installation and source reference to keep with the downloads. |
 
 GitHub's automatic **Source code** archives also contain source. To run the reader on Switch, use the NRO or installation ZIP.
 
-The released binary comes from commit [`34473d3`](https://github.com/rtk19/PaperNx/commit/34473d348e941e68a40821e2348a88a5ddfb5b5d). Later documentation or release-publishing updates on `main` do not change that binary. The `builds/<version>` branches retain archived build copies; Release Assets are the download location for users.
+The `manifest.json` asset records the exact source revision used to build the NRO. Later documentation or release-publishing updates on `main` do not change that binary. The `builds/<version>` branches retain archived build copies; Release Assets are the download location for users.
 
 ## Installation and upgrades
 
@@ -67,21 +67,17 @@ For a quick NRO integrity check, download `PaperNX.nro.sha256` next to the NRO a
 sha256sum --check PaperNX.nro.sha256
 ```
 
-On PowerShell, use `Get-FileHash .\PaperNX.nro -Algorithm SHA256` and compare with that file. The current NRO SHA-256 is:
-
-```text
-2e7c3e7c7d0bad45da4d3bcc3025d54cdbd745003bae7a5b8770a35fb77e2988
-```
-
+On PowerShell, use `Get-FileHash .\PaperNX.nro -Algorithm SHA256` and compare with that file.
 ## Reading and fork features
 
 - **Interactive paper curl:** drag horizontally, hold the sheet, or reverse the drag to return it. Initial grip height and vertical movement affect the fold; release distance and speed determine completion or cancellation. Paginated EPUB and fit-to-page PDF/comics use the animation. Enlarged fixed-layout pages pan instead of curling.
+- **Comic cover and zoom fixes (comics.2):** larger bounded cover decoding, automatic comic cover-cache refresh, a visible **Fit page** reset, cached GPU panning/pinching, momentum and native viewport detail after motion stops.
 - **CBZ/CBR comics:** ZIP, RAR4 and RAR5, including solid archives; natural numeric page order, nested folders, Unicode names, ComicInfo metadata, front covers and contents bookmarks. Images are decoded without extracting the archive onto the SD card.
 - **Comic and manga controls:** fit-page, fit-width, actual size, zoom/pan, original artwork colors or an optional reader palette, and left-to-right/right-to-left navigation. ComicInfo can set the initial manga direction. Continuous scrolling fits pages to the viewport width and supports momentum/sensitivity settings.
 - **Resume and navigation:** bookmarks and progress include the position inside a continuously scrolled comic page, including across reopen, margin changes and rotation. Contents, page navigation and navigation history remain available.
 - **Existing reader/library:** EPUB typography and continuous scrolling, PDF zoom/pan, coordinated paper themes, search, favorites, collections, metadata editing, cover cache, reading status, journal and offline statistics.
 
-Tap the center to show reader tools, or use **+** for the quick menu. Reading settings expose **Artwork**, **Borders**, **Appearance**, **Navigation** and **Page view** as appropriate for the open format. A comic's text is part of its image; use zoom to enlarge lettering and panels. Its original colors are preserved by default, independently of the surrounding theme.
+Tap the center to show reader tools, or use **+** for the quick menu. Reading settings expose **Artwork**, **Borders**, **Appearance**, **Navigation** and **Page view** as appropriate for the open format. A comic's text is part of its image; use zoom to enlarge lettering and panels. Its original colors are preserved by default, independently of the surrounding theme. While zoomed, **Fit page** stays visible even when the toolbar is hidden; it resets zoom/pan and restores page curls. The same action is available in the + menu and on the right-stick click.
 
 Touch and controllers are supported. D-pad navigation follows the comic's spatial reading direction; optional L/R shortcuts remain logical previous/next. See [comic controls and supported formats](docs/COMICS.md) and [general touch controls](docs/TOUCH_CONTROLS.md).
 
@@ -114,7 +110,7 @@ docker compose build desktop
 docker compose run --rm desktop bash scripts/verify-desktop.sh
 ```
 
-Switch outputs are written to `dist/v0.10.0-comics.1/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
+Switch outputs are written to `dist/v0.10.0-comics.2/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
 
 The manually dispatched **Publish verified release assets** workflow attaches existing, verified `builds/<tag>` artifacts to the corresponding release. It checks the original hashes and source tag, includes a source archive, and publishes an updated checksum list. It does not rebuild or retag the NRO.
 
@@ -130,8 +126,8 @@ Fork maintainer: **[@rtk19](https://github.com/rtk19)**. The fork retains the **
 
 ## הנחיות קצרות בעברית
 
-זהו פורק עצמאי של **rtk19**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1), תחת **Assets**.
+זהו פורק עצמאי של **rtk19**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.2), תחת **Assets**.
 
-להתקנה ראשונה הורידו את `PaperNX-switch-v0.10.0-comics.1.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
+להתקנה ראשונה הורידו את `PaperNX-switch-v0.10.0-comics.2.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
 
-אפשר להוסיף EPUB, PDF, CBZ ו־CBR לתיקיית `books/` או לפתוח דרך דפדפן הקבצים. קומיקס תומך באנימציות במגע, זום, גלילה רציפה ומנגה; צבעי האיורים נשמרים כברירת מחדל. ארכיונים מוצפנים או מפוצלים אינם נתמכים. זו גרסת ניסיון שטרם אומתה על Switch פיזי. הממשק עצמו באנגלית או בטורקית.
+אפשר להוסיף EPUB, PDF, CBZ ו־CBR לתיקיית `books/` או לפתוח דרך דפדפן הקבצים. קומיקס תומך באנימציות במגע, זום, גלילה רציפה ומנגה; צבעי האיורים נשמרים כברירת מחדל. ארכיונים מוצפנים או מפוצלים אינם נתמכים. במצב זום, הכפתור **Fit page** מאפס את ההגדלה והמיקום ומחזיר את אנימציית הדפדוף. עדכון זה מתקן גם כריכות של קומיקס גדול ומשפר את הגרירה בתוך התמונה. זו גרסת ניסיון שטרם אומתה על Switch פיזי. הממשק עצמו באנגלית או בטורקית.

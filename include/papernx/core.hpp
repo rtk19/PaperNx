@@ -11,8 +11,8 @@ namespace fs = std::filesystem;
 
 constexpr const char *APP_TITLE = "PaperNX";
 constexpr const char *APP_AUTHOR = "Yusuf Buzrul";
-constexpr const char *APP_VERSION = "0.10.0-comics.1";
-constexpr const char *APP_VERSION_FULL = "v0.10.0-comics.1";
+constexpr const char *APP_VERSION = "0.10.0-comics.2";
+constexpr const char *APP_VERSION_FULL = "v0.10.0-comics.2";
 
 enum class Format { Epub, Pdf, Cbz, Cbr, Unsupported };
 const char *formatName(Format format);

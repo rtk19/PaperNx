@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing release tag with a matching builds/<tag> branch
         required: true
-        default: v0.10.0-comics.1
+        default: v0.10.0-comics.2
         type: string
 
 permissions:

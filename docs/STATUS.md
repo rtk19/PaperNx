@@ -1,3 +1,10 @@
+# Fork update: v0.10.0-comics.2
+
+Fixes high-resolution comic covers, automatically refreshes comic cover caches,
+adds an always-visible Fit page zoom reset, and accelerates zoomed panning/pinch
+with a bounded GPU page cache and momentum. Native viewport detail is restored
+at rest for extreme zoom. Physical Switch performance remains unverified.
+
 # Fork update: v0.10.0-comics.1
 
 CBZ/CBR comics now share the existing reader and library: page curls with touch,

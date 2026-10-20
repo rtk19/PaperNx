@@ -1,4 +1,4 @@
-# CBZ and CBR comics — v0.10.0-comics.1
+# CBZ and CBR comics — v0.10.0-comics.2
 
 Copy `.cbz` or `.cbr` files into `sdmc:/switch/PaperNX/books/`, including
 subfolders, or open them directly through the SD browser. Extensions are case
@@ -15,6 +15,9 @@ they do for existing books. Existing EPUB/PDF records and files remain compatibl
 - **Reading settings → Page view** offers fit-page, fit-width, actual size, zoom,
   zoom preservation, original/reader colors and left-to-right/right-to-left
   reading. Pinch or use the toolbar to zoom; drag enlarged artwork to pan.
+  A floating **Fit page** button remains visible while zoomed, including with
+  the toolbar hidden. It resets zoom and pan, selects fit-page, and restores
+  curls. The + menu and right-stick click expose the same reset.
   As with PDF, a zoomed viewport pans instead of curling. Return to fit-page
   for a complete sheet curl. Logical next/previous buttons stay next/previous;
   spatial touch edges, swipes and D-pad follow the manga direction.
@@ -88,3 +91,29 @@ All fixture artwork is original; see `tests/fixtures/comics/README.md`.
 Automated desktop rendering and AArch64/NRO packaging checks do not establish
 physical Nintendo Switch touch latency, frame rate or hardware compatibility.
 Those require a device run.
+
+
+## Cover and pan fixes in comics.2
+
+Comic library covers now receive the same bounded 96 MiB document budget as the
+reader, replacing the 16 MiB thumbnail budget that could read metadata but fail
+to decode a normal high-resolution PNG scan. Comic cover cache keys are versioned,
+so older cached black artwork is regenerated automatically; EPUB/PDF caches and
+reading records are preserved. If a ComicInfo cover is damaged, thumbnails try a
+bounded number of other pages. No brightness heuristic discards legitimate dark
+artwork.
+
+Zoomed comic motion reuses a GPU page texture (up to 3072 pixels per side and
+6 Mi pixels, constrained by renderer limits), rather than rasterizing/uploading
+a new viewport per touch event. Drag positions accumulate from the starting
+point, pinch preserves the image point under the fingers, and panning has optional
+momentum using the existing inertia preference. A pan inside a zoomed comic does
+not accidentally turn a page. At extreme zoom, a single native-resolution viewport
+is refined after movement stops, retaining reading detail without per-motion
+rasterization. The document and texture budgets remain bounded.
+
+Regression fixtures include original 3000×4500 PNG scans in CBZ, RAR5 and solid
+RAR4. Tests reproduce the old low-budget failure, verify the library worker and
+cache migration, exercise the visible reset followed by a page curl, check
+fractional pan movement/pinch focus and momentum, and verify that 60 moving frames
+reuse the same page rasterization. Desktop timing is not a Switch frame-rate claim.

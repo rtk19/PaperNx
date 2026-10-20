@@ -53,6 +53,7 @@
             add("reader.toc",{w<900?184:w-520,8,w<900?136:160,56});
             add("reader.bookmarks",{w<900?336:w-344,8,w<900?112:136,56});
             add("reader.settings",{w<900?464:w-192,8,w<900?80:96,56});
+            if(showZoomReset())add("reader.zoom-reset",zoomResetRect(w,h));
         }
         navigationFocus_.finish();
     }
