@@ -64,12 +64,13 @@ void tickControllerInput() {
         stickAxes_[axis]=SDL_GameControllerGetAxis(controller_,static_cast<SDL_GameControllerAxis>(axis));
     const float rx=stickAmount(stickAxes_[2]),ry=stickAmount(stickAxes_[3]);
     if(zoomPanContext()) {
-        if(pageTurnAnimation_.active)return;
+        if(pageTurnAnimation_.active || !activeFingers_.empty())return;
         const unsigned held=heldKeyboardPan_|heldPadPan_;
         float x=stickAmount(stickAxes_[0])+rx+float(bool(held&2))-float(bool(held&1));
         float y=stickAmount(stickAxes_[1])+ry+float(bool(held&8))-float(bool(held&4));
         const float length=std::max(1.f,std::hypot(x,y));
-        panReaderBy(x/length*850.f*dt,y/length*850.f*dt);
+        // A centered stick must not cancel momentum from a touch gesture.
+        if(std::abs(x)+std::abs(y)>.001f)panReaderBy(x/length*850.f*dt,y/length*850.f*dt);
         return;
     }
     heldKeyboardPan_=heldPadPan_=0;

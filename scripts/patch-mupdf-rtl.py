@@ -10,10 +10,26 @@ import sys
 
 root = Path(sys.argv[1])
 changes = {
+    "source/html/html-imp.h": [
+        ("enum { TA_LEFT, TA_RIGHT, TA_CENTER, TA_JUSTIFY };",
+         "enum { TA_LEFT, TA_RIGHT, TA_CENTER, TA_JUSTIFY, TA_START, TA_END };"),
+        ("unsigned int text_align : 2;", "unsigned int text_align : 3;"),
+    ],
+    "source/html/css-apply.c": [
+        ("\tstyle->text_align = TA_LEFT;", "\tstyle->text_align = TA_START;"),
+        ('else if (!strcmp(value->data, "justify")) style->text_align = TA_JUSTIFY;',
+         'else if (!strcmp(value->data, "justify")) style->text_align = TA_JUSTIFY;\n'
+         '\t\telse if (!strcmp(value->data, "start")) style->text_align = TA_START;\n'
+         '\t\telse if (!strcmp(value->data, "end")) style->text_align = TA_END;'),
+    ],
     "source/html/html-parse.c": [
         ("#define DEFAULT_DIR FZ_BIDI_LTR", "#define DEFAULT_DIR FZ_BIDI_NEUTRAL"),
     ],
     "source/html/html-layout.c": [
+        ("\tif (box->markup_dir == FZ_BIDI_RTL)\n\t{\n\t\tif (align == TA_LEFT)\n\t\t\talign = TA_RIGHT;\n\t\telse if (align == TA_RIGHT)\n\t\t\talign = TA_LEFT;\n\t}",
+         "\t/* Resolve logical alignment; explicit left/right stay physical. */\n"
+         "\tif (align == TA_START)\n\t\talign = box->markup_dir == FZ_BIDI_RTL ? TA_RIGHT : TA_LEFT;\n"
+         "\telse if (align == TA_END)\n\t\talign = box->markup_dir == FZ_BIDI_RTL ? TA_LEFT : TA_RIGHT;"),
         ("float x = box->s.layout.x + indent;",
          "float x = box->s.layout.x + (box->markup_dir == FZ_BIDI_RTL ? 0 : indent);"),
         ("(align == TA_JUSTIFY) ? TA_LEFT : align",
@@ -32,4 +48,4 @@ for name, replacements in changes.items():
             raise SystemExit(f"Unexpected MuPDF source: {name}: {old!r} ({count})")
         text = text.replace(old, new)
     path.write_text(text)
-print("MuPDF: automatic paragraph direction, RTL final lines and indentation applied")
+print("MuPDF: auto direction, logical start/end, physical publisher alignment, RTL final lines/indent applied")

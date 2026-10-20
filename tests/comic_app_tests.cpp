@@ -69,6 +69,7 @@ struct AppTest {
         touch(app,SDL_FINGERDOWN,.6f,.5f);app.pdfLastMotionTick_=SDL_GetTicks()-16;
         touch(app,SDL_FINGERMOTION,.5f,.5f);touch(app,SDL_FINGERUP,.5f,.5f);
         assert(app.currentPage_==0 && app.panVelocityX_>0);
+        app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.panVelocityX_>0);
         const int releasedX=app.pdfPanX_;app.panPhysicsTick_=SDL_GetTicks()-16;app.tickComicPan();assert(app.pdfPanX_>releasedX);
         auto portrait=app.appSettings_.get();portrait.displayOrientation=1;app.appSettings_.put(portrait);
         app.setPdfView(0);app.zoomPdf(5);app.panVelocityX_=app.panVelocityY_=0;app.render();

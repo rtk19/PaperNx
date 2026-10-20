@@ -59,9 +59,9 @@ in logical order with the appropriate font and direction. Hebrew fallback faces
 are cached by point size and weight/family. Font provenance and hashes are in
 [fonts/HEBREW-SOURCE.md](../fonts/HEBREW-SOURCE.md).
 
-[scripts/patch-mupdf-rtl.py](../scripts/patch-mupdf-rtl.py) applies three checked
+[scripts/patch-mupdf-rtl.py](../scripts/patch-mupdf-rtl.py) applies checked
 changes to checksum-pinned MuPDF 1.23.11: automatic default paragraph direction,
-directional indentation, and directional endings for justified lines. The patch
+directional indentation and endings for justified lines, and logical `start`/`end` alignment. Publisher `left`/`right` declarations retain their physical meaning in both LTR and RTL text. The patch
 hash participates in the Switch library cache fingerprint and source receipt.
 The original source tarball is never modified. Run
 `scripts/verify-pinned-desktop.sh` for the same patched renderer on desktop;

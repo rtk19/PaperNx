@@ -221,6 +221,7 @@ def create_hebrew_variants(base):
         source = {name: archive.read(name) for name in archive.namelist()}
     for name, language, spine in (("hebrew_auto", "he", ""),
                                    ("hebrew_legacy", "iw-IL", ""),
+                                   ("hebrew_publisher", "he", ""),
                                    ("hebrew_spine_ltr", "he", ' page-progression-direction="ltr"'),
                                    ("hebrew_spine_rtl", "en", ' page-progression-direction="rtl"')):
         entries = dict(source)
@@ -234,6 +235,13 @@ def create_hebrew_variants(base):
             '<p>' + 'זהו ספר בעברית ובו פסקה ארוכה שמיועדת לבדוק מעבר שורות וסידור נכון של המילים. ' * 8 + '</p>'
             '<p>שורה ראשונה<br/>שורה אחרונה</p></body></html>').encode()
         entries["OEBPS/toc.xhtml"] = entries["OEBPS/toc.xhtml"].decode().replace("Birinci Bölüm", "פרק ראשון").encode()
+        if name == "hebrew_publisher":
+            chapter = entries["OEBPS/ch1.xhtml"].decode()
+            chapter = chapter.replace('<p>שלום עולם</p>', '<p style="text-align:right">שלום עולם</p>')
+            chapter = chapter.replace('<p>English 123</p>', '<p style="text-align:left">English 123</p>')
+            chapter = chapter.replace('<p dir="ltr">', '<p dir="ltr" style="text-align:left">')
+            chapter = chapter.replace('<p dir="rtl">', '<p dir="rtl" style="text-align:right">')
+            entries["OEBPS/ch1.xhtml"] = chapter.encode()
         with zipfile.ZipFile(FIXTURES_DIR / (name + ".epub"), "w") as archive:
             for entry, data in entries.items():
                 write_entry(archive, entry, data)

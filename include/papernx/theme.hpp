@@ -84,7 +84,7 @@ inline std::string generateEpubCss(int themeIdx, int fontFamily, int fontSize, i
     if (fontFamily == 1) fontFamilyCss = "sans-serif";
     else if (fontFamily == 2) fontFamilyCss = "inherit"; // publisher default
 
-    const char *alignCss = (textAlign == 1) ? "left" : "justify";
+    const char *alignCss = (textAlign == 1) ? "start" : "justify";
     float lineHeight = (lineHeightPercent > 0) ? (float)lineHeightPercent / 100.0f : 1.4f;
 
     char buffer[1024];
@@ -155,7 +155,7 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
         "h1,h2,h3,h4,h5,h6 { color: #%02x%02x%02x !important; } "
         "img,svg { max-width: 100%%; height: auto; } ",
         style.fontSize, style.lineHeight / 100.0, fg.r, fg.g, fg.b, style.lineHeight / 100.0,
-        style.textAlign ? "left" : "justify", style.paragraphSpacing / 100.0, style.indentation / 100.0,
+        style.textAlign ? "start" : "justify", style.paragraphSpacing / 100.0, style.indentation / 100.0,
         fg.r, fg.g, fg.b);
     result += css;
     if (style.fontFamily != 2) result += std::string("body, p, li, blockquote, span, em, strong, td, th { font-family: ") +
