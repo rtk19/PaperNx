@@ -1,8 +1,10 @@
 // Included inside PaperNxApp. Integrate held controls once per frame; SDL does
 // not generate repeat events for controller buttons or stationary stick axes.
-int stickAxes_[4]{};
+int stickAxes_[SDL_CONTROLLER_AXIS_MAX]{};
+ControllerNavigator rightControllerNav_;
+bool controllerFocused_{true};
 unsigned heldKeyboardPan_{0},heldPadPan_{0};
-Uint32 controllerInputTick_{0},rightPageTick_{0};
+Uint32 controllerInputTick_{0};
 float controllerRemainderX_{0},controllerRemainderY_{0};
 bool zoomPanContext() const {
     return doc_ && screen_==ScreenState::Reader && !quickMenu_ &&
@@ -15,12 +17,29 @@ static float stickAmount(int value) {
     return (value<0?-1.f:1.f)*std::min(1.f,(std::abs(value)-dead)/float(32767-dead));
 }
 bool controllerMotionActive() const {
-    return heldKeyboardPan_ || heldPadPan_ || std::abs(stickAxes_[2])>8000 || std::abs(stickAxes_[3])>8000;
+    if(heldKeyboardPan_ || heldPadPan_)return true;
+    for(int axis:stickAxes_)if(std::abs(axis)>4000)return true;
+    return false;
 }
 void clearHeldControls() {
     heldKeyboardPan_=heldPadPan_=0;
     for(auto &axis:stickAxes_)axis=0;
     controllerRemainderX_=controllerRemainderY_=0;controllerInputTick_=SDL_GetTicks();
+    controllerNav_=ControllerNavigator{};rightControllerNav_=ControllerNavigator{};
+    zoomFractionX_=zoomFractionY_=0;zoomLastPage_=-1;
+}
+void navigateStick(int axis,int value) {
+    const bool right=axis>=SDL_CONTROLLER_AXIS_RIGHTX;
+    auto &navigator=right?rightControllerNav_:controllerNav_;
+    int dx=0,dy=0;
+    if(!navigator.processAxis(right?axis-SDL_CONTROLLER_AXIS_RIGHTX:axis,value,dx,dy))return;
+    if(choiceKind_>=0 || colorEditing_>=0 || catalogPanel_!=CatalogPanel::None) {
+        // Send the same directional action to the topmost modal for either stick.
+        SDL_Event event{};event.type=SDL_CONTROLLERBUTTONDOWN;
+        event.cbutton.button=dx<0?SDL_CONTROLLER_BUTTON_DPAD_LEFT:dx>0?SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            dy<0?SDL_CONTROLLER_BUTTON_DPAD_UP:SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+        bool running=true;handleEvent(event,running);
+    } else handleAnalog(dx,dy);
 }
 void panReaderBy(float dx,float dy) {
     if(!doc_ || px_document_is_epub(doc_) || pageTurnAnimation_.active)return;
@@ -35,9 +54,12 @@ void panReaderBy(float dx,float dy) {
     if(pdfPanX_!=oldX || pdfPanY_!=oldY)dirty_=true;
 }
 bool trackHeldControl(const SDL_Event &event) {
-    if(event.type==SDL_CONTROLLERAXISMOTION && event.caxis.axis<=SDL_CONTROLLER_AXIS_RIGHTY) {
+    if(event.type==SDL_CONTROLLERAXISMOTION && event.caxis.axis<SDL_CONTROLLER_AXIS_MAX) {
+        if(!controllerMotionActive())controllerInputTick_=SDL_GetTicks();
         stickAxes_[event.caxis.axis]=event.caxis.value;
-        return event.caxis.axis>=SDL_CONTROLLER_AXIS_RIGHTX || zoomPanContext();
+        if(controllerFocused_ && !appBackground_ && !zoomPanContext() && event.caxis.axis<=SDL_CONTROLLER_AXIS_RIGHTY)
+            navigateStick(event.caxis.axis,event.caxis.value);
+        return true;
     }
     const bool key=event.type==SDL_KEYDOWN || event.type==SDL_KEYUP;
     const bool pad=event.type==SDL_CONTROLLERBUTTONDOWN || event.type==SDL_CONTROLLERBUTTONUP;
@@ -51,17 +73,23 @@ bool trackHeldControl(const SDL_Event &event) {
     auto &held=key?heldKeyboardPan_:heldPadPan_;
     if(!down) {held&=~bit;return false;}
     if(!zoomPanContext() || !comic())return false;
-    if(!(held&bit)) {
-        held|=bit;panReaderBy(value==left?-64.f:value==right?64.f:0.f,value==up?-64.f:value==bottom?64.f:0.f);
-    }
+    if(!heldKeyboardPan_ && !heldPadPan_)controllerInputTick_=SDL_GetTicks();
+    held|=bit; // Integrate from elapsed time, including the very first frame.
     return true;
 }
 void tickControllerInput() {
     const auto now=SDL_GetTicks();
     const float dt=std::min(.05f,(now-controllerInputTick_)/1000.f);controllerInputTick_=now;
-    if(appBackground_) {clearHeldControls();return;}
-    if(controller_) for(int axis=0;axis<4;++axis)
+    if(appBackground_ || !controllerFocused_) {clearHeldControls();return;}
+    if(controller_) for(int axis=0;axis<SDL_CONTROLLER_AXIS_MAX;++axis)
         stickAxes_[axis]=SDL_GameControllerGetAxis(controller_,static_cast<SDL_GameControllerAxis>(axis));
+    const bool fixedReader=doc_ && screen_==ScreenState::Reader && !quickMenu_ && !continuous() &&
+        !px_document_is_epub(doc_) && catalogPanel_==CatalogPanel::None && choiceKind_<0 && colorEditing_<0;
+    if(fixedReader && !pageTurnAnimation_.active && activeFingers_.empty()) {
+        auto trigger=[](int value){return std::clamp((value-4000)/28767.f,0.f,1.f);};
+        const float zoom=trigger(stickAxes_[SDL_CONTROLLER_AXIS_TRIGGERRIGHT])-trigger(stickAxes_[SDL_CONTROLLER_AXIS_TRIGGERLEFT]);
+        if(std::abs(zoom)>.001f)zoomPdf(pdfZoom_*std::exp(zoom*1.1f*dt),.5f,.5f,true);
+    }
     const float rx=stickAmount(stickAxes_[2]),ry=stickAmount(stickAxes_[3]);
     if(zoomPanContext()) {
         if(pageTurnAnimation_.active || !activeFingers_.empty())return;
@@ -74,24 +102,5 @@ void tickControllerInput() {
         return;
     }
     heldKeyboardPan_=heldPadPan_=0;
-    if(std::abs(ry)<.001f)return;
-    const float delta=ry*850.f*dt;
-    int w,h;getWindowSize(w,h);
-    if(colorEditing_>=0)return;
-    if(choiceKind_>=0) {
-        const auto content=choiceContentRect(w,h);
-        choiceScroll_=std::clamp(choiceScroll_+delta,0.f,std::max(0.f,float(choiceOptions().size()*56-content.h)));
-    } else if(catalogPanel_!=CatalogPanel::None) {
-        const auto panel=catalogPanelRect(w,h);
-        const int available=panel.y+panel.h-16-catalogContentTop(panel);
-        catalogScroll_=std::clamp(catalogScroll_+delta,0.f,float(std::max(0,int(catalogRows().size())*64-available)));
-    } else if(screen_==ScreenState::Reader && !quickMenu_) {
-        if(continuous()) {scrollBy(delta*extraStyle_.scrollSensitivity/100.f);saveCurrentPosition();}
-        else if(!px_document_is_epub(doc_))panReaderBy(rx*850.f*dt,delta);
-        else if(now-rightPageTick_>=350 && !pageTurnAnimation_.active) {turnPage(ry>0?1:-1);rightPageTick_=now;}
-    } else {
-        uiScroll()=std::clamp(uiScroll()+delta,0.f,maxUiScroll());
-        if(screen_==ScreenState::ReadingJournal)journalUI_.setScrollY(int(journalScroll_));
-    }
-    listVelocity_=0;dirty_=true;
+    for(int axis=0;axis<=SDL_CONTROLLER_AXIS_RIGHTY;++axis)navigateStick(axis,stickAxes_[axis]);
 }

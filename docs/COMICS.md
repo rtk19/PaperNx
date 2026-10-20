@@ -1,4 +1,4 @@
-# CBZ and CBR comics — v0.10.0-comics.2
+# CBZ and CBR comics — v0.11.0-reader.2
 
 Copy `.cbz` or `.cbr` files into `sdmc:/switch/PaperNX/books/`, including
 subfolders, or open them directly through the SD browser. Extensions are case
@@ -14,16 +14,21 @@ they do for existing books. Existing EPUB/PDF records and files remain compatibl
   At fit-page, taps, D-pad and optional L/R shortcuts also turn pages.
 - **Reading settings → Page view** offers fit-page, fit-width, actual size, zoom,
   zoom preservation, original/reader colors and left-to-right/right-to-left
-  reading. Pinch or use the toolbar to zoom; drag enlarged artwork to pan.
+  reading. Pinch or use the toolbar to zoom; hold **ZR** to zoom in or **ZL** to zoom out continuously. Releasing a trigger stops zoom; opposing triggers cancel. Zoom is anchored at the viewport center, respects the existing 0.1x–5x bounds and is inactive in menus. Drag enlarged artwork to pan.
   A floating **Fit page** button remains visible while zoomed, including with
   the toolbar hidden. It resets zoom and pan and fits the entire page. The + menu and right-stick **click** expose the same reset.
   Page curls also work while zoomed: drag horizontally from the left/right edge
   (outer 12% of the screen), tap a page-turn edge, or use L/R. Zoom stays at the
   same level; every new page starts at the top and the appropriate reading side.
-  Drag the middle of the image to pan. D-pad/arrows and LS pan zoomed comics;
-  hold a direction for smooth continuous movement (64 pixels on the initial
-  press, up to 850 pixels/second while held). RS tilt pans enlarged pages and
-  scrolls lists/menus throughout the app, proportionally to stick deflection.
+  Drag the middle of the image to pan. D-pad/arrows and either stick pan zoomed comics;
+  holding a direction moves continuously at up to 850 pixels/second, including
+  the first frame with no extra initial jump. LS and RS use identical deadzones,
+  proportional panning and navigation/repeat behavior throughout the app, including
+  modal lists, choices and palettes. Existing stick-click shortcuts remain.
+  The animation bends the complete paper sheet at its actual size and pan
+  position; surrounding reader margins stay stationary. The incoming sheet has
+  its own aspect ratio and top-of-page position. Offscreen paper is clipped to
+  the reading area; snapshot memory is bounded independently of zoom.
   Logical next/previous buttons stay next/previous; spatial touch edges and
   swipes follow the manga direction. PDF arrow/page-turn behavior is unchanged.
 - **Reading mode → Continuous scrolling** places pages edge to edge at viewport

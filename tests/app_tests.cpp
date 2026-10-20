@@ -455,7 +455,9 @@ struct AppTest {
         key(app, SDLK_EQUALS); assert(app.pdfZoom_ == 1.25f);
         SDL_Event axis{}; axis.type = SDL_CONTROLLERAXISMOTION;
         axis.caxis.axis = SDL_CONTROLLER_AXIS_TRIGGERRIGHT; axis.caxis.value = 30000;
-        app.handleEvent(axis, running); assert(app.pdfZoom_ == 1.5f);
+        app.handleEvent(axis, running);assert(app.pdfZoom_==1.25f);
+        app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfZoom_>1.25f && app.pdfZoom_<1.3f);
+        axis.caxis.value=0;app.handleEvent(axis,running);
         app.zoomPdf(5); app.handleAnalog(100000, 100000);
         assert(app.pdfPanX_ >= 0 && app.pdfPanY_ > 0);
         int oldPan = app.pdfPanY_;

@@ -278,13 +278,6 @@ public:
                 }
             }
 
-            if (controller_ && !zoomPanContext()) {
-                for (int axis = SDL_CONTROLLER_AXIS_LEFTX; axis <= SDL_CONTROLLER_AXIS_LEFTY; ++axis) {
-                    int dx = 0, dy = 0;
-                    if (controllerNav_.processAxis(axis, SDL_GameControllerGetAxis(controller_, static_cast<SDL_GameControllerAxis>(axis)), dx, dy))
-                        handleAnalog(dx, dy);
-                }
-            }
             if (progressDirty_ && std::chrono::steady_clock::now() - lastProgressSave_ >
                     std::chrono::seconds(saveRetrySeconds_)) flushProgress();
 
@@ -379,6 +372,8 @@ private:
         int width{0}, height{0};
         Uint32 started{0};
         SDL_Rect viewport{0,0,0,0};
+        SDL_Rect nextViewport{0,0,0,0};
+        bool comicSheet{false};
     } pageTurnAnimation_;
     struct PageTurnTouch {
         bool tracking{false};
@@ -1425,25 +1420,36 @@ private:
         comicDetailTexture_.reset();comicDetailKey_.clear();comicDetailWanted_.clear();
     }
 
-    void zoomPdf(float zoom, float focalX = .5f, float focalY = .5f) {
+    float zoomFractionX_{0},zoomFractionY_{0};
+    int zoomLastX_{0},zoomLastY_{0},zoomLastPage_{-1};
+    void zoomPdf(float zoom, float focalX = .5f, float focalY = .5f, bool smooth=false) {
+        if (!doc_ || px_document_is_epub(doc_)) return;
+        zoom=std::clamp(zoom,.1f,5.f);
+        if(std::abs(zoom-pdfZoom_)<.000001f) {if(!smooth)cancelPageTurn();return;}
         cancelPageTurn();
         panVelocityX_=panVelocityY_=0;
-        if (!doc_ || px_document_is_epub(doc_)) return;
         const float previous = pdfZoom_;
-        pdfZoom_ = std::round(std::clamp(zoom, 0.1f, 5.0f) * 100) / 100;
+        pdfZoom_ = zoom;
+        const bool retain=smooth && zoomLastPage_==currentPage_ && zoomLastX_==pdfPanX_ && zoomLastY_==pdfPanY_;
+        float panX=pdfPanX_+(retain?zoomFractionX_:0),panY=pdfPanY_+(retain?zoomFractionY_:0);
         int w, h; getWindowSize(w, h);
         float pw=0,ph=0;
         if(comic() && px_document_page_size(doc_,currentPage_,&pw,&ph)) {
             const float vw=float(fixedViewportWidth(w)),vh=float(std::max(1,h-144));
             const float fit=std::min(vw/pw,vh/ph),ratio=pdfZoom_/previous;
             const float fx=std::clamp(focalX*w-currentMargin_,0.f,vw),fy=std::clamp(focalY*h-72,0.f,vh);
-            pdfPanX_=int(std::lround((pdfPanX_+fx-std::max(0.f,(vw-pw*fit*previous)/2))*ratio-fx+std::max(0.f,(vw-pw*fit*pdfZoom_)/2)));
-            pdfPanY_=int(std::lround((pdfPanY_+fy-std::max(0.f,(vh-ph*fit*previous)/2))*ratio-fy+std::max(0.f,(vh-ph*fit*pdfZoom_)/2)));
+            panX=(panX+fx-std::max(0.f,(vw-pw*fit*previous)/2))*ratio-fx+std::max(0.f,(vw-pw*fit*pdfZoom_)/2);
+            panY=(panY+fy-std::max(0.f,(vh-ph*fit*previous)/2))*ratio-fy+std::max(0.f,(vh-ph*fit*pdfZoom_)/2);
         } else {
-            pdfPanX_ = int((pdfPanX_ + fixedViewportWidth(w) * focalX) * pdfZoom_ / previous - fixedViewportWidth(w) * focalX);
-            pdfPanY_ = int((pdfPanY_ + (h - 144) * focalY) * pdfZoom_ / previous - (h - 144) * focalY);
+            panX=(panX+fixedViewportWidth(w)*focalX)*pdfZoom_/previous-fixedViewportWidth(w)*focalX;
+            panY=(panY+(h-144)*focalY)*pdfZoom_/previous-(h-144)*focalY;
         }
-        clampPdfPan(); if(!comic())pageCache_.clear(); dirty_ = true;
+        pdfPanX_=int(std::lround(panX));pdfPanY_=int(std::lround(panY));clampPdfPan();
+        zoomFractionX_=pdfPanX_==int(std::lround(panX))?panX-pdfPanX_:0;
+        zoomFractionY_=pdfPanY_==int(std::lround(panY))?panY-pdfPanY_:0;
+        zoomLastX_=pdfPanX_;zoomLastY_=pdfPanY_;zoomLastPage_=currentPage_;
+        if(!comic())pageCache_.clear();
+        dirty_ = true;
     }
     void setPdfView(int mode) {
         syncComicScrollWidth();
@@ -1494,12 +1500,23 @@ private:
         pageTurnTouch_ = PageTurnTouch{};
     }
 
-    // Own viewport snapshots independently of the LRU cache. Mixed PDF page sizes
+    SDL_Rect comicPageRect(int page,bool head=false) {
+        int w,h;getWindowSize(w,h);float pw=0,ph=0;
+        if(!px_document_page_size(doc_,page,&pw,&ph) || pw<=0 || ph<=0)return {};
+        const int vw=fixedViewportWidth(w),vh=std::max(1,h-144);
+        const float scale=std::min(vw/pw,vh/ph)*pdfZoom_;
+        const int width=std::max(1,int(std::ceil(pw*scale))),height=std::max(1,int(std::ceil(ph*scale)));
+        const int panX=head?(readingDirection()<0?std::max(0,width-vw):0):pdfPanX_;
+        const int panY=head?0:pdfPanY_;
+        return {currentMargin_+std::max(0,(vw-width)/2)-panX,72+std::max(0,(vh-height)/2)-panY,width,height};
+    }
+
+    // Own page snapshots independently of the LRU cache. Mixed PDF page sizes
     // share a canvas, and rendering/prefetch cannot invalidate animation textures.
     SDL_Rect turnCanvas(int target) {
         int w,h;getWindowSize(w,h);SDL_Rect canvas{0,72,w,std::max(1,h-144)};
         if(!comic())return canvas;
-        if(std::abs(pdfZoom_-1.f)>.01f) return {currentMargin_,72,fixedViewportWidth(w),std::max(1,h-144)};
+        if(std::abs(pdfZoom_-1.f)>.01f)return comicPageRect(currentPage_);
         SDL_Rect bounds[2];int index=0;
         for(int page:{currentPage_,target}) {
             auto tex=getOrRenderPageTexture(page);int tw=0,th=0;
@@ -1517,8 +1534,11 @@ private:
         if (!source || !SDL_RenderTargetSupported(renderer_)) return snapshot;
         int tw = 0, th = 0;
         if (SDL_QueryTexture(source, nullptr, nullptr, &tw, &th) != 0) return snapshot;
+        // Enlarged comics deform the complete sheet, including offscreen edges.
+        // Bound snapshot memory by the source resolution, never by 5x display size.
+        const int snapshotW=zoomedComic?tw:canvas.w,snapshotH=zoomedComic?th:canvas.h;
         snapshot.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888,
-                                        SDL_TEXTUREACCESS_TARGET, canvas.w, canvas.h));
+                                        SDL_TEXTUREACCESS_TARGET, snapshotW, snapshotH));
         if (!snapshot) return snapshot;
 #if SDL_VERSION_ATLEAST(2,0,12)
         SDL_SetTextureScaleMode(snapshot.get(),SDL_ScaleModeLinear);
@@ -1546,17 +1566,7 @@ private:
         }
         SDL_SetRenderDrawColor(renderer_, paper.r, paper.g, paper.b, 255);
         SDL_Rect dst{(w-tw)/2-canvas.x,(h-th)/2-canvas.y,tw,th};
-        if(zoomedComic) {
-            float pw=0,ph=0;
-            if(px_document_page_size(doc_,page,&pw,&ph)) {
-                const int vw=fixedViewportWidth(w),vh=std::max(1,h-144);
-                const float scale=std::min(vw/pw,vh/ph)*pdfZoom_;
-                const int width=int(std::ceil(pw*scale)),height=int(std::ceil(ph*scale));
-                const int panX=page==currentPage_?pdfPanX_:(readingDirection()<0?std::max(0,width-vw):0);
-                const int panY=page==currentPage_?pdfPanY_:0;
-                dst={currentMargin_+std::max(0,(vw-width)/2)-panX-canvas.x,72+std::max(0,(vh-height)/2)-panY-canvas.y,width,height};
-            }
-        }
+        if(zoomedComic)dst={0,0,snapshotW,snapshotH};
         Uint8 sourceAlpha=255; SDL_BlendMode sourceBlend=SDL_BLENDMODE_NONE;
         SDL_GetTextureAlphaMod(source,&sourceAlpha); SDL_GetTextureBlendMode(source,&sourceBlend);
         if (underside) {
@@ -1593,7 +1603,9 @@ private:
         const int target=std::clamp(currentPage_+delta,0,pageCount_-1);
         if (target==currentPage_) return;
         const bool animate=canCurlPage() && std::abs(delta)==1;
+        const bool comicSheet=comic() && std::abs(pdfZoom_-1.f)>.01f;
         const auto canvas=animate?turnCanvas(target):SDL_Rect{};
+        const auto nextCanvas=comicSheet?comicPageRect(target,true):canvas;
         auto previous=animate?captureTurnPage(currentPage_,false,canvas):PageTurnTexture{nullptr,SDL_DestroyTexture};
         auto back=previous?captureTurnPage(currentPage_,true,canvas):PageTurnTexture{nullptr,SDL_DestroyTexture};
         const int direction=(target>currentPage_?1:-1)*readingDirection();
@@ -1612,6 +1624,7 @@ private:
                 pageTurnAnimation_.page=pageTurnAnimation_.targetPage=currentPage_;
                 pageTurnAnimation_.direction=direction;
                 pageTurnAnimation_.viewport=canvas;
+                pageTurnAnimation_.nextViewport=nextCanvas;pageTurnAnimation_.comicSheet=comicSheet;
                 pageTurnAnimation_.started=SDL_GetTicks();
                 pageTurnAnimation_.active=true;
             }
@@ -1644,13 +1657,16 @@ private:
             turn.active=turn.interactive=turn.dragging=true;
             turn.page=currentPage_;turn.targetPage=target;turn.direction=direction;
             turn.width=w;turn.height=h;turn.viewport=canvas;
+            turn.comicSheet=comic() && std::abs(pdfZoom_-1.f)>.01f;
+            turn.nextViewport=turn.comicSheet?comicPageRect(target,true):canvas;
             turn.anchorY=std::clamp((pageTurnTouch_.startY*h-canvas.y)/std::max(1.f,float(canvas.h)),0.f,1.f);
             toolbarVisible_=false;
             gestureTracker_.reset();
         }
         auto &turn=pageTurnAnimation_;
         if(!turn.dragging) return false;
-        turn.progress=std::clamp(turn.direction*dx*w/std::max(1.f,float(turn.viewport.w))*.5f,0.f,.88f);
+        const float dragWidth=float(turn.comicSheet?std::min(turn.viewport.w,fixedViewportWidth(w)):turn.viewport.w);
+        turn.progress=std::clamp(turn.direction*dx*w/std::max(1.f,dragWidth)*.5f,0.f,.88f);
         turn.dragY=std::clamp(dy*h/std::max(1.f,float(turn.viewport.h)),-.5f,.5f);
         const auto now=SDL_GetTicks(), dt=now-pageTurnTouch_.lastTick;
         if(dt>=4 && std::abs(pageTurnTouch_.lastX-x)>.0001f) {
@@ -2103,7 +2119,7 @@ private:
             return;
         }
         if(e.type==SDL_APP_WILLENTERBACKGROUND){cancelPageTurn();appBackground_=true;readingStats_.reanchor();readingStats_.save();journal_.pause(SDL_GetTicks(),std::time(nullptr));journal_.save();}
-        if(e.type==SDL_APP_DIDENTERFOREGROUND){appBackground_=false;readingStats_.reanchor();}
+        if(e.type==SDL_APP_DIDENTERFOREGROUND){appBackground_=false;controllerFocused_=true;clearHeldControls();readingStats_.reanchor();}
         if(e.type==SDL_FINGERDOWN||e.type==SDL_FINGERMOTION||e.type==SDL_KEYDOWN||e.type==SDL_CONTROLLERBUTTONDOWN||e.type==SDL_CONTROLLERAXISMOTION){
             readingStats_.interaction(SDL_GetTicks());
             if(screen_==ScreenState::Reader&&!quickMenu_&&!appBackground_)journal_.interaction(SDL_GetTicks());
@@ -2134,7 +2150,9 @@ private:
             return;
         }
 
-        if(e.type==SDL_APP_WILLENTERBACKGROUND || (e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST))clearHeldControls();
+        if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST) {controllerFocused_=false;clearHeldControls();}
+        if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_GAINED) {controllerFocused_=true;clearHeldControls();}
+        if(e.type==SDL_APP_WILLENTERBACKGROUND)clearHeldControls();
         if(trackHeldControl(e))return;
         if(modalTouchGuard(e))return;
         if(choiceEvent(e))return;
@@ -2364,14 +2382,6 @@ private:
 
         // Controller Axis Navigation
         if (e.type == SDL_CONTROLLERAXISMOTION) {
-            if (screen_ == ScreenState::Reader && !quickMenu_ && !px_document_is_epub(doc_)) {
-                if (e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT && e.caxis.value > 24000) { zoomPdf(pdfZoom_ - 0.25f); return; }
-                if (e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT && e.caxis.value > 24000) { zoomPdf(pdfZoom_ + 0.25f); return; }
-            }
-            int dx = 0, dy = 0;
-            if (controllerNav_.processAxis(e.caxis.axis, e.caxis.value, dx, dy)) {
-                handleAnalog(dx, dy);
-            }
             return;
         }
 
@@ -3112,10 +3122,14 @@ private:
         trace("page_end");
         if (pageTurnAnimation_.active) {
             const SDL_Rect viewport=pageTurnAnimation_.viewport;
+            const SDL_Rect readerClip{currentMargin_,72,fixedViewportWidth(w),std::max(1,h-144)};
+            if(pageTurnAnimation_.comicSheet)SDL_RenderSetClipRect(renderer_,&readerClip);
             PageCurlRenderer::render(renderer_, pageTurnAnimation_.previous.get(),
                                      pageTurnAnimation_.next.get(), viewport,
                                      pageTurnAnimation_.progress, pageTurnAnimation_.direction,
-                                     pageTurnAnimation_.anchorY,pageTurnAnimation_.dragY,pageTurnAnimation_.back.get());
+                                     pageTurnAnimation_.anchorY,pageTurnAnimation_.dragY,pageTurnAnimation_.back.get(),
+                                     pageTurnAnimation_.comicSheet?&pageTurnAnimation_.nextViewport:nullptr);
+            if(pageTurnAnimation_.comicSheet)SDL_RenderSetClipRect(renderer_,nullptr);
         } else if(gpuComic) {
             renderComicZoom(w,h);
         } else if (pageTex) {

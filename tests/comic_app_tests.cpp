@@ -42,7 +42,7 @@ struct AppTest {
         app.openBook(large);app.zoomPdf(5);app.render();
         const unsigned builds=app.comicTextureBuilds_;assert(builds>0);
         app.setPdfView(0);app.zoomPdf(3);app.pdfPanY_=400;
-        auto imagePoint=[&]{int w,h;app.getWindowSize(w,h);float pw=0,ph=0;assert(px_document_page_size(app.doc_,0,&pw,&ph));
+        auto imagePoint=[&]{int w,h;app.getWindowSize(w,h);float pw=0,ph=0;assert(px_document_page_size(app.doc_,app.currentPage_,&pw,&ph));
             const float vw=app.fixedViewportWidth(w),vh=h-144,scale=std::min(vw/pw,vh/ph)*app.pdfZoom_;
             return std::pair<float,float>{(.65f*w-app.currentMargin_-std::max(0.f,(vw-pw*scale)/2)+app.pdfPanX_)/scale,
                 (.45f*h-72-std::max(0.f,(vh-ph*scale)/2)+app.pdfPanY_)/scale};};
@@ -96,7 +96,13 @@ struct AppTest {
         snapshot(app,"touch-curl");touch(app,SDL_FINGERUP,.4f,.3f);finish(app);assert(app.currentPage_==1);
         app.zoomPdf(2);assert(app.canCurlPage());app.handleAnalog(1,1);assert(app.pdfPanX_>=0);
         app.pdfPanY_=150;app.clampPdfPan();
+        const auto sheet=app.comicPageRect(app.currentPage_);
+        const auto nextSheet=app.comicPageRect(app.currentPage_+1,true);
         app.turnPage(1);assert(app.pageTurnAnimation_.active && app.pdfZoom_==2 && app.pdfPanY_==0);
+        const auto &turn=app.pageTurnAnimation_;
+        assert(turn.comicSheet && turn.viewport.x==sheet.x && turn.viewport.y==sheet.y && turn.viewport.w==sheet.w && turn.viewport.h==sheet.h);
+        assert(turn.viewport.h>height-144 && turn.nextViewport.y==nextSheet.y && turn.nextViewport.h==nextSheet.h);
+        app.pageTurnAnimation_.started=SDL_GetTicks()-210;
         snapshot(app,"zoomed-curl");finish(app);assert(app.currentPage_==2 && app.pdfZoom_==2 && app.pdfPanY_==0);
         app.turnPage(-1);finish(app);app.turnPage(-1);finish(app);
         touch(app,SDL_FINGERDOWN,.94f,.4f);touch(app,SDL_FINGERMOTION,.5f,.42f);
@@ -105,9 +111,10 @@ struct AppTest {
         // Held arrows and both sticks pan continuously; release/deadzone stop.
         app.zoomPdf(5);app.pdfPanX_=0;app.pdfPanY_=0;app.clearHeldControls();
         SDL_Event down{};down.type=SDL_CONTROLLERBUTTONDOWN;down.cbutton.button=SDL_CONTROLLER_BUTTON_DPAD_DOWN;
-        bool keepRunning=true;app.handleEvent(down,keepRunning);assert(keepRunning && app.pdfPanY_==64);
+        bool keepRunning=true;app.handleEvent(down,keepRunning);assert(keepRunning && app.pdfPanY_==0);
+        app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanY_>=12 && app.pdfPanY_<=15);
         for(int i=0;i<4;++i) {app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();}
-        assert(app.pdfPanY_>110 && app.currentPage_==1);
+        assert(app.pdfPanY_>=66 && app.pdfPanY_<=70 && app.currentPage_==1);
         down.type=SDL_CONTROLLERBUTTONUP;app.handleEvent(down,keepRunning);
         int stopped=app.pdfPanY_;app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanY_==stopped);
         SDL_Event axis{};axis.type=SDL_CONTROLLERAXISMOTION;axis.caxis.axis=SDL_CONTROLLER_AXIS_LEFTY;axis.caxis.value=32767;
@@ -116,6 +123,33 @@ struct AppTest {
         axis.caxis.axis=SDL_CONTROLLER_AXIS_RIGHTY;axis.caxis.value=-32767;app.handleEvent(axis,keepRunning);
         stopped=app.pdfPanY_;app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanY_<stopped);
         axis.caxis.value=0;app.handleEvent(axis,keepRunning);app.clearHeldControls();app.zoomPdf(2);
+        // Stationary triggers keep zooming without more SDL events, at equal speed
+        // for equal elapsed time. Neutral, opposing triggers and menus stop zoom.
+        const auto zoomBuilds=app.comicTextureBuilds_;app.render();
+        auto trigger=[&](int which,int value){axis.caxis.axis=Uint8(which);axis.caxis.value=Sint16(value);app.handleEvent(axis,keepRunning);};
+        trigger(SDL_CONTROLLER_AXIS_TRIGGERRIGHT,32767);assert(app.pdfZoom_==2);
+        float lastZoom=app.pdfZoom_;
+        for(int frame=0;frame<30;++frame){app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfZoom_>lastZoom && app.pdfZoom_-lastZoom<.07f);lastZoom=app.pdfZoom_;app.render();}
+        const float halfSecond=app.pdfZoom_;assert(halfSecond>3.3f && halfSecond<3.6f);
+        assert(app.comicTextureBuilds_==zoomBuilds);
+        trigger(SDL_CONTROLLER_AXIS_TRIGGERLEFT,32767);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfZoom_==halfSecond);
+        trigger(SDL_CONTROLLER_AXIS_TRIGGERRIGHT,0);
+        for(int frame=0;frame<30;++frame){app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();}
+        assert(std::abs(app.pdfZoom_-2)<.015f);
+        trigger(SDL_CONTROLLER_AXIS_TRIGGERLEFT,0);lastZoom=app.pdfZoom_;
+        app.controllerInputTick_=SDL_GetTicks()-50;app.tickControllerInput();assert(app.pdfZoom_==lastZoom);
+        app.quickMenu_=true;trigger(SDL_CONTROLLER_AXIS_TRIGGERRIGHT,32767);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfZoom_==lastZoom);
+        app.quickMenu_=false;app.clearHeldControls();
+        // Tiny zoom steps retain the focal point instead of accumulating pan rounding.
+        app.zoomPdf(4);app.pdfPanX_=100;app.pdfPanY_=400;app.clampPdfPan();const auto stable=imagePoint();
+        for(int i=0;i<100;++i)app.zoomPdf(app.pdfZoom_*1.001f,.65f,.45f,true);
+        const auto stableAfter=imagePoint();assert(std::abs(stable.first-stableAfter.first)<4 && std::abs(stable.second-stableAfter.second)<4);
+        trigger(SDL_CONTROLLER_AXIS_TRIGGERRIGHT,32767);app.zoomPdf(5);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfZoom_==5);
+        SDL_Event lost{};lost.type=SDL_WINDOWEVENT;lost.window.event=SDL_WINDOWEVENT_FOCUS_LOST;app.handleEvent(lost,keepRunning);
+        for(int value:app.stickAxes_)assert(value==0);
+        lastZoom=app.pdfZoom_;trigger(SDL_CONTROLLER_AXIS_TRIGGERLEFT,32767);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfZoom_==lastZoom);
+        lost.window.event=SDL_WINDOWEVENT_FOCUS_GAINED;app.handleEvent(lost,keepRunning);assert(app.controllerFocused_);
+        app.zoomPdf(2);
         app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.setPdfView(1);assert(app.pdfZoom_>=1);app.setPdfView(0);assert(app.canCurlPage());

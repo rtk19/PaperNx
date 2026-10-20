@@ -83,6 +83,20 @@ int main() {
     papernx::PageCurlRenderer::render(renderer, previous, next, page, .5f, 1);
     SDL_RenderPresent(renderer);
     assert(pixel(99, 90).b == 180 && pixel(141, 90).b == 180);
+    // Zoomed sheets have their own complete paper geometry. The next sheet may
+    // have a different aspect ratio/position; the caller clips the reader window.
+    const SDL_Rect enlarged{-80,-100,240,480},nextSheet{170,60,100,300},reader{20,40,320,160};
+    for(float progress:{0.f,.4f,1.f}) {
+        SDL_RenderSetClipRect(renderer,nullptr);
+        SDL_SetRenderDrawColor(renderer,4,5,180,255);SDL_RenderClear(renderer);
+        SDL_RenderSetClipRect(renderer,&reader);
+        papernx::PageCurlRenderer::render(renderer,previous,next,enlarged,progress,1,.4f,0,nullptr,&nextSheet);
+        SDL_RenderPresent(renderer);
+        assert(pixel(19,90).b==180 && pixel(40,39).b==180 && pixel(280,90).b==180);
+        if(progress>0)assert(pixel(200,90).g==210); // next page uses its own bounds
+        if(progress==0)assert(pixel(40,90).r==240);
+        if(progress==1)assert(pixel(40,90).b==180); // no stretched viewport-sized next page
+    }
 #ifndef PAPERNX_CURL_FORCE_FALLBACK
     // Different grip heights and vertical travel must change the rendered fold.
     auto frameHash=[&](float grip,float travel) {

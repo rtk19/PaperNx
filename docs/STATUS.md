@@ -1,3 +1,7 @@
+# Fork update: v0.11.0-reader.2
+
+LS and RS now share directional navigation, modal focus, repeat timing and zoomed panning. Holding ZR/ZL changes zoom smoothly around the viewport center; D-pad/arrows begin panning without the former 64-pixel impulse. Enlarged comic curls use the actual complete sheet and a separately positioned incoming page, clipped to the reading area. Zoom and top-of-page resets remain. See [COMICS.md](COMICS.md) for controls and [TEST_RESULTS.md](TEST_RESULTS.md) for validation. Physical Switch acceptance remains pending.
+
 # Fork update: v0.11.0-reader.1
 
 Adds series shelves with natural issue numbering and background metadata indexing, zoom-preserving comic curls with top-of-page resets, continuous held-direction panning, global RS scrolling, and automatic Hebrew EPUB paragraph direction, directional justification and indentation, Hebrew UI fallback fonts and Unicode mixed-language display. EPUB language/spine metadata controls page curls. Existing books, reading records and the English/Turkish UI remain in place. See [HEBREW.md](HEBREW.md). Physical Switch acceptance remains pending.

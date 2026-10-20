@@ -1,4 +1,4 @@
-# Fork verification: v0.11.0-reader.1
+# Fork verification: v0.11.0-reader.2
 
 The new reader suite passes 19 native CTests with patched MuPDF 1.23.11 and the
 pinned FriBidi 1.0.12 source build, plus 7 portable tests and package/UTF-8 checks.
@@ -9,7 +9,15 @@ and distribution receipts, original fixture screenshots and logs ship in the
 release's verification-evidence.zip. Physical Nintendo Switch behavior, FPS and
 touch latency remain unverified.
 
-New coverage includes Hebrew glyph/niqqud fallback in every font role, mixed
+New controller coverage compares LS and RS from identical navigation states in
+both axes and directions, including modal choices/palettes and held repeat.
+Trigger tests cover stationary holds, release, opposing triggers, menus, zoom
+limits and focus loss; 100 small zoom steps check focal drift. Comic and curl
+tests check full sheet coordinates, a separately positioned incoming page,
+viewport clipping and continuous first-frame D-pad movement. Software and
+offscreen OpenGL paths run the same comic interactions.
+
+Existing coverage includes Hebrew glyph/niqqud fallback in every font role, mixed
 numbers/Latin text and isolation controls, unchanged Latin pixel output, RTL
 start/justified/indented paragraphs, explicit direction, continuous EPUB layout
 and restored anchors; zoomed comic snapshots and top-of-page navigation, held

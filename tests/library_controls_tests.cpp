@@ -6,10 +6,27 @@
 
 namespace {
 struct AppTest {
-    static void axis(PaperNxApp &app,int value) {
-        SDL_Event event{};event.type=SDL_CONTROLLERAXISMOTION;event.caxis.axis=SDL_CONTROLLER_AXIS_RIGHTY;event.caxis.value=Sint16(value);
+    static void axis(PaperNxApp &app,int value,int which=SDL_CONTROLLER_AXIS_RIGHTY) {
+        SDL_Event event{};event.type=SDL_CONTROLLERAXISMOTION;event.caxis.axis=Uint8(which);event.caxis.value=Sint16(value);
         bool running=true;app.handleEvent(event,running);assert(running);
         app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();
+    }
+    static void sameSticks(PaperNxApp &app) {
+        // Compare actual navigation and reveal state from the same starting focus.
+        auto state=std::tie(app.listScroll_,app.quickScroll_,app.catalogScroll_,app.settingsScroll_,app.tocScroll_,app.bookmarkScroll_,app.browserScroll_,app.scrollY_,app.currentPage_,app.pdfPanX_,app.pdfPanY_,app.selectedBookIdx_,app.quickFocus_,app.catalogFocus_,app.aaRow_,app.tocSelected_,app.bmSelected_,app.browserSelected_,app.choiceFocusedIndex_,app.choiceIndex_,app.swatchFocus_,app.readerToolbarFocusActive_);
+        for(int direction:{-32767,32767})for(int coordinate:{0,1}) {
+            const auto before=std::apply([](auto... value){return std::make_tuple(value...);},state);
+            const auto focus=app.navigationFocus_;
+            app.clearHeldControls();axis(app,direction,SDL_CONTROLLER_AXIS_LEFTX+coordinate);
+            const auto left=std::apply([](auto... value){return std::make_tuple(value...);},state);
+            app.clearHeldControls();state=before;app.navigationFocus_=focus;
+            axis(app,direction,SDL_CONTROLLER_AXIS_RIGHTX+coordinate);
+            assert(state==left);
+            // A neutral axis stops immediately; a held axis waits for the same repeat delay.
+            app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(state==left);
+            axis(app,0,SDL_CONTROLLER_AXIS_RIGHTX+coordinate);assert(state==left);
+            app.clearHeldControls();state=before;app.navigationFocus_=focus;
+        }
     }
     static void snapshot(PaperNxApp &app,const char *name) {
         for(int i=0;i<20;++i){app.render();SDL_Delay(10);app.processCompletedThumbnails();}
@@ -37,7 +54,8 @@ struct AppTest {
         assert(app.catalog_.get(app.visibleBooks_.front().id).sourceSeriesIndex=="9");
         assert(app.catalog_.get(app.visibleBooks_[1].id).sourceSeriesIndex=="10");
         assert(app.catalog_.get(app.visibleBooks_.back().id).sourceSeriesIndex=="22");
-        assert(app.maxUiScroll()>0);axis(app,32767);assert(app.listScroll_>0);
+        assert(app.maxUiScroll()>0);sameSticks(app);
+        app.rebuildFocus();app.navigationFocus_.select("book.0");axis(app,32767);assert(app.selectedBookIdx_>0);
         auto position=app.listScroll_;axis(app,0);assert(app.listScroll_==position);
         app.listScroll_=0;snapshot(app,"series-issues");
         const Book issue=app.visibleBooks_[1];app.openLibraryItem(1);assert(app.doc_ && app.currentBookId_==issue.id);
@@ -48,20 +66,24 @@ struct AppTest {
         app.searchQuery_="Issue";app.updateVisibleBooks();assert(app.seriesShelves_.empty() && app.visibleBooks_.size()==14);
         app.searchQuery_.clear();app.category_=Category::Recent;app.updateVisibleBooks();assert(app.seriesShelves_.empty());
         app.category_=Category::All;app.updateVisibleBooks();
-        app.quickMenu_=true;app.quickScroll_=0;axis(app,32767);assert(app.quickScroll_>0);axis(app,0);app.quickMenu_=false;
-        app.setCatalogPanel(PaperNxApp::CatalogPanel::Browse);app.catalogScroll_=0;axis(app,32767);assert(app.catalogScroll_>0);axis(app,0);app.setCatalogPanel(PaperNxApp::CatalogPanel::None);
-        app.openSettings(true,5);app.settingsScroll_=0;axis(app,32767);assert(app.settingsScroll_>0);axis(app,0);app.dismissSettings();
+        app.quickMenu_=true;app.quickScroll_=0;sameSticks(app);app.quickMenu_=false;
+        app.setCatalogPanel(PaperNxApp::CatalogPanel::Browse);app.catalogScroll_=0;sameSticks(app);app.setCatalogPanel(PaperNxApp::CatalogPanel::None);
+        app.openSettings(true,5);app.settingsScroll_=0;sameSticks(app);app.dismissSettings();
         app.openBook(issue);app.screen_=ScreenState::TocModal;
-        app.tocEntries_.resize(30);app.tocScroll_=0;axis(app,32767);assert(app.tocScroll_>0);axis(app,0);
+        app.tocEntries_.resize(30);app.tocScroll_=0;sameSticks(app);
         auto progress=app.progressStore_.get(issue.id);progress.bookmarks.resize(30);app.progressStore_.put(issue.id,progress);
-        app.screen_=ScreenState::BookmarksModal;app.bookmarkScroll_=0;axis(app,32767);assert(app.bookmarkScroll_>0);axis(app,0);
+        app.screen_=ScreenState::BookmarksModal;app.bookmarkScroll_=0;sameSticks(app);
         app.screen_=ScreenState::Reader;app.extraStyle_.readingMode=1;app.documentMode_=1;app.currentPage_=0;app.scrollY_=0;
-        axis(app,32767);assert(app.scrollY_>0 || app.currentPage_>0);axis(app,0);
+        sameSticks(app);axis(app,32767);assert(app.scrollY_>0 || app.currentPage_>0);axis(app,0);
         app.closeBook();app.openBrowser();
         // Many entries make the browser scroll independently of library layout.
-        app.browserEntries_.resize(30);app.browserScroll_=0;axis(app,32767);assert(app.browserScroll_>0);axis(app,0);
+        app.browserEntries_.resize(30);app.browserScroll_=0;sameSticks(app);
+        app.openChoice(7,0);sameSticks(app);
+        axis(app,32767);const int selected=app.choiceFocusedIndex_;assert(selected==1);
+        SDL_Delay(230);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.choiceFocusedIndex_==selected+1);
+        axis(app,0);app.choiceKind_=-1;app.colorEditing_=0;app.swatchFocus_=5;sameSticks(app);app.colorEditing_=-1;
         app.clearHeldControls();
-        std::cout<<"PASS: full background series indexing, issue order 9/10/22, shelf/back/search/history, persisted issue identity, RS in library/menus/settings/browser/contents/bookmarks/continuous reader\n";
+        std::cout<<"PASS: full background series indexing, issue order 9/10/22, shelf/back/search/history, persisted issue identity, identical LS/RS directions, deadzone/repeat and modal priority in library/menus/settings/browser/contents/bookmarks/continuous reader\n";
     }
 };
 }

@@ -214,23 +214,27 @@ public:
     // anchorY and dragY use page-height units and affect crease inclination.
     static void render(SDL_Renderer *renderer, SDL_Texture *previous, SDL_Texture *next,
                        const SDL_Rect &page, float progress, int direction,
-                       float anchorY=.78f, float dragY=0.f, [[maybe_unused]] SDL_Texture *back=nullptr) {
+                       float anchorY=.78f, float dragY=0.f, [[maybe_unused]] SDL_Texture *back=nullptr,
+                       const SDL_Rect *nextPage=nullptr) {
         if(!renderer || !next || page.w<=0 || page.h<=0) return;
         progress=std::clamp(progress,0.f,1.f);
-        if(!previous || progress>=.99999f) {SDL_RenderCopy(renderer,next,nullptr,&page);return;}
+        const SDL_Rect &nextRect=nextPage?*nextPage:page;
+        if(!previous || progress>=.99999f) {SDL_RenderCopy(renderer,next,nullptr,&nextRect);return;}
         if(progress<=.00001f) {SDL_RenderCopy(renderer,previous,nullptr,&page);return;}
         DrawState state(renderer);
-        SDL_Rect clip=page;
-        if(state.clipped) SDL_IntersectRect(&page,&state.clip,&clip);
-        SDL_RenderSetClipRect(renderer,&clip);
-        SDL_RenderCopy(renderer,next,nullptr,&page);
+        if(!nextPage) {
+            SDL_Rect clip=page;
+            if(state.clipped) SDL_IntersectRect(&page,&state.clip,&clip);
+            SDL_RenderSetClipRect(renderer,&clip);
+        }
+        SDL_RenderCopy(renderer,next,nullptr,&nextRect);
         Fold fold(float(page.w),float(page.h),progress,direction,std::clamp(anchorY,0.f,1.f),
                   std::clamp(dragY,-.5f,.5f));
 #if SDL_VERSION_ATLEAST(2,0,18) && !defined(PAPERNX_CURL_FORCE_FALLBACK)
         if(geometry(renderer,previous,back,page,fold)) return;
 #endif
         // Old/backends without geometry retain a proportional, correctly scaled reveal.
-        SDL_RenderCopy(renderer,next,nullptr,&page);
+        SDL_RenderCopy(renderer,next,nullptr,&nextRect);
         int sw=0,sh=0;
         if(SDL_QueryTexture(previous,nullptr,nullptr,&sw,&sh)!=0) return;
         const float fraction=1.f-progress;
