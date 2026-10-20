@@ -1,0 +1,100 @@
+#define main papernx_application_entry
+#include "../src/main.cpp"
+#undef main
+#include <cassert>
+#include <iostream>
+
+namespace {
+struct AppTest {
+    static void finish(PaperNxApp &app) {
+        assert(app.pageTurnAnimation_.active);
+        app.pageTurnAnimation_.started=SDL_GetTicks()-1000;app.tickPageTurn();
+    }
+    static void touch(PaperNxApp &app,Uint32 type,float x,float y) {
+        SDL_Event e{};e.type=type;e.tfinger.fingerId=8;e.tfinger.x=x;e.tfinger.y=y;
+        bool running=true;app.handleEvent(e,running);assert(running);
+    }
+    static void snapshot(PaperNxApp &app,const std::string &name) {
+        app.render();int w,h;SDL_GetRendererOutputSize(app.renderer_,&w,&h);
+        auto surface=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_ARGB8888);assert(surface);
+        assert(SDL_RenderReadPixels(app.renderer_,nullptr,surface->format->format,surface->pixels,surface->pitch)==0);
+        fs::create_directories("verification/comics");
+        assert(SDL_SaveBMP(surface,("verification/comics/"+name+".bmp").c_str())==0);SDL_FreeSurface(surface);
+    }
+    static void run(const fs::path &root) {
+        PaperNxApp app(root);assert(app.init());assert(app.typography_->uiFont());ui::language=1;
+        SDL_RendererInfo info{};SDL_GetRendererInfo(app.renderer_,&info);std::cout<<"Comic renderer: "<<info.name<<"\n";
+        assert(app.books_.size()==5);
+        auto book=[&](const char *filename) {return *std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==filename;});};
+        const Book cbz=book("sample.cbz"),rar=book("sample.cbr"),manga=book("manga.cbz"),broken=book("broken.cbz");
+        assert(cbz.format==Format::Cbz && rar.format==Format::Cbr);
+        app.getOrRenderThumbnail(cbz);const Uint32 coverDeadline=SDL_GetTicks()+3000;
+        while(!app.thumbCache_.get("thumb_"+cbz.id) && SDL_GetTicks()<coverDeadline) {SDL_Delay(10);app.processCompletedThumbnails();}
+        assert(app.thumbCache_.get("thumb_"+cbz.id));
+        const auto cachedCover=app.coverRepository_.read(cbz);assert(cachedCover);
+        const auto *pixel=cachedCover->rgb.data()+(cachedCover->height/4)*cachedCover->stride+(cachedCover->width/4)*3;
+        assert(std::abs(int(pixel[1])-185)<8); // ComicInfo FrontCover, not the first page.
+        app.openBook(cbz);assert(app.doc_ && app.comic() && app.pageCount_==3 && !app.comicReadingColors());
+        assert(app.catalog_.apply(cbz).title=="The Signal — Issue 7");
+        assert(app.catalog_.get(cbz.id).sourceSeries=="PaperNX Test Comics");
+        assert(app.tocEntries_.size()==2 && app.tocEntries_[0].page==1);
+        // Reader themes surround the artwork without changing its colors.
+        app.currentTheme_=5;app.extraStyle_.backgroundColor=0;app.pageCache_.clear();
+        assert(app.getOrRenderPageTexture(0));snapshot(app,"original-night");
+        app.turnPage(1);assert(app.pageTurnAnimation_.active);finish(app);assert(app.currentPage_==1);
+        app.turnPage(-1);finish(app);
+        touch(app,SDL_FINGERDOWN,.92f,.2f);touch(app,SDL_FINGERMOTION,.76f,.3f);
+        assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.anchorY<.2f && app.currentPage_==0);
+        snapshot(app,"touch-curl");touch(app,SDL_FINGERUP,.4f,.3f);finish(app);assert(app.currentPage_==1);
+        app.zoomPdf(2);assert(!app.canCurlPage());app.handleAnalog(1,1);assert(app.pdfPanX_>=0);
+        app.setPdfView(1);assert(app.pdfZoom_>=1);app.setPdfView(0);assert(app.canCurlPage());
+        app.openSettings(false,0);assert(app.settingsRows()==1);snapshot(app,"artwork-settings");app.dismissSettings();
+        app.extraStyle_.pdfColorMode|=COMIC_READING_COLORS;app.queueStyleChange();
+        assert(app.comicReadingColors());snapshot(app,"reader-palette");
+        app.extraStyle_.pdfColorMode&=~COMIC_READING_COLORS;app.queueStyleChange();
+        app.extraStyle_.readingMode=1;app.extraStyle_.modeOverride=1;app.queueStyleChange();app.dismissSettings();
+        assert(app.continuous() && !app.canCurlPage());app.currentPage_=0;app.scrollY_=0;
+        const float firstHeight=app.segmentHeight(0);
+        app.scrollBy(firstHeight+110);assert(app.currentPage_==1 && std::abs(app.scrollY_-110)<1);
+        app.toggleBookmark();const auto bm=app.progressStore_.get(cbz.id).bookmarks.back();
+        app.rememberPosition();app.scrollBy(180);app.jumpBack();assert(std::abs(app.scrollY_-110)<1);
+        app.scrollBy(180);app.openBookmark(bm);assert(app.currentPage_==1 && std::abs(app.scrollY_-110)<1);
+        app.pinPageFlip();app.scrollBy(170);app.returnToPageFlip();assert(std::abs(app.scrollY_-110)<1);
+        // The same panel position survives border and orientation changes.
+        const double fraction=app.scrollY_/app.segmentHeight(app.currentPage_);
+        app.currentMargin_+=10;app.queueStyleChange();assert(std::abs(app.scrollY_/app.segmentHeight(app.currentPage_)-fraction)<.0001);
+        auto settings=app.appSettings_.get();settings.displayOrientation=1;app.appSettings_.put(settings);app.setPdfView(0);
+        assert(std::abs(app.scrollY_/app.segmentHeight(app.currentPage_)-fraction)<.0001);
+        settings.displayOrientation=0;app.appSettings_.put(settings);app.setPdfView(0);
+        app.currentMargin_-=10;app.queueStyleChange();assert(std::abs(app.scrollY_-110)<1);
+        snapshot(app,"continuous");app.saveCurrentPosition();app.closeBook();app.openBook(cbz);
+        assert(app.continuous() && app.currentPage_==1 && std::abs(app.scrollY_-110)<1);
+        app.closeBook();app.openBook(rar);assert(app.comic() && !app.continuous() && !app.comicReadingColors());
+        app.currentPage_=0;app.turnPage(1);finish(app);app.toggleBookmark();app.closeBook();app.openBook(rar);
+        assert(app.currentPage_==1 && app.progressStore_.get(rar.id).bookmarks.size()==1);app.closeBook();
+        app.openBook(manga);assert(app.readingDirection()==-1);app.currentPage_=0;
+        touch(app,SDL_FINGERDOWN,.1f,.8f);touch(app,SDL_FINGERMOTION,.7f,.65f);
+        assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.direction==-1 && app.pageTurnAnimation_.targetPage==1);
+        snapshot(app,"manga-curl");touch(app,SDL_FINGERUP,.7f,.65f);finish(app);assert(app.currentPage_==1);
+        app.turnPage(1);assert(app.pageTurnAnimation_.direction==-1);finish(app);app.closeBook();
+        app.openBook(broken);app.currentPage_=1;assert(!app.getOrRenderPageTexture(1));assert(!app.pageRenderError_.empty());
+        app.turnPage(1);assert(app.currentPage_==2 && app.getOrRenderPageTexture(2) && app.pageRenderError_.empty());app.closeBook();
+        app.browserPath_=root/"external";app.scanBrowserDirectory();assert(app.browserEntries_.size()==1);
+        app.handleBrowserSelect();assert(app.comic() && app.books_.size()==6);app.closeBook();
+        app.flushProgress();
+    }
+};
+}
+int main() {
+    assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS)==0);
+    assert(TTF_Init()==0);
+    const auto root=fs::temp_directory_path()/"papernx-comic-app";fs::remove_all(root);
+    fs::create_directories(root/"books");fs::create_directories(root/"external");
+    for(const auto &pair:std::vector<std::pair<std::string,std::string>>{{"sample.cbz","sample.cbz"},{"sample-rar4-solid.cbr","sample.cbr"},{"manga.cbz","manga.cbz"},{"broken-page.cbz","broken.cbz"}})
+        fs::copy_file("tests/fixtures/comics/"+pair.first,root/"books"/pair.second);
+    fs::copy_file("tests/fixtures/sample_book.epub",root/"books"/"sample.epub");
+    fs::copy_file("tests/fixtures/comics/sample-rar5.cbr",root/"external"/"outside.CBR");
+    fs::create_directory_symlink(fs::absolute("fonts"),root/"fonts");
+    AppTest::run(root);fs::remove_all(root);TTF_Quit();SDL_Quit();
+    std::cout<<"[PASS] Comics library/browser, metadata, curl/manga touch, zoom, colors, continuous anchors, history, bookmarks, persistence and damaged-page recovery\n";
+}

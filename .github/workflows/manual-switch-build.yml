@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/**'
       - 'include/**'
+      - 'third_party/**'
       - 'tests/**'
       - 'scripts/**'
       - 'fonts/**'

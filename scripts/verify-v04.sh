@@ -12,10 +12,11 @@ if [[ "$mode" == switch ]]; then
     # Recompile application objects and regenerate NACP/NRO; retain SDK/MuPDF caches.
     make all -B -j4
     python3 scripts/build_receipt.py finish
-    python3 scripts/verify_artifacts.py --version "${PAPERNX_RELEASE_VERSION:-v0.9.0-curl.2}"
+    python3 scripts/verify_artifacts.py --version "${PAPERNX_RELEASE_VERSION:-v0.10.0-comics.1}"
     exit
 fi
 python3 tests/generate_fixtures.py
+python3 tests/generate_comic_fixtures.py
 options=(-DBUILD_TESTING=ON)
 case "$mode" in
     portable) options+=(-DPAPERNX_NATIVE=OFF -DCMAKE_BUILD_TYPE=Release);;

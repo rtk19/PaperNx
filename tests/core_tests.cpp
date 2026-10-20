@@ -33,6 +33,9 @@ int main() {
     assert(detectFormat("book.EPUB") == Format::Epub);
     assert(detectFormat("doc.pdf") == Format::Pdf);
     assert(detectFormat("document.PDF") == Format::Pdf);
+    assert(detectFormat("comic.CBZ")==Format::Cbz && detectFormat("comic.cbr")==Format::Cbr);
+    assert(isComic(Format::Cbz) && isComic(Format::Cbr) && !isComic(Format::Pdf));
+    assert(std::string(formatName(Format::Cbz))=="CBZ" && std::string(formatName(Format::Cbr))=="CBR");
     assert(detectFormat("notes.txt") == Format::Unsupported);
     assert(detectFormat("image.png") == Format::Unsupported);
 

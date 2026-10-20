@@ -26,9 +26,10 @@ for folder in (source, Path("/opt/devkitpro/portlibs/switch/licenses"), Path("/o
         shutil.copyfile(path, target)
         count += 1
 (destination / "SOURCE.txt").write_text(
-    "PaperNX source and build recipes: https://github.com/ysfbz/PaperNx\n"
+    "PaperNX fork source and build recipes: https://github.com/rtk19/PaperNx\n"
     "MuPDF 1.23.11 source: https://mupdf.com/downloads/archive/mupdf-1.23.11-source.tar.gz\n"
     "MuPDF SHA256: 478f2a167feae2a291c8b8bc5205f2ce2f09f09b574a6eb0525bfad95a3cfe66\n"
+    "unarr RAR decoder and local changes: https://github.com/rtk19/PaperNx/tree/main/third_party/unarr\n"
     "Switch dependency recipes: https://github.com/devkitPro/pacman-packages\n"
     "Full AGPL corresponding source and any required dependency source must accompany public redistribution.\n",
     encoding="utf-8")

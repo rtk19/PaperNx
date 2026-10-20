@@ -1,4 +1,5 @@
 #include "papernx/mupdf_bridge.h"
+#include "papernx/comic_document.h"
 #include <mupdf/fitz.h>
 #include <math.h>
 #include <stdio.h>
@@ -10,6 +11,7 @@ struct PxDocument {
     fz_document *doc;
     int pages;
     int epub;
+    int comic;
     size_t allocated;
     size_t memory_limit;
     unsigned char background[3];
@@ -158,7 +160,10 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
         d->path = fz_strdup(d->ctx, path);
         d->css = fz_strdup(d->ctx, css ? css : "");
         set_css_policy(d,css);
-        d->doc = fz_open_document(d->ctx, path);
+        const char *ext=strrchr(path,'.');
+        d->comic=ext && (!fz_strcasecmp(ext,".cbz") || !fz_strcasecmp(ext,".cbr"));
+        if(d->comic)set_background(d,NULL); /* Transparent artwork is composited on white paper. */
+        d->doc = d->comic ? px_open_comic(d->ctx,path) : fz_open_document(d->ctx, path);
         if (!d->doc) {
             fz_throw(d->ctx, FZ_ERROR_GENERIC, "Failed to open document format");
         }
@@ -174,6 +179,7 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
             fz_layout_document(d->ctx, d->doc, layout_w, layout_h, layout_em);
         }
         d->pages = fz_count_pages(d->ctx, d->doc);
+        if(d->pages<=0)fz_throw(d->ctx,FZ_ERROR_GENERIC,"Document contains no readable pages");
     }
     fz_catch(d->ctx) {
         report(err, cap, fz_caught_message(d->ctx));
@@ -191,6 +197,12 @@ int px_document_pages(PxDocument *d) {
 
 int px_document_page_size(PxDocument *d, int index, float *width, float *height) {
     if (!d || !width || !height || index < 0 || index >= d->pages) return 0;
+    if(d->comic) {
+        int ok=0;fz_var(ok);
+        fz_try(d->ctx) {ok=px_comic_page_size(d->ctx,d->doc,index,width,height);}
+        fz_catch(d->ctx) {ok=0;}
+        return ok;
+    }
     fz_page *page = NULL;
     fz_var(page);
     int ok = 0;
@@ -208,6 +220,8 @@ int px_document_page_size(PxDocument *d, int index, float *width, float *height)
 int px_document_is_epub(PxDocument *d) {
     return d ? d->epub : 0;
 }
+
+int px_document_is_comic(PxDocument *d) {return d ? d->comic : 0;}
 
 int px_document_has_embedded_cover(PxDocument *d) {
     return d && d->cover != NULL;
@@ -466,7 +480,7 @@ int px_document_render_thumbnail(PxDocument *d, int max_w, int max_h, PxImage *o
         fz_catch(d->ctx) { px_image_free(out); ok = 0; }
         if (ok) return 1;
     }
-    return px_document_render(d, 0, max_w, max_h, out, err, cap);
+    return px_document_render(d, d->comic?px_comic_cover_page(d->doc):0, max_w, max_h, out, err, cap);
 }
 
 void px_image_free(PxImage *i) {
@@ -586,6 +600,7 @@ static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *no
 
 int px_document_toc(PxDocument *d, PxTocEntry *entries, int max_entries) {
     if (!d || !d->ctx || !d->doc || !entries || max_entries <= 0) return 0;
+    if(d->comic)return px_comic_toc(d->ctx,d->doc,entries,max_entries);
     if (d->epub && d->nav_count) {
         int n = d->nav_count < max_entries ? d->nav_count : max_entries;
         volatile int i = 0;
@@ -901,7 +916,13 @@ int px_document_render_tile(PxDocument *d, int index, int y, int w, int h, PxIma
         for (int row=0; row<h; ++row) for (int x=0; x<w; ++x)
             memcpy(samples + row*stride + x*3, d->background, 3);
         dev = fz_new_draw_device(d->ctx, fz_identity, pix);
-        fz_run_page(d->ctx, page, dev, fz_identity, NULL); fz_close_device(d->ctx, dev);
+        fz_matrix transform=fz_identity;
+        if(d->comic) {
+            fz_rect bounds=fz_bound_page(d->ctx,page);
+            float scale=w/(bounds.x1-bounds.x0);
+            transform=fz_make_matrix(scale,0,0,scale,-bounds.x0*scale,-bounds.y0*scale);
+        }
+        fz_run_page(d->ctx, page, dev, transform, NULL); fz_close_device(d->ctx, dev);
         ok = copy_pixmap_to_image(d->ctx, pix, out, err, cap);
     }
     fz_always(d->ctx) { fz_drop_device(d->ctx, dev); fz_drop_pixmap(d->ctx, pix); fz_drop_page(d->ctx, page); }
@@ -976,6 +997,11 @@ static int geometry_anchor(PxDocument *d,int chapter,int *page,float *y,double *
     return ok;
 }
 int px_document_anchor(PxDocument *d,int page,float y,int *ch,int *character,double *offset) {
+    if(d && d->comic) {
+        float w=0,h=0;
+        if(!px_document_page_size(d,page,&w,&h) || h<=0 || !isfinite(y))return 0;
+        *ch=page;*character=-1;*offset=fmax(0,fmin(1,y/h));return 1;
+    }
     int local; if(!d || !px_document_get_location(d,page,ch,&local)) return 0;
     if(text_anchor(d,*ch,page,y,character,offset,NULL,NULL,0)) return 1;
     *character=-1;
@@ -983,6 +1009,11 @@ int px_document_anchor(PxDocument *d,int page,float y,int *ch,int *character,dou
 }
 int px_document_restore_anchor(PxDocument *d,int ch,int character,double offset,int *page,float *y) {
     if(!d || ch<0 || character< -1 || !isfinite(offset)) return 0;
+    if(d->comic) {
+        float w=0,h=0;
+        if(ch>=px_document_pages(d) || !px_document_page_size(d,ch,&w,&h))return 0;
+        *page=ch;*y=(float)(fmax(0,fmin(1,offset))*h);return 1;
+    }
     if(character==-1) return geometry_anchor(d,ch,page,y,&offset,1);
     return text_anchor(d,ch,0,0,&character,&offset,page,y,1);
 }

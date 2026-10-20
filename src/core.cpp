@@ -220,7 +220,19 @@ Format detectFormat(const fs::path &path) {
     }
     if (ext == ".epub") return Format::Epub;
     if (ext == ".pdf") return Format::Pdf;
+    if (ext == ".cbz") return Format::Cbz;
+    if (ext == ".cbr") return Format::Cbr;
     return Format::Unsupported;
+}
+
+const char *formatName(Format format) {
+    switch(format) {
+        case Format::Epub:return "EPUB";
+        case Format::Pdf:return "PDF";
+        case Format::Cbz:return "CBZ";
+        case Format::Cbr:return "CBR";
+        default:return "Unknown";
+    }
 }
 
 std::string defaultTitle(const fs::path &path) {
@@ -282,7 +294,7 @@ std::vector<Book> filterByCategory(const std::vector<Book> &books, const Progres
 
     for (const auto &b : books) {
         auto p = store.get(b.id);
-        const bool continuousEpub = b.format == Format::Epub && p.readingMode == 1;
+        const bool continuousEpub = (b.format == Format::Epub || isComic(b.format)) && p.readingMode == 1;
         switch (category) {
             case Category::ContinueReading:
                 if (p.lastRead > 0 && p.fraction < 0.98 &&

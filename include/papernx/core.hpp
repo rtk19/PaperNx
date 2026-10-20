@@ -11,10 +11,13 @@ namespace fs = std::filesystem;
 
 constexpr const char *APP_TITLE = "PaperNX";
 constexpr const char *APP_AUTHOR = "Yusuf Buzrul";
-constexpr const char *APP_VERSION = "0.9.0-curl.2";
-constexpr const char *APP_VERSION_FULL = "v0.9.0-curl.2";
+constexpr const char *APP_VERSION = "0.10.0-comics.1";
+constexpr const char *APP_VERSION_FULL = "v0.10.0-comics.1";
 
-enum class Format { Epub, Pdf, Unsupported };
+enum class Format { Epub, Pdf, Cbz, Cbr, Unsupported };
+const char *formatName(Format format);
+inline bool isComic(Format format) { return format==Format::Cbz || format==Format::Cbr; }
+constexpr int COMIC_READING_COLORS=1, COMIC_RIGHT_TO_LEFT=2;
 enum class Sort { Title, Author, Filename, Modified, LastRead };
 enum class Category { All, ContinueReading, Recent, Favorites, Unread, Completed };
 
@@ -53,7 +56,7 @@ struct ReaderPreferences {
     int indentation{120};
     int touchZone{30}; // percentage on each edge
     int publisherStyles{0};
-    int pdfColorMode{0}; // Legacy PAPERNX-6 field; ignored by rendering. Both formats use Appearance.
+    int pdfColorMode{0}; // Ignored for PDF. Comic flags: bit 0 reading colors, bit 1 right-to-left.
     int pdfViewMode{0}; // fit page, fit width, 100%
 };
 

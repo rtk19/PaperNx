@@ -1,3 +1,11 @@
+# Fork update: v0.10.0-comics.1
+
+CBZ/CBR comics now share the existing reader and library: page curls with touch,
+original artwork colors, manga direction, zoom/pan, continuous scrolling,
+ComicInfo covers/metadata and persistent within-page bookmarks. See
+[COMICS.md](COMICS.md) for supported formats, controls, validation and limits.
+Physical Switch testing remains pending. Historical upstream status follows.
+
 # PaperNX v0.9.0 — Project status
 
 **Release:** [v0.9.0](https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0), published 19 October 2026  

@@ -41,3 +41,14 @@ Target the [published v0.9.0 NRO](https://github.com/ysfbz/PaperNx/releases/tag/
 | 35 | Off/Soft/Natural texture readability; images unaffected | UNVERIFIED |
 
 Never use a valuable original for deletion testing. First back up `books/` and `data/`; copy a disposable EPUB/PDF into the allowed books root. Test cancel first, then explicit confirmation. Shelf deletion must leave book files intact. The public v0.9.0 Release exists, but **real-device acceptance has not been demonstrated**; do not describe it as hardware-validated until the matrix and any P0 failures have been resolved.
+
+
+## Comic reader device acceptance (v0.10.0-comics.1)
+
+Pending hardware checks: open large CBZ, solid RAR4 and RAR5; time forward/backward
+page turns and cold/warm covers; test fit/zoom/pan and pinch; drag/hold/reverse the
+curl from upper/lower grips; manga touch and D-pad directions; continuous touch
+and stick scrolling; bookmark and resume inside a page after restart/rotation;
+original/reader colors in light/night themes; removable SD and low-memory errors.
+Use disposable copies for password/split/damaged archive cases. All these
+physical-device checks remain UNVERIFIED; automated desktop checks are separate.

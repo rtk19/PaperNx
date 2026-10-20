@@ -190,6 +190,8 @@ struct AppTest {
 }
 
 int main() {
+    assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS)==0);
+    assert(TTF_Init()==0);
     const auto root = fs::temp_directory_path() / "papernx-page-curl-regressions";
     fs::remove_all(root); fs::create_directories(root / "books");
     fs::copy_file("tests/fixtures/sample_book.epub", root / "books" / "sample.epub");
@@ -204,6 +206,6 @@ int main() {
     std::ofstream(pdfPath, std::ios::binary).write(pdf.data(), pdf.size());
     fs::create_directory_symlink(fs::absolute("fonts"), root / "fonts");
     AppTest::run(root);
-    fs::remove_all(root);
+    fs::remove_all(root);TTF_Quit();SDL_Quit();
     std::cout << "[PASS] page curl EPUB/PDF, queue/reversal, cache eviction, cancellation and boundaries\n";
 }

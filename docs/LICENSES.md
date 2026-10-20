@@ -13,3 +13,16 @@ Major dependencies: [MuPDF 1.23.11](https://github.com/ArtifexSoftware/mupdf/tre
 `scripts/build-mupdf-switch.sh` verifies the MuPDF source tarball checksum; `scripts/collect_licenses.py` collects notices and `SOURCE.txt`; `scripts/verify-switch.sh` adds SDK notice files; `scripts/package_release.py` produces the **separate** license ZIP.
 
 AGPL/third-party redistribution may require complete corresponding source and appropriate build/install information. A notices archive alone does not replace those obligations. See [build guide](BUILD_SWITCH.md) and [current Release Report](RELEASE_REPORT.md).
+
+
+## Comic reader dependencies in this fork
+
+Release `v0.10.0-comics.1` adds libarchive (BSD-style notices), libwebp (BSD
+notices) and the RAR-only unarr subset (LGPLv3, with public-domain PPMd files).
+Vendored unarr source, its exact upstream commit, modifications, LGPLv3/GPLv3
+texts and authors are in [third_party/unarr](../third_party/unarr/SOURCE.md).
+CMake and the Switch Makefile compile those sources, so the tagged release
+contains the application source and build instructions for relinking with a
+modified decoder. The separate license archive includes unarr and refreshed
+Switch portlib notices for the archive/image codecs and compression libraries.
+See [comic reader guide](COMICS.md) and [the fork release](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1).

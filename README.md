@@ -5,12 +5,12 @@
 <h1 align="center">PaperNX</h1>
 
 <p align="center">
-  <strong>Native, offline EPUB and PDF reader for the Nintendo Switch.</strong>
+  <strong>Native, offline EPUB, PDF, CBZ and CBR reader for the Nintendo Switch.</strong>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_3.0-blue.svg" alt="AGPL-3.0 License"></a>
-  <a href="https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0"><img src="https://img.shields.io/badge/Release-v0.9.0-brightgreen.svg" alt="Release v0.9.0"></a>
+  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1"><img src="https://img.shields.io/badge/Release-v0.10.0--comics.1-brightgreen.svg" alt="Release v0.10.0-comics.1"></a>
   <img src="https://img.shields.io/badge/Platform-Nintendo_Switch-e60012.svg" alt="Platform Nintendo Switch">
   <img src="https://img.shields.io/badge/Language-C%2B%2B17%20%2F%20C11-00599C.svg" alt="Language C++17 / C11">
   <img src="https://img.shields.io/badge/GUI-SDL2-black.svg" alt="GUI SDL2">
@@ -30,10 +30,15 @@ All books, cover art caches, reading progress, and personal reading journal stat
 
 ---
 
+## Comics release for this fork
+
+[**Download v0.10.0-comics.1**](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1) adds CBZ/CBR comics, solid RAR4/RAR5, original-color artwork, manga direction, interactive page curls, continuous scrolling and saved panel positions. See [the comic reader guide](docs/COMICS.md). This fork retains the touch-controlled page curl from curl.2.
+
 ## Key Features
 
 - **Touchscreen-First Ergonomics:** Every navigation and reading action has a direct, responsive touch target (56px minimum touch targets with visual feedback). Joy-Con and Pro Controller buttons remain supported as optional shortcuts.
 - **Continuous Vertical EPUB Scrolling:** Smooth pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, and seamless chapter transitions with logical anchor tracking. Traditional paginated horizontal reading mode is also fully supported.
+- **Comic Reader:** Open CBZ/CBR from the library or SD browser. Covers and ComicInfo metadata, numeric page order, manga direction, zoom/pan, paginated curls, continuous scrolling, bookmarks, collections and progress use the existing reader.
 - **Robust PDF Engine:** Powered by MuPDF 1.23.11 with fit-to-width, fit-to-page, touch drag-to-pan, zoom, and non-destructive document color filters (Original, Dark, Sepia, Invert).
 - **Unified Paper Appearance:** Choose from nine natural paper color presets (e.g., Pure White, Warm Book, Classic Sepia, Cream, Charcoal, Midnight Dark). The library, navigation chrome, menus, and EPUB viewer share a coordinated palette.
 - **Bilingual UI:** Native English and Turkish interface translations. Book titles, table of contents, and document contents remain in their authentic original language.
@@ -47,15 +52,15 @@ All books, cover art caches, reading progress, and personal reading journal stat
 
 ### Clean Install
 
-1. Download the release archive [`PaperNX-switch-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-switch-v0.9.0.zip).
+1. Download the release archive [`PaperNX-switch-v0.10.0-comics.1.zip`](https://github.com/rtk19/PaperNx/raw/refs/heads/builds/v0.10.0-comics.1/PaperNX-switch-v0.10.0-comics.1.zip).
 2. Extract the archive directly to the root of your Switch microSD card (`sdmc:/`).
-3. Place your `.epub` and `.pdf` files into `sdmc:/switch/PaperNX/books/` (or use the built-in file browser to access any directory).
+3. Place your `.epub`, `.pdf`, `.cbz` and `.cbr` files into `sdmc:/switch/PaperNX/books/` (or use the built-in file browser to access any directory).
 4. Launch **PaperNX** from the Homebrew Menu.
 
 ```text
 sdmc:/switch/PaperNX/
 ├── PaperNX.nro          # Application binary with embedded fonts & assets
-├── books/               # Place your EPUB and PDF books here
+├── books/               # Place EPUB, PDF, CBZ and CBR books here
 └── fonts/               # Bundled fonts and OFL notice (also embedded in the NRO)
 ```
 
@@ -161,7 +166,7 @@ Tüm kitaplarınız, kapak önbelleğiniz, okuma geçmişiniz ve okuma günlüğ
 
 ### Kurulum
 
-1. Güncel sürüm arşivini [`PaperNX-switch-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-switch-v0.9.0.zip) indirin.
+1. Güncel sürüm arşivini [`PaperNX-switch-v0.10.0-comics.1.zip`](https://github.com/rtk19/PaperNx/raw/refs/heads/builds/v0.10.0-comics.1/PaperNX-switch-v0.10.0-comics.1.zip) indirin.
 2. Arşivi Switch microSD kartınızın ana dizinine (`sdmc:/`) çıkartın.
 3. `.epub` ve `.pdf` kitaplarınızı `sdmc:/switch/PaperNX/books/` dizinine yerleştirin.
 4. Homebrew Menu üzerinden **PaperNX** uygulamasını başlatın.
