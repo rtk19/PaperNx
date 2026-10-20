@@ -789,9 +789,9 @@ private:
         // and chrome together from the resolved current ReaderPreferences.
         if(doc_ && !px_document_is_epub(doc_)) pageCache_.clear();
         if(comic()) {
-            syncComicScrollWidth();
+            const bool resized=syncComicScrollWidth();
             scrollY_=std::clamp(scrollY_,0.f,std::max(0.f,segmentHeight(currentPage_)-1));
-            setPdfView(extraStyle_.pdfViewMode);
+            if(resized)setPdfView(extraStyle_.pdfViewMode);else clampPdfPan();
         }
         // Debounced preparation is off-thread, but the old EPUB page and its
         // chrome remain on the same palette until the new layout is published.
@@ -1124,7 +1124,7 @@ private:
 
         auto p = progressStore_.get(b.id);
         auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
-        const bool newBook=!progressStore_.all().count(b.id);
+        const bool newBook=!progressStore_.all().count(b.id) || p.pageCount<=0;
         auto resolved=resolveReadingPreferences(defaults,p);
         if(newBook) { resolved.pdfViewMode=defaults.pdfViewMode; resolved.pdfColorMode=isComic(b.format)?0:defaults.pdfColorMode; }
         static_cast<ReaderPreferences&>(p)=resolved;
@@ -1349,11 +1349,12 @@ private:
         float w=0,h=0;if(!px_document_page_size(doc_,page,&w,&h) || h<=0)return 0;
         return y*segmentHeight(page)/h;
     }
-    void syncComicScrollWidth() {
-        if(!comic()) {comicScrollWidth_=0;return;}
+    bool syncComicScrollWidth() {
+        if(!comic()) {comicScrollWidth_=0;return false;}
         int w,h;getWindowSize(w,h);const int width=fixedViewportWidth(w);
+        const bool resized=comicScrollWidth_>0 && comicScrollWidth_!=width;
         if(continuous() && comicScrollWidth_>0)scrollY_*=float(width)/comicScrollWidth_;
-        comicScrollWidth_=width;
+        comicScrollWidth_=width;return resized;
     }
     void clampPdfPan() {
         if (!doc_ || px_document_is_epub(doc_)) return;

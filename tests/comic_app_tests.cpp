@@ -47,6 +47,8 @@ struct AppTest {
         assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.anchorY<.2f && app.currentPage_==0);
         snapshot(app,"touch-curl");touch(app,SDL_FINGERUP,.4f,.3f);finish(app);assert(app.currentPage_==1);
         app.zoomPdf(2);assert(!app.canCurlPage());app.handleAnalog(1,1);assert(app.pdfPanX_>=0);
+        app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
+        app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.setPdfView(1);assert(app.pdfZoom_>=1);app.setPdfView(0);assert(app.canCurlPage());
         app.openSettings(false,0);assert(app.settingsRows()==1);snapshot(app,"artwork-settings");app.dismissSettings();
         app.extraStyle_.pdfColorMode|=COMIC_READING_COLORS;app.queueStyleChange();
@@ -72,6 +74,7 @@ struct AppTest {
         app.closeBook();app.openBook(rar);assert(app.comic() && !app.continuous() && !app.comicReadingColors());
         app.currentPage_=0;app.turnPage(1);finish(app);app.toggleBookmark();app.closeBook();app.openBook(rar);
         assert(app.currentPage_==1 && app.progressStore_.get(rar.id).bookmarks.size()==1);app.closeBook();
+        auto favorite=app.progressStore_.get(manga.id);favorite.favorite=true;app.progressStore_.put(manga.id,favorite);
         app.openBook(manga);assert(app.readingDirection()==-1);app.currentPage_=0;
         touch(app,SDL_FINGERDOWN,.1f,.8f);touch(app,SDL_FINGERMOTION,.7f,.65f);
         assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.direction==-1 && app.pageTurnAnimation_.targetPage==1);
