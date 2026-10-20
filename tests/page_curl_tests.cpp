@@ -30,7 +30,7 @@ int main() {
     std::filesystem::create_directories("verification/page-curl");
     for (int direction : {1, -1}) {
         int earlyRed = 0, lateRed = 0;
-        for (float progress : {0.f, .25f, .5f, .75f, .99f, 1.f}) {
+        for (float progress : {0.f, .0005f, .25f, .5f, .75f, .99f, 1.f}) {
             SDL_RenderSetClipRect(renderer, nullptr);
             SDL_SetRenderDrawColor(renderer, 4, 5, 180, 255);
             SDL_RenderClear(renderer);
@@ -58,6 +58,7 @@ int main() {
                 }
             }
             if (progress == 0.f) assert(red == page.w * page.h);
+            if (progress == .0005f) assert(red > page.w * page.h * .98f);
             if (progress == 1.f) assert(green == page.w * page.h);
             if (progress == .25f) { earlyRed = red; assert(red > 0 && green > 0); }
             if (progress == .99f) { lateRed = red; assert(red < page.w * page.h / 50); }
@@ -82,6 +83,22 @@ int main() {
     papernx::PageCurlRenderer::render(renderer, previous, next, page, .5f, 1);
     SDL_RenderPresent(renderer);
     assert(pixel(99, 90).b == 180 && pixel(141, 90).b == 180);
+#ifndef PAPERNX_CURL_FORCE_FALLBACK
+    // Different grip heights and vertical travel must change the rendered fold.
+    auto frameHash=[&](float grip,float travel) {
+        SDL_RenderSetClipRect(renderer,nullptr);
+        SDL_SetRenderDrawColor(renderer,4,5,180,255);SDL_RenderClear(renderer);
+        papernx::PageCurlRenderer::render(renderer,previous,next,page,.32f,1,grip,travel);
+        SDL_RenderPresent(renderer);
+        std::uint64_t hash=1469598103934665603ull;
+        for(int y=page.y;y<page.y+page.h;++y)for(int x=page.x;x<page.x+page.w;++x) {
+            const auto c=pixel(x,y);hash=(hash^c.r)*1099511628211ull;hash=(hash^c.g)*1099511628211ull;
+        }
+        return hash;
+    };
+    assert(frameHash(.15f,0)!=frameHash(.85f,0));
+    assert(frameHash(.5f,-.2f)!=frameHash(.5f,.2f));
+#endif
     SDL_DestroyTexture(previous); SDL_DestroyTexture(next);
     SDL_DestroyRenderer(renderer); SDL_FreeSurface(surface); SDL_Quit();
     std::cout << "[PASS] page curl pixels, directions, continuous endpoint, scaled fallback and render state\n";

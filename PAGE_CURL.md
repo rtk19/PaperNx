@@ -1,24 +1,40 @@
-# PaperNX page curl fork
+# PaperNX interactive page curl
 
-Based on `ysfbz/PaperNx` commit `fc1612fe7c3fbe9d6cc25d33dccbd3ea1202ae9d`
-and the supplied PaperNX-PageCurl-Patch prototype. Fork version: **0.9.0-curl.1**.
+Fork version **0.9.0-curl.2**, based on `ysfbz/PaperNx` commit
+`fc1612fe7c3fbe9d6cc25d33dccbd3ea1202ae9d` and the supplied page-curl prototype.
 
-Adjacent page turns use a 460 ms textured cylindrical fold, with easing and
-shading, in paginated EPUB and fit-to-page PDF. Shoulder buttons, page keys,
-touch zones and the existing PDF page gestures all use the same transition.
-Continuous EPUB scrolling and zoomed PDF retain their existing behavior.
-Rapid turns are queued; reversing direction is supported. Settings, layout,
-zoom, resize, backgrounding and book closure cancel the transition. Turning
-beyond the first or last page does nothing.
+## Touch behavior
 
-The prototype's final-frame jump is corrected by moving the cylinder's contact
-line as its radius shrinks. Both pages are captured into owned viewport textures
-before the animation starts, so cache eviction, cold page rendering and different
-PDF page dimensions cannot invalidate the transition. SDL drivers without
-geometry use a clipped reveal; if render-target snapshots are unavailable,
-page turns remain immediate. The flat sheet uses a normal texture copy to avoid software-rasterizer mesh cracks. Renderer clipping, color and blend state are restored.
+Drag horizontally anywhere in the reading area to pick up a page. The fold
+follows the finger while it is held; it does not advance on a timer. The initial
+height of the grip and subsequent vertical movement incline the crease. A drag
+near a corner folds that corner; a central grip produces a more upright roll.
+Reverse the drag to put the sheet back. Release beyond the distance threshold,
+or with a short flick, to finish the turn. A short slow drag returns to the
+original page. Reading progress is committed only when a dragged turn completes.
 
-## Build and test
+Taps, shoulder buttons and page keys still turn pages automatically. Rapid
+button/tap turns are queued. Paginated EPUB and fit-to-page PDF support the
+curl; continuous EPUB and zoomed PDF retain scrolling and panning. Toolbars,
+scrubbers and modal controls keep their own hit areas. A second finger,
+backgrounding, layout/zoom/size changes and book closure cancel a live curl.
+
+## Rendering
+
+The paper is wrapped around an inclined, tapered cylinder and projected from
+actual 3D height. The moving sheet is depth-sorted, with a translucent paper
+back, subdued reversed ink, directional lighting, a narrow highlight and soft
+contact shadows. A single flat polygon keeps untouched text sharp. Texture
+sampling is linear on supported SDL versions. The crease angle and radius
+vanish at rest, so starting or cancelling a small drag does not pop a large
+corner into view.
+
+Owned front, destination and back textures remain independent of the page LRU
+cache and normalize mixed PDF page sizes. Renderer clipping, colors, scale and
+texture blending are preserved. SDL drivers without geometry fall back to a
+scaled reveal; if render targets are unavailable, turns remain immediate.
+
+## Build and verification
 
 ```sh
 docker compose build desktop switch
@@ -26,23 +42,18 @@ docker compose run --rm desktop bash scripts/verify-desktop.sh
 docker compose run --rm switch bash scripts/verify-switch.sh
 ```
 
-The Switch build produces `PaperNX.nro` and the verified distribution under
-`dist/v0.9.0-curl.1/`. The source and build receipt identify the implementation
-used for the binary. Existing AGPL-3.0 and bundled dependency notices apply.
-
-The native CTest suite includes actual SDL software-renderer pixel checks for
-forward/backward geometry and fallback, endpoint continuity, clipping and saved
-renderer state. Application tests cover EPUB/PDF, queue/reversal, cache eviction,
-cancellation and document boundaries. These checks do **not** establish Switch
-hardware compatibility or frame rate; test the build on your console.
-
-Validation for this build: all 7 portable CTest checks, all 14 native CTest
-checks and the Python packaging regressions passed. Switch compilation,
-AArch64 ELF/NRO structure, embedded branding/fonts, source receipt and
-distribution checks are verified separately in the release evidence.
+The NRO and verified distribution are written to `dist/v0.9.0-curl.2/`.
+Release evidence includes the source/binary build receipt, hashes and test logs.
+The native tests exercise real SDL geometry and fallback, grip/vertical-travel
+pixel changes, both endpoint limits, renderer state, live holds, reversal,
+commit/cancel, flick speed, multi-touch, portrait transforms, light/OLED themes,
+EPUB/PDF and cache eviction. Preview frames come from the native SDL renderer,
+not a Nintendo Switch. Tests and artifact checks do not establish Switch
+hardware compatibility or frame rate.
 
 ## Installation
 
-Back up `sdmc:/switch/PaperNX/data/` and replace only
-`sdmc:/switch/PaperNX/PaperNX.nro`. Keep your existing books and data directories.
-Open PaperNX through Homebrew Menu. To revert, restore the upstream NRO.
+Back up `sdmc:/switch/PaperNX/data/`, then replace only
+`sdmc:/switch/PaperNX/PaperNX.nro`. Keep existing books and data directories.
+Open through Homebrew Menu. The previous NRO can be restored to revert.
+AGPL-3.0 and bundled dependency license notices continue to apply.

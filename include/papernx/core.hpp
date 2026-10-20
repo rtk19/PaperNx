@@ -11,8 +11,8 @@ namespace fs = std::filesystem;
 
 constexpr const char *APP_TITLE = "PaperNX";
 constexpr const char *APP_AUTHOR = "Yusuf Buzrul";
-constexpr const char *APP_VERSION = "0.9.0-curl.1";
-constexpr const char *APP_VERSION_FULL = "v0.9.0-curl.1";
+constexpr const char *APP_VERSION = "0.9.0-curl.2";
+constexpr const char *APP_VERSION_FULL = "v0.9.0-curl.2";
 
 enum class Format { Epub, Pdf, Unsupported };
 enum class Sort { Title, Author, Filename, Modified, LastRead };
