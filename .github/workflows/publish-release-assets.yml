@@ -1,0 +1,96 @@
+name: Publish verified release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag with a matching builds/<tag> branch
+        required: true
+        default: v0.10.0-comics.1
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-assets-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check release tag
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[a-z0-9.]+$ ]]; then
+            echo 'Expected a versioned fork prerelease tag' >&2
+            exit 1
+          fi
+          gh release view "$RELEASE_TAG" --json tagName
+
+      - uses: actions/checkout@v4
+        with:
+          ref: builds/${{ inputs.tag }}
+          path: binaries
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: source
+
+      - name: Verify original artifacts and corresponding source
+        run: |
+          cd binaries
+          sha256sum --check SHA256SUMS
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          from zipfile import ZipFile
+          manifest = json.loads(Path('manifest.json').read_text())
+          revision = subprocess.check_output(['git', '-C', '../source', 'rev-parse', 'HEAD'], text=True).strip()
+          assert manifest['version'] == os.environ['RELEASE_TAG']
+          assert manifest['source']['git_revision'] == revision, 'Tag differs from the binary source receipt'
+          nro = Path('PaperNX.nro').read_bytes()
+          assert hashlib.sha256(nro).hexdigest() == manifest['nro']['sha256']
+          assert hashlib.sha256(Path(manifest['name']).read_bytes()).hexdigest() == manifest['sha256']
+          with ZipFile(manifest['name']) as archive:
+              assert archive.testzip() is None
+              assert archive.read('switch/PaperNX/PaperNX.nro') == nro
+          PY
+
+      - name: Prepare complete release downloads
+        run: |
+          mkdir release-assets
+          cp binaries/PaperNX.nro binaries/manifest.json binaries/README.md binaries/verification-evidence.zip release-assets/
+          cp binaries/PaperNX-*.zip binaries/*.sha256 release-assets/
+          git -C source archive --format=zip --prefix="PaperNX-$RELEASE_TAG/" --output="$GITHUB_WORKSPACE/release-assets/PaperNX-source-$RELEASE_TAG.zip" HEAD
+          cd release-assets
+          sha256sum -- * > ../release-checksums.txt
+          mv ../release-checksums.txt SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Attach files to the existing GitHub Release
+        working-directory: release-assets
+        run: gh release upload "$RELEASE_TAG" --clobber -- *
+
+      - name: Verify GitHub stored every asset intact
+        working-directory: release-assets
+        run: |
+          gh release view "$RELEASE_TAG" --json assets > ../uploaded-assets.json
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          remote = {item['name']: item for item in json.loads(Path('../uploaded-assets.json').read_text())['assets']}
+          for path in Path('.').iterdir():
+              assert path.name in remote, f'Missing asset: {path.name}'
+              asset = remote[path.name]
+              assert asset['size'] == path.stat().st_size, f'Asset size mismatch: {path.name}'
+              digest = asset.get('digest')
+              if digest:
+                  assert digest == 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest(), f'Asset digest mismatch: {path.name}'
+          print(f'Published and checked {len(remote)} release assets')
+          PY

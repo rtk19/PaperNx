@@ -1,211 +1,137 @@
 <p align="center">
-  <img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX Logo" width="160">
+  <img src="assets/branding/PaperNX-icon-512.png" alt="PaperNX logo" width="144">
 </p>
 
-<h1 align="center">PaperNX</h1>
+<h1 align="center">PaperNX — rtk19 fork</h1>
+
+<p align="center">Offline EPUB, PDF, CBZ and CBR reading on Nintendo Switch, with interactive paper curls.</p>
 
 <p align="center">
-  <strong>Native, offline EPUB, PDF, CBZ and CBR reader for the Nintendo Switch.</strong>
+  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1">Download this fork</a> ·
+  <a href="docs/COMICS.md">Comic reader guide</a> ·
+  <a href="https://github.com/ysfbz/PaperNx">Original project</a> ·
+  <a href="LICENSE">AGPL-3.0</a>
 </p>
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_3.0-blue.svg" alt="AGPL-3.0 License"></a>
-  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1"><img src="https://img.shields.io/badge/Release-v0.10.0--comics.1-brightgreen.svg" alt="Release v0.10.0-comics.1"></a>
-  <img src="https://img.shields.io/badge/Platform-Nintendo_Switch-e60012.svg" alt="Platform Nintendo Switch">
-  <img src="https://img.shields.io/badge/Language-C%2B%2B17%20%2F%20C11-00599C.svg" alt="Language C++17 / C11">
-  <img src="https://img.shields.io/badge/GUI-SDL2-black.svg" alt="GUI SDL2">
-  <img src="https://img.shields.io/badge/Engine-MuPDF_1.23.11-red.svg" alt="Engine MuPDF">
-</p>
+## About this fork
 
----
+**[rtk19/PaperNx](https://github.com/rtk19/PaperNx)** is an independently maintained fork of **[ysfbz/PaperNx](https://github.com/ysfbz/PaperNx)**, originally developed by **Yusuf Buzrul**. Fork maintenance and the additions described here belong to **[@rtk19](https://github.com/rtk19)**. This repository has its own releases and changes; download this fork's builds and report fork-specific problems here.
 
-## Overview
+The fork adds touch-controlled, perspective page curls and CBZ/CBR comic reading while retaining the original EPUB/PDF reader, offline library, reading journal and settings. The original project's authorship and license are preserved.
 
-**PaperNX** is a native, lightweight, and fully offline document reader built specifically for the Nintendo Switch using modern C++17, C11, SDL2, and MuPDF. Designed from the ground up for comfortable handheld reading with Joy-Con controllers detached, PaperNX delivers a fluid touchscreen-first reading experience.
+**Current release: [v0.10.0-comics.1](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1), a prerelease.** Desktop tests, archive sanitizers, OpenGL rendering and the Switch build/package checks passed. Physical Nintendo Switch compatibility, frame rate and touch latency have **not yet been verified**.
 
-All books, cover art caches, reading progress, and personal reading journal statistics stay strictly on your microSD card. No user account, no cloud telemetry, and no browser engines are required.
+## Downloads — use Release Assets
 
-> [!NOTE]
-> **Default Language:** PaperNX starts in **English** by default. Full **Turkish** localization is built-in and can be selected at any time via **Settings → Application → Language** (`+` button or <kbd>Y</kbd>). Your choice is saved and persists across app restarts.
+Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
 
----
+| Asset | Purpose |
+|---|---|
+| [PaperNX-switch-v0.10.0-comics.1.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX-switch-v0.10.0-comics.1.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
+| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
+| [PaperNX-licenses-v0.10.0-comics.1.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX-licenses-v0.10.0-comics.1.zip) | Project and third-party license notices. |
+| [PaperNX-source-v0.10.0-comics.1.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/PaperNX-source-v0.10.0-comics.1.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
+| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
+| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/manifest.json) | Binary hashes, build receipt and source revision. |
+| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
+| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.10.0-comics.1/README.md) | Short installation and source reference to keep with the downloads. |
 
-## Comics release for this fork
+GitHub's automatic **Source code** archives also contain source. To run the reader on Switch, use the NRO or installation ZIP.
 
-[**Download v0.10.0-comics.1**](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1) adds CBZ/CBR comics, solid RAR4/RAR5, original-color artwork, manga direction, interactive page curls, continuous scrolling and saved panel positions. See [the comic reader guide](docs/COMICS.md). This fork retains the touch-controlled page curl from curl.2.
+The released binary comes from commit [`34473d3`](https://github.com/rtk19/PaperNx/commit/34473d348e941e68a40821e2348a88a5ddfb5b5d). Later documentation or release-publishing updates on `main` do not change that binary. The `builds/<version>` branches retain archived build copies; Release Assets are the download location for users.
 
-## Key Features
+## Installation and upgrades
 
-- **Touchscreen-First Ergonomics:** Every navigation and reading action has a direct, responsive touch target (56px minimum touch targets with visual feedback). Joy-Con and Pro Controller buttons remain supported as optional shortcuts.
-- **Continuous Vertical EPUB Scrolling:** Smooth pixel-by-pixel vertical scrolling with momentum, sensitivity adjustments, and seamless chapter transitions with logical anchor tracking. Traditional paginated horizontal reading mode is also fully supported.
-- **Comic Reader:** Open CBZ/CBR from the library or SD browser. Covers and ComicInfo metadata, numeric page order, manga direction, zoom/pan, paginated curls, continuous scrolling, bookmarks, collections and progress use the existing reader.
-- **Robust PDF Engine:** Powered by MuPDF 1.23.11 with fit-to-width, fit-to-page, touch drag-to-pan, zoom, and non-destructive document color filters (Original, Dark, Sepia, Invert).
-- **Unified Paper Appearance:** Choose from nine natural paper color presets (e.g., Pure White, Warm Book, Classic Sepia, Cream, Charcoal, Midnight Dark). The library, navigation chrome, menus, and EPUB viewer share a coordinated palette.
-- **Bilingual UI:** Native English and Turkish interface translations. Book titles, table of contents, and document contents remain in their authentic original language.
-- **Persistent Bounded Cover Cache:** 150×210 RGB24 thumbnail cache bounded to 32 MiB / 512 entries with file stat validation, CRC integrity checks, automatic recovery, and immediate vector placeholder fallbacks.
-- **Reading Journal & Offline Stats:** Tracks reading minutes, sessions, completion percentages, streaks, and period stats entirely offline on SD card.
-- **Data Protection & Recovery:** Settings and reading records use verified temporary writes, backup/recovery paths and retries to reduce data-loss risk. The installer does not ship user databases. **Back up `books/` and `data/` before upgrading:** sudden power loss and SD failure can still cause loss.
+A Nintendo Switch capable of launching NRO homebrew is required.
 
----
-
-## Installation & Upgrade
-
-### Clean Install
-
-1. Download the release archive [`PaperNX-switch-v0.10.0-comics.1.zip`](https://github.com/rtk19/PaperNx/raw/refs/heads/builds/v0.10.0-comics.1/PaperNX-switch-v0.10.0-comics.1.zip).
-2. Extract the archive directly to the root of your Switch microSD card (`sdmc:/`).
-3. Place your `.epub`, `.pdf`, `.cbz` and `.cbr` files into `sdmc:/switch/PaperNX/books/` (or use the built-in file browser to access any directory).
-4. Launch **PaperNX** from the Homebrew Menu.
+1. Download the installation ZIP from **this fork's Release Assets**.
+2. Extract it to the microSD root. The executable must end up at `sdmc:/switch/PaperNX/PaperNX.nro`.
+3. Put `.epub`, `.pdf`, `.cbz` or `.cbr` files in `sdmc:/switch/PaperNX/books/`. Subfolders and uppercase extensions work. The built-in file browser can open books elsewhere on the SD card.
+4. Launch PaperNX from the Homebrew Menu.
 
 ```text
 sdmc:/switch/PaperNX/
-├── PaperNX.nro          # Application binary with embedded fonts & assets
-├── books/               # Place EPUB, PDF, CBZ and CBR books here
-└── fonts/               # Bundled fonts and OFL notice (also embedded in the NRO)
+├── PaperNX.nro
+├── books/                  # Your books and comics
+├── fonts/                  # Bundled fonts and OFL notice
+└── data/                   # Created by the app: progress, settings, covers, journal
 ```
 
-### Upgrading from a Previous Version
+**Before upgrading or switching builds, back up `books/` and `data/`.** Replace the existing `PaperNX.nro`, or extract the new installation ZIP. Keep your existing books and data; the release package includes no user databases or comic files. Individual SD write or power failures can still cause data loss.
 
-Simply extract the new `PaperNX.nro` into `sdmc:/switch/PaperNX/PaperNX.nro`.
+**This fork uses the same installation and data location as upstream PaperNX.** Installing it there replaces the existing executable and continues using the existing library records. Keep book paths/names stable: book identity includes its path and file size, so moving or replacing a book can affect its saved progress association.
 
-> [!IMPORTANT]
-> The official release package contains only application files, fonts, and an empty `books/` placeholder. It **never contains** `data/`, `logs/`, or user databases, reducing the risk of overwriting existing reading records, bookmarks, collections and custom themes. Back up `books/` and `data/` before upgrading.
-
----
-
-## Touch & Controller Controls
-
-All essential features are fully operable via touchscreen. Physical controller bindings are available as optional shortcuts (see [docs/TOUCH_CONTROLS.md](docs/TOUCH_CONTROLS.md) for full gesture reference):
-
-| Action | Touch Gesture | Controller Button |
-|---|---|---|
-| **Quick Menu / Options** | Tap top-right `+` button | <kbd>+</kbd> (Plus) |
-| **Open Book** | Tap book card in library or file browser | <kbd>A</kbd> |
-| **Page Turns (Paginated EPUB)** | Tap left/right 30% screen edges or swipe horizontally | <kbd>L</kbd> / <kbd>R</kbd> or D-Pad Left / Right |
-| **Continuous Scroll (EPUB)** | Drag vertically up / down | Right Stick or D-Pad Up / Down |
-| **Toggle Reading Toolbar** | Tap screen center | <kbd>A</kbd> |
-| **Reading Settings (Aa)** | Tap `+` → *Reading settings* | <kbd>X</kbd> |
-| **Appearance & Theme** | Tap `+` → *Appearance & Language* | <kbd>Y</kbd> |
-| **Table of Contents** | Tap `+` → *Table of Contents* | <kbd>-</kbd> (Minus) |
-| **Bookmarks** | Tap `+` → *Bookmarks* | <kbd>ZL</kbd> / Left Bumper |
-| **PDF Zoom & Pan** | Tap −/+ on toolbar; drag zoomed page | <kbd>ZL</kbd> / <kbd>ZR</kbd>; Left Stick |
-| **Favorite Book** | Tap star icon on library card | Left Stick Click (<kbd>L3</kbd>) |
-| **Return to Library** | Tap `+` → *Return to library* | <kbd>B</kbd> |
-| **Exit PaperNX** | Tap `+` → *Exit PaperNX* | <kbd>Home</kbd> / <kbd>B</kbd> (in root) |
-
----
-
-## Building from Source
-
-PaperNX provides reproducible containerized builds using Docker.
-
-### Prerequisites
-
-- [Docker](https://www.docker.com/) and Docker Compose
-- Git
-
-### Build for Nintendo Switch (Target AArch64)
+For a quick NRO integrity check, download `PaperNX.nro.sha256` next to the NRO and run:
 
 ```bash
-git clone https://github.com/ysfbz/PaperNx.git
+sha256sum --check PaperNX.nro.sha256
+```
+
+On PowerShell, use `Get-FileHash .\PaperNX.nro -Algorithm SHA256` and compare with that file. The current NRO SHA-256 is:
+
+```text
+2e7c3e7c7d0bad45da4d3bcc3025d54cdbd745003bae7a5b8770a35fb77e2988
+```
+
+## Reading and fork features
+
+- **Interactive paper curl:** drag horizontally, hold the sheet, or reverse the drag to return it. Initial grip height and vertical movement affect the fold; release distance and speed determine completion or cancellation. Paginated EPUB and fit-to-page PDF/comics use the animation. Enlarged fixed-layout pages pan instead of curling.
+- **CBZ/CBR comics:** ZIP, RAR4 and RAR5, including solid archives; natural numeric page order, nested folders, Unicode names, ComicInfo metadata, front covers and contents bookmarks. Images are decoded without extracting the archive onto the SD card.
+- **Comic and manga controls:** fit-page, fit-width, actual size, zoom/pan, original artwork colors or an optional reader palette, and left-to-right/right-to-left navigation. ComicInfo can set the initial manga direction. Continuous scrolling fits pages to the viewport width and supports momentum/sensitivity settings.
+- **Resume and navigation:** bookmarks and progress include the position inside a continuously scrolled comic page, including across reopen, margin changes and rotation. Contents, page navigation and navigation history remain available.
+- **Existing reader/library:** EPUB typography and continuous scrolling, PDF zoom/pan, coordinated paper themes, search, favorites, collections, metadata editing, cover cache, reading status, journal and offline statistics.
+
+Tap the center to show reader tools, or use **+** for the quick menu. Reading settings expose **Artwork**, **Borders**, **Appearance**, **Navigation** and **Page view** as appropriate for the open format. A comic's text is part of its image; use zoom to enlarge lettering and panels. Its original colors are preserved by default, independently of the surrounding theme.
+
+Touch and controllers are supported. D-pad navigation follows the comic's spatial reading direction; optional L/R shortcuts remain logical previous/next. See [comic controls and supported formats](docs/COMICS.md) and [general touch controls](docs/TOUCH_CONTROLS.md).
+
+The app interface is **English or Turkish**; choose the language under **Settings → Application → Language**. Hebrew UI localization is not included. Book contents and metadata keep their original language.
+
+## Important limits and troubleshooting
+
+- This is a prerelease; passing desktop/build checks does not replace testing on an actual Switch.
+- Password-protected and split/multipart comics are unsupported. Use a complete, unencrypted CBZ/CBR file.
+- Large or very high-resolution scans can exceed the document/image memory budget. Solid RAR seeking can be slower because preceding data may need to be decompressed. [The comic guide](docs/COMICS.md) lists exact size/count limits and supported image types.
+- Font size, paragraph spacing and text reflow apply to EPUB. Comic lettering stays embedded in the artwork; zoom, borders, colors and reading-mode controls apply instead.
+- Original comic colors are the default. The optional reader palette changes the whole image, including illustrations, and is reversible.
+- A damaged individual image reports a page error; other pages may still be readable. A damaged archive/index can prevent the book from opening.
+- Keep a backup before upgrading, deleting books or switching to older builds. Compatibility of future or older releases with newer saved data is not guaranteed.
+
+## Building this fork
+
+Docker/Compose and Git are required. The Docker recipes install the desktop or devkitPro Switch toolchain and archive/image dependencies.
+
+```bash
+git clone https://github.com/rtk19/PaperNx.git
 cd PaperNx
 
-# Build the Switch NRO binary and release distribution
+# Build the Switch NRO and SD distribution.
+docker compose build switch
 docker compose run --rm switch bash scripts/verify-switch.sh
+
+# Build and run desktop regression tests.
+docker compose build desktop
+docker compose run --rm desktop bash scripts/verify-desktop.sh
 ```
 
-The resulting artifacts are written to `dist/v0.9.0/`:
-- `PaperNX.nro`: Nintendo Switch executable with embedded RomFS assets
-- `PaperNX-switch-v0.9.0.zip`: Clean microSD distribution package
-- `PaperNX-licenses-v0.9.0.zip`: Open-source license documentation
+Switch outputs are written to `dist/v0.10.0-comics.1/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
 
-### Build & Test on Desktop (Linux / macOS / WSL)
+The manually dispatched **Publish verified release assets** workflow attaches existing, verified `builds/<tag>` artifacts to the corresponding release. It checks the original hashes and source tag, includes a source archive, and publishes an updated checksum list. It does not rebuild or retag the NRO.
 
-```bash
-# Run unit, integration, and UI component tests natively
-docker compose run --rm desktop bash scripts/verify-v04.sh native
+## Reporting a fork problem
 
-# Run memory sanitizer checks (ASan / UBSan)
-docker compose run --rm desktop bash scripts/verify-v04.sh sanitizers
-```
+Use this repository's enabled GitHub support features, or contact [@rtk19](https://github.com/rtk19). Include the fork version, book/archive format, reading mode, orientation, reproduction steps and relevant `logs/papernx.log` output. Remove private book titles, paths and personal reading details before sharing logs. A small original/public-domain sample is preferable to sharing a copyrighted book. Report a fork-specific problem here before assuming it also affects upstream.
 
----
+## Credits and license
 
-## Open Source Compliance & Licensing
+Original PaperNX: **Yusuf Buzrul / [@ysfbz](https://github.com/ysfbz)**, developed with AI assistance. Original repository: [ysfbz/PaperNx](https://github.com/ysfbz/PaperNx).
 
-PaperNX is free software developed by **Yusuf Buzrul with AI assistance** and licensed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
+Fork maintainer: **[@rtk19](https://github.com/rtk19)**. The fork retains the **[AGPL-3.0 license](LICENSE)** and original attribution. Dependencies include MuPDF, SDL2/SDL2_ttf, libnx, FreeType, HarfBuzz, archive/image codecs and Noto OFL fonts. The RAR-only unarr source and local changes are included under LGPLv3 in [third_party/unarr](third_party/unarr/SOURCE.md). Download the license asset and consult the tagged source/build instructions when redistributing.
 
-This software includes third-party libraries and fonts licensed under permissive and copyleft open-source terms (MuPDF, libnx, SDL2, SDL2_ttf, FreeType, HarfBuzz, libjpeg-turbo, libpng, zlib, and Noto fonts). Third-party license notices are archived in [`PaperNX-licenses-v0.9.0.zip`](https://github.com/ysfbz/PaperNx/releases/download/v0.9.0/PaperNX-licenses-v0.9.0.zip) and under `third-party-licenses/`.
+## הנחיות קצרות בעברית
 
----
+זהו פורק עצמאי של **rtk19**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1), תחת **Assets**.
 
-<details>
-<summary><strong>🇹🇷 Türkçe Açıklama / Turkish Documentation (Genişletmek için tıklayın)</strong></summary>
+להתקנה ראשונה הורידו את `PaperNX-switch-v0.10.0-comics.1.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
 
-<br>
-
-### Genel Bakış
-
-**PaperNX**, Nintendo Switch için modern C++17, C11, SDL2 ve MuPDF kullanılarak geliştirilmiş, **yerel ve tamamen çevrimdışı bir EPUB ve PDF okuyucudur**. Joy-Con kumandaları konsoldan ayrılmış durumdayken rahatça kitap okuyabilmeniz amacıyla dokunmatik odaklı olarak tasarlanmıştır.
-
-Tüm kitaplarınız, kapak önbelleğiniz, okuma geçmişiniz ve okuma günlüğü istatistikleriniz yalnızca microSD kartınızda saklanır. Kullanıcı hesabı, bulut bağlantısı veya web tarayıcı motoru gerektirmez.
-
-> [!NOTE]
-> **Varsayılan Dil:** PaperNX temiz kurulumda varsayılan olarak **İngilizce** başlar. Eksiksiz **Türkçe** arayüz desteği dahili olarak mevcuttur ve **Ayarlar → Uygulama → Dil** (`+` butonu veya <kbd>Y</kbd>) üzerinden istendiğinde seçilebilir. Tercihiniz kaydedilir ve yeniden başlatmalarda korunur.
-
-### Temel Özellikler
-
-- **Dokunmatik Odaklı Ergonomi:** Tüm eylemler doğrudan ve hassas dokunmatik hedeflerle yönetilir (56px minimum dokunmatik alan). Kumandalar isteğe bağlı kısayol olarak desteklenir.
-- **Gerçek Dikey Sürekli EPUB Kaydırma:** Sahte sayfa hissi olmadan akıcı dikey piksel kaydırma, ayarlanabilir momentum ve pürüzsüz bölüm geçişleri. Klasik sayfalı yatay okuma modu da eksiksiz korunur.
-- **Güçlü PDF Motoru:** MuPDF 1.23.11 tabanlı; genişliğe/sayfaya sığdırma, serbest kaydırma, yakınlaştırma ve belge renk filtreleri (Orijinal, Koyu, Sepya, Ters).
-- **Bütünleşik Kâğıt Görünümü:** Dokuz doğal kâğıt teması (Beyaz, Kitap Kâğıdı, Klasik Sepya, Krem, Koyu Kömür, Gece vb.). Kitaplık, araç çubukları ve okuma pencereleri ortak renk paletini paylaşır.
-- **Çift Dilli Arayüz:** Doğal Türkçe ve İngilizce dil desteği. Kitap içerikleri ve içindekiler orijinal dilinde korunur.
-- **Disk Üzerinde Kapak Önbelleği:** 150×210 RGB24 boyutunda, 32 MiB / 512 dosya ile sınırlandırılmış hızlı kapak önbelleği; sağlama toplamı doğrulaması ve anında beliren şık vektörel kapak yer tutucuları.
-- **Okuma Günlüğü ve Çevrimdışı İstatistikler:** Okuma süresi, oturumlar, tamamlama oranları ve serileri tamamen yerel olarak takip eder.
-- **Veri Koruma ve Kurtarma:** Geçici dosya, yedekleme ve kurtarma mekanizmaları veri kaybı riskini azaltır. Paket kullanıcı veritabanlarını içermez; ancak SD kart arızası veya güç kesintisinde kayıp mümkündür. Güncellemeden önce **`books/` ve `data/` klasörlerini yedekleyin**.
-
-### Kurulum
-
-1. Güncel sürüm arşivini [`PaperNX-switch-v0.10.0-comics.1.zip`](https://github.com/rtk19/PaperNx/raw/refs/heads/builds/v0.10.0-comics.1/PaperNX-switch-v0.10.0-comics.1.zip) indirin.
-2. Arşivi Switch microSD kartınızın ana dizinine (`sdmc:/`) çıkartın.
-3. `.epub` ve `.pdf` kitaplarınızı `sdmc:/switch/PaperNX/books/` dizinine yerleştirin.
-4. Homebrew Menu üzerinden **PaperNX** uygulamasını başlatın.
-
-### Dokunmatik ve Kumanda Kısayolları
-
-Tüm temel özellikler dokunmatik ekran üzerinden doğrudan yönetilebilir. Fiziksel kumanda tuşları isteğe bağlı kısayol olarak desteklenmektedir (ayrıntılı jest kılavuzu için [docs/TOUCH_CONTROLS.md](docs/TOUCH_CONTROLS.md) belgesine bakın):
-
-| İşlem | Dokunmatik Yol | Kumanda Kısayolu |
-|---|---|---|
-| **Hızlı Menü / İşlemler** | Sağ üstteki `+` butonuna dokunun | <kbd>+</kbd> (Plus) |
-| **Kitap Açma** | Kitap kartına veya gezgindeki satıra dokunun | <kbd>A</kbd> |
-| **Sayfa Çevirme (Sayfalı EPUB)** | Sağ/sol %30 kenara dokunun veya kaydırın | <kbd>L</kbd> / <kbd>R</kbd> veya Yön Tuşları Sol / Sağ |
-| **Sürekli EPUB Kaydırma** | Dikey olarak yukarı / aşağı sürükleyin | Sağ Çubuk veya Yön Tuşları Yukarı / Aşağı |
-| **Araç Çubuğunu Göster/Gizle** | Ekranın ortasına dokunun | <kbd>A</kbd> |
-| **Okuma Ayarları (Aa)** | `+` → *Okuma ayarları* | <kbd>X</kbd> |
-| **Uygulama Görünümü ve Dil** | `+` → *Uygulama görünümü* | <kbd>Y</kbd> |
-| **İçindekiler** | `+` → *İçindekiler* | <kbd>-</kbd> (Minus) |
-| **Yer İmleri** | `+` → *Yer imleri* | <kbd>ZL</kbd> / Sol Omuz |
-| **PDF Yakınlaştırma ve Kaydırma** | Çubukta −/+, büyütülmüş sayfayı sürükleyin | <kbd>ZL</kbd> / <kbd>ZR</kbd>; Sol Çubuk |
-| **Favorilere Ekleme** | Kitap kartındaki yıldıza dokunun | Sol Çubuk Tıklama (<kbd>L3</kbd>) |
-| **Kitaplığa Dönüş** | `+` → *Kitaplığa dön* | <kbd>B</kbd> |
-| **Uygulamadan Çıkış** | `+` → *PaperNX’ten çık* | <kbd>Home</kbd> / <kbd>B</kbd> (ana ekranda) |
-
-### Lisans ve Telif Hakkı
-
-PaperNX, **Yusuf Buzrul** tarafından yapay zekâ desteğiyle geliştirilmiştir ve **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)** kapsamında lisanslanmıştır. Kullanılan üçüncü taraf kütüphanelerin lisansları `PaperNX-licenses-v0.9.0.zip` içinde sunulmaktadır.
-
-- Yusuf Buzrul tarafından yapay zekâ desteğiyle geliştirilmiştir.
-- Geliştirici profili: [https://github.com/ysfbz](https://github.com/ysfbz)
-
-</details>
-
----
-
-## Author & Maintainer
-
-**Yusuf Buzrul**  
-- Developed by Yusuf Buzrul with AI assistance.
-- GitHub: [@ysfbz](https://github.com/ysfbz) ([https://github.com/ysfbz](https://github.com/ysfbz))  
-- Repository: [https://github.com/ysfbz/PaperNx](https://github.com/ysfbz/PaperNx)
-
+אפשר להוסיף EPUB, PDF, CBZ ו־CBR לתיקיית `books/` או לפתוח דרך דפדפן הקבצים. קומיקס תומך באנימציות במגע, זום, גלילה רציפה ומנגה; צבעי האיורים נשמרים כברירת מחדל. ארכיונים מוצפנים או מפוצלים אינם נתמכים. זו גרסת ניסיון שטרם אומתה על Switch פיזי. הממשק עצמו באנגלית או בטורקית.
