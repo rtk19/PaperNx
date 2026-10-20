@@ -1,0 +1,84 @@
+{
+  "source": {
+    "git_revision": "d134e8b4815c14238c808abd6a0cfda3067211c3",
+    "implementation_sha256": "760fd1d476fb4e8d5c18e927bc32b9bae3ad12135496161a4eeb97268c0626ea"
+  },
+  "build_receipt": {
+    "source_before": {
+      "git_revision": "d134e8b4815c14238c808abd6a0cfda3067211c3",
+      "implementation_sha256": "760fd1d476fb4e8d5c18e927bc32b9bae3ad12135496161a4eeb97268c0626ea"
+    },
+    "source_after": {
+      "git_revision": "d134e8b4815c14238c808abd6a0cfda3067211c3",
+      "implementation_sha256": "760fd1d476fb4e8d5c18e927bc32b9bae3ad12135496161a4eeb97268c0626ea"
+    },
+    "outputs": {
+      "PaperNX.elf": {
+        "sha256": "ec92b3f1c8ba0e44b2c5384acf4b711d1ac9191cab10f7042c290cffd3c51e30",
+        "bytes": 71084624,
+        "architecture": "AArch64",
+        "machine": 183,
+        "type": 3
+      },
+      "PaperNX.nro": {
+        "sha256": "85cc016d3eef9d79f3e86ece2631181505285f30fef0fd21fc38a8ce72fac6b0",
+        "bytes": 48102283
+      }
+    }
+  },
+  "name": "PaperNX-switch-v0.9.0-curl.1.zip",
+  "version": "v0.9.0-curl.1",
+  "sha256": "a188c0b12f4ba8af728a65205bde993637a5e7864e46b0dcbe6799b461bbbd44",
+  "licenses_archive": {
+    "name": "PaperNX-licenses-v0.9.0-curl.1.zip",
+    "sha256": "14859f44b7cea11d4bd1b5e711c28e6cfb3ab0ab1ff6663cf4b6d49fbc2b9566"
+  },
+  "nro": {
+    "sha256": "85cc016d3eef9d79f3e86ece2631181505285f30fef0fd21fc38a8ce72fac6b0",
+    "declared_size": 46309376,
+    "actual_size": 48102283,
+    "segments": [
+      {
+        "name": ".text",
+        "offset": 0,
+        "size": 8998912
+      },
+      {
+        "name": ".rodata",
+        "offset": 8998912,
+        "size": 36773888
+      },
+      {
+        "name": ".data",
+        "offset": 45772800,
+        "size": 536576
+      }
+    ],
+    "assets": {
+      "icon": {
+        "offset": 46309432,
+        "size": 13795
+      },
+      "nacp": {
+        "offset": 46323227,
+        "size": 16384
+      },
+      "romfs": {
+        "offset": 46339611,
+        "size": 1762672
+      }
+    }
+  },
+  "contents": [
+    "switch/PaperNX/books/",
+    "switch/PaperNX/fonts/",
+    "switch/PaperNX/PaperNX.nro",
+    "switch/PaperNX/fonts/NotoSans-Regular.ttf",
+    "switch/PaperNX/fonts/NotoSans-SemiBold.ttf",
+    "switch/PaperNX/fonts/NotoSerif-Regular.ttf",
+    "switch/PaperNX/fonts/OFL.txt"
+  ],
+  "sd_root_target": "sdmc:/",
+  "verified_format": "NRO0",
+  "hardware_verified": false
+}
