@@ -59,6 +59,10 @@ def main():
     for issue in range(9, 23):
         info = INFO.replace('Issue 7', 'Issue '+str(issue)).replace('<Number>7</Number>', '<Number>'+str(issue)+'</Number>')
         archive(ROOT / ('series-'+str(issue)+'.cbz'), pages+[('ComicInfo.xml', info.encode())])
+    navigation_info = '<ComicInfo><Title>ספר קומיקס לבדיקה</Title><Pages><Page Image="0" Bookmark="פֶּרֶק ראשון — Part 1"/><Page Image="10" Bookmark="פרק שני &amp; English 123"/></Pages></ComicInfo>'
+    images = [png(380,580,color) for color in [(30,170,155),(215,135,45),(115,70,185)]]
+    archive(ROOT/'navigation.cbz', [('ComicInfo.xml', navigation_info.encode())]+[(f'Page{i+1:03}.png',images[i%3]) for i in range(40)])
+    archive(ROOT/'single-page.cbz', [('Page1.png',images[0])])
     print('Generated comic ZIP fixtures:',ROOT)
 
 if __name__=='__main__':main()

@@ -19,6 +19,7 @@ typedef struct PxTocEntry {
     char title[256];
     int page;
     int level;
+    float y; // Link position within an unpaginated chapter; zero for comics.
 } PxTocEntry;
 
 // Lifecycle

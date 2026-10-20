@@ -1,3 +1,7 @@
+# Fork update: v0.12.0-reader.1
+
+Adds transactional progress-bar scrubbing with asynchronous page previews, a virtualized page/chapter/bookmark browser, Hebrew and nested chapter labels, exact continuous EPUB fragment links, RTL page order and controller navigation. Previews do not change the saved position until confirmation; comic zoom and top-of-page resets remain. Developer: Refael Bar. See [PAGE_NAVIGATION.md](PAGE_NAVIGATION.md) and [TEST_RESULTS.md](TEST_RESULTS.md).
+
 # Fork update: v0.11.0-reader.4
 
 The fork developer displayed by Homebrew Menu is now **Refael Bar**. Build metadata and README credits identify the fork developer; original PaperNX attribution and licenses remain. Reading behavior is inherited from reader.3.

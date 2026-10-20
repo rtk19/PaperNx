@@ -23,7 +23,7 @@ void orientDirectionalEvent(SDL_Event &event) const {
     if(key)event.key.keysym.sym=SDL_Keycode(mapped);else event.cbutton.button=Uint8(mapped);
 }
 bool zoomPanContext() const {
-    return doc_ && screen_==ScreenState::Reader && !quickMenu_ &&
+    return doc_ && screen_==ScreenState::Reader && !quickMenu_ && !scrub_.active && !readerToolbarFocusActive_ &&
         catalogPanel_==CatalogPanel::None && choiceKind_<0 && colorEditing_<0 &&
         !continuous() && !px_document_is_epub(doc_) && pdfZoom_>1.001f;
 }
@@ -102,7 +102,7 @@ void tickControllerInput() {
     if(appBackground_ || !controllerFocused_) {clearHeldControls();return;}
     if(controller_) for(int axis=0;axis<SDL_CONTROLLER_AXIS_MAX;++axis)
         stickAxes_[axis]=SDL_GameControllerGetAxis(controller_,static_cast<SDL_GameControllerAxis>(axis));
-    const bool fixedReader=doc_ && screen_==ScreenState::Reader && !quickMenu_ && !continuous() &&
+    const bool fixedReader=doc_ && screen_==ScreenState::Reader && !quickMenu_ && !scrub_.active && !continuous() &&
         !px_document_is_epub(doc_) && catalogPanel_==CatalogPanel::None && choiceKind_<0 && colorEditing_<0;
     if(fixedReader && !pageTurnAnimation_.active && activeFingers_.empty()) {
         auto trigger=[](int value){return std::clamp((value-4000)/28767.f,0.f,1.f);};

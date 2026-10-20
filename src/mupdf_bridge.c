@@ -575,7 +575,7 @@ int px_document_from_location(PxDocument *d, int chapter, int p) {
     return page_idx;
 }
 
-static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *node) {
+static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *node, float *out_y) {
     int result = -1;
     fz_var(result);
     fz_try(ctx) {
@@ -583,6 +583,7 @@ static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *n
         if (node->uri && node->uri[0]) {
             float x = 0, y = 0;
             loc = fz_resolve_link(ctx, doc, node->uri, &x, &y);
+            *out_y = y;
         }
         result = fz_page_number_from_location(ctx, doc, loc);
     }
@@ -595,12 +596,13 @@ static void fill_toc_recursive(fz_context *ctx, fz_document *doc, fz_outline *no
     while (node && *count < max_entries) {
         PxTocEntry *entry = &entries[*count];
         if (node->title) {
-            snprintf(entry->title, sizeof(entry->title), "%s", node->title);
+            metadata_copy(entry->title, sizeof(entry->title), node->title);
         } else {
             snprintf(entry->title, sizeof(entry->title), "%s", "Untitled Section");
         }
         entry->level = level;
-        entry->page = resolve_outline_page(ctx, doc, node);
+        entry->y = 0;
+        entry->page = resolve_outline_page(ctx, doc, node, &entry->y);
         (*count)++;
 
         if (node->down && level < 32) {
@@ -623,6 +625,7 @@ int px_document_toc(PxDocument *d, PxTocEntry *entries, int max_entries) {
                 float x = 0, y = 0;
                 fz_location loc = fz_resolve_link(d->ctx, d->doc, d->nav_uri[i], &x, &y);
                 entries[i].page = fz_page_number_from_location(d->ctx, d->doc, loc);
+                entries[i].y = y;
             }
             fz_catch(d->ctx) { entries[i].page = -1; }
         }
@@ -806,9 +809,10 @@ static void read_nav(PxDocument *d, fz_xml *node, const char *base, int level) {
         if (xml_tag(p, "a")) {
             int i = d->nav_count;
             if (archive_path(d->nav_uri[i], sizeof d->nav_uri[i], base, fz_xml_att(p, "href"))) {
-                xml_text(p, d->nav[i].title, sizeof d->nav[i].title, 0);
+                metadata_value(p, d->nav[i].title, sizeof d->nav[i].title);
                 d->nav[i].level = level;
                 d->nav[i].page = -1;
+                d->nav[i].y = 0;
                 ++d->nav_count;
             }
         } else read_nav(d, p, base, level + (xml_tag(p, "ol") ? 1 : 0));

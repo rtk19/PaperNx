@@ -1,3 +1,9 @@
+# Fork release: v0.12.0-reader.1
+
+The bottom progress bar now previews pages during a drag and commits one position on release. A footer grid button and the + menu open Chapters, All pages and Bookmarks. The browser uses bounded, asynchronous thumbnails and virtualized rows, preserves comic zoom, supports RTL order and renders Hebrew chapter titles and nested links correctly. Continuous EPUB headings retain their resolved within-chapter offsets. Developer: Refael Bar; upstream attribution remains.
+
+The complete installation ZIP, NRO, corresponding tagged source, licenses, checksums, manifest and verification evidence are in [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.1). No user library or reading database is installed. See [controls](PAGE_NAVIGATION.md), [build instructions](BUILD_SWITCH.md) and [verification](TEST_RESULTS.md). Physical Switch acceptance remains unverified.
+
 # Fork release: v0.11.0-reader.4
 
 Updates the fork developer to **Refael Bar** in Switch NACP metadata, the application constant and current documentation. Original PaperNX credits and licensing are retained. Reading behavior is inherited from reader.3. The NRO, installation ZIP, exact source, license notices, hashes and evidence are available in [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.4).

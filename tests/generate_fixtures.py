@@ -221,6 +221,7 @@ def create_hebrew_variants(base):
         source = {name: archive.read(name) for name in archive.namelist()}
     for name, language, spine in (("hebrew_auto", "he", ""),
                                    ("hebrew_legacy", "iw-IL", ""),
+                                   ("hebrew_navigation", "he", ""),
                                    ("hebrew_publisher", "he", ""),
                                    ("hebrew_spine_ltr", "he", ' page-progression-direction="ltr"'),
                                    ("hebrew_spine_rtl", "en", ' page-progression-direction="rtl"')):
@@ -235,6 +236,13 @@ def create_hebrew_variants(base):
             '<p>' + 'זהו ספר בעברית ובו פסקה ארוכה שמיועדת לבדוק מעבר שורות וסידור נכון של המילים. ' * 8 + '</p>'
             '<p>שורה ראשונה<br/>שורה אחרונה</p></body></html>').encode()
         entries["OEBPS/toc.xhtml"] = entries["OEBPS/toc.xhtml"].decode().replace("Birinci Bölüm", "פרק ראשון").encode()
+        if name == "hebrew_navigation":
+            nav = entries["OEBPS/toc.xhtml"].decode().replace("פרק ראשון", "פֶּרֶק ראשון &amp; English 123 — " + "כותרת ארוכה בעברית " * 24)
+            nav = nav.replace("İkinci Bölüm", "פרק שני — ההמשך")
+            nav = nav.replace('</a></li>\n      <li><a href="ch2.xhtml">', '</a><ol><li><a href="ch1.xhtml#later">כותרת משנה — המשך הפרק</a></li></ol></li>\n      <li><a href="ch2.xhtml">')
+            entries["OEBPS/toc.xhtml"] = nav.encode()
+            chapter = entries["OEBPS/ch1.xhtml"].decode().replace('<p>שורה ראשונה', '<h2 id="later">כותרת משנה — המשך הפרק</h2><p>' + 'תוכן נוסף אחרי הכותרת בתוך אותו פרק. ' * 12 + '</p><p>שורה ראשונה')
+            entries["OEBPS/ch1.xhtml"] = chapter.encode()
         if name == "hebrew_publisher":
             chapter = entries["OEBPS/ch1.xhtml"].decode()
             chapter = chapter.replace('<p>שלום עולם</p>', '<p style="text-align:right">שלום עולם</p>')

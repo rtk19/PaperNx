@@ -196,7 +196,7 @@ static void load_info(fz_context *ctx,ComicDocument *doc,fz_buffer *info) {
                 if(type && !fz_strcasecmp(type,"FrontCover"))doc->cover=index;
                 if(bookmark && *bookmark && doc->outline_count<256) {
                     PxTocEntry *entry=&doc->outline[doc->outline_count++];
-                    copy_text(entry->title,sizeof entry->title,bookmark);entry->page=index;entry->level=0;
+                    copy_text(entry->title,sizeof entry->title,bookmark);entry->page=index;entry->level=0;entry->y=0;
                 }
             }
             if(!*doc->title && *doc->series) {
@@ -372,7 +372,7 @@ int px_comic_toc(fz_context *ctx,fz_document *document,PxTocEntry *entries,int c
     int count=doc->outline_count?doc->outline_count:doc->count;if(count>capacity)count=capacity;
     for(int i=0;i<count;++i) {
         if(doc->outline_count)entries[i]=doc->outline[i];
-        else {copy_text(entries[i].title,sizeof entries[i].title,doc->entries[i].name);entries[i].page=i;entries[i].level=0;}
+        else {copy_text(entries[i].title,sizeof entries[i].title,doc->entries[i].name);entries[i].page=i;entries[i].level=0;entries[i].y=0;}
     }
     return count;
 }

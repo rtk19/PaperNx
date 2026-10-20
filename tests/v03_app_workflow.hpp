@@ -153,7 +153,7 @@ static void v03Workflow(const fs::path &parent) {
         assert(app.currentPage_==page && std::abs(app.scrollY_-y)<1);
         if(!app.quickMenu_) v03Plus(app);
         v03MenuItem(app,2); assert(app.screen_==ScreenState::TocModal);
-        app.getWindowSize(w,h); v03RectTap(app,{48,152,w-96,56});
+        app.getWindowSize(w,h); v03RectTap(app,app.tocCell(0,w,h));
         assert(app.screen_==ScreenState::Reader && !app.navigationHistory_.empty());
         v03Plus(app);
         auto actions=app.quickActions();

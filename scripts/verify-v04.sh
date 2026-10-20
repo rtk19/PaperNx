@@ -13,7 +13,7 @@ if [[ "$mode" == switch ]]; then
     # Recompile application objects and regenerate NACP/NRO; retain SDK/MuPDF caches.
     make all -B -j4
     python3 scripts/build_receipt.py finish
-    python3 scripts/verify_artifacts.py --version "${PAPERNX_RELEASE_VERSION:-v0.11.0-reader.4}"
+    python3 scripts/verify_artifacts.py --version "${PAPERNX_RELEASE_VERSION:-v0.12.0-reader.1}"
     exit
 fi
 python3 tests/generate_fixtures.py

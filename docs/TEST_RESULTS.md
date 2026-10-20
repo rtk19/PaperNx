@@ -1,3 +1,11 @@
+# Fork verification: v0.12.0-reader.1
+
+The suite contains 20 native CTests, 7 portable tests and 6 focused ASan/UBSan tests with leak detection. The new page-navigation application test also runs with offscreen OpenGL. Switch validation checks AArch64, NRO/NACP developer/version, embedded fonts, source receipts and the actual installation ZIP.
+
+New coverage exercises 200 rapid scrub motions without intermediate position saves; release, B/Esc, multi-touch, focus loss and live rotation cancellation; both portrait orientations; mouse and controller routes; page-grid scrolling and focus; current-page selection, RTL/manga order, chapter and bookmark jumps; long mixed Hebrew/niqqud titles and nested continuous EPUB fragment positions; full-page CBR/PDF thumbnails, single-page books, empty chapter/bookmark lists, damaged preview recovery and stale background results after switching books. Original test artwork and logs accompany the release. Desktop behavior does not establish physical Switch FPS or touch latency.
+
+Reproduce using the native/portable workflows in BUILD_SWITCH.md, plus `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 build-pinned/papernx_page_navigation_tests`. Include `papernx_page_navigation_tests` in the focused sanitizer targets and test filter. Prior release evidence follows.
+
 # Fork verification: v0.11.0-reader.4
 
 This developer-name update is checked by the real Switch build, NRO/NACP author and version validation, AArch64/RomFS/font inspection, source receipts, installation ZIP integrity and portable/package checks. The displayed developer must be **Refael Bar**. Reader behavior is inherited from reader.3; its native/OpenGL/sanitizer regression evidence follows below and is not a fresh rerun for this metadata change. Physical Switch acceptance remains unverified.
