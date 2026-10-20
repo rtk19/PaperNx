@@ -73,7 +73,7 @@ int libraryBookAt(float x,float y) {
     return index>=0&&index<int(visibleBooks_.size())?index:-1;
 }
 void setCatalogPanel(CatalogPanel p){catalogPanel_=p;catalogFocus_=0;catalogScroll_=0;listVelocity_=0;dirty_=true;if(p==CatalogPanel::DeleteConfirm){rebuildFocus();navigationFocus_.select("catalog.row.0");}}
-void openBookActions(const Book &book){actionBook_=book;quickMenu_=false;setCatalogPanel(CatalogPanel::Actions);}
+void openBookActions(const Book &book){if(screen_==ScreenState::Library && openSeriesShelf(book))return;actionBook_=book;quickMenu_=false;setCatalogPanel(CatalogPanel::Actions);}
 void tickLibraryHold(){
     if(libraryHold_&&SDL_GetTicks()-libraryHoldStart_>=550){libraryHold_=false;libraryHoldConsumed_=true;
         listTracking_=false;listVelocity_=0;gestureTracker_.reset();

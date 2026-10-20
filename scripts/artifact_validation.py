@@ -5,14 +5,20 @@ import subprocess
 from pathlib import Path
 
 
+BUNDLED_FONT_FILES = (
+    "NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt",
+    "NotoSansHebrew-Regular.ttf", "NotoSansHebrew-SemiBold.ttf", "NotoSerifHebrew-Regular.ttf",
+    "NotoHebrew-OFL.txt", "HEBREW-SOURCE.md",
+)
+
 def source_identity(root):
     root = Path(root)
     entries = []
-    for folder in ("src", "include", "third_party"):
+    for folder in ("src", "include", "third_party", "fonts", "romfs"):
         for path in sorted((root / folder).rglob("*")):
             if path.is_file():
                 entries.append((path.relative_to(root).as_posix(), hashlib.sha256(path.read_bytes()).hexdigest()))
-    for name in ("Makefile", "CMakeLists.txt", "Dockerfile", "scripts/build-mupdf-switch.sh"):
+    for name in ("Makefile", "CMakeLists.txt", "Dockerfile", "scripts/build-mupdf-switch.sh", "scripts/patch-mupdf-rtl.py", "scripts/build-fribidi.sh"):
         path = root / name
         entries.append((name, hashlib.sha256(path.read_bytes()).hexdigest()))
     digest = hashlib.sha256("".join(f"{name}\t{sha}\n" for name, sha in sorted(entries)).encode()).hexdigest()

@@ -6,15 +6,15 @@ import argparse
 from pathlib import Path
 from zipfile import ZipFile
 
-from artifact_validation import validate_assets, read_romfs, validate_elf, source_identity
+from artifact_validation import BUNDLED_FONT_FILES, validate_assets, read_romfs, validate_elf, source_identity
 from package_release import validate_nro
 
 if not __debug__:
     raise RuntimeError("Artifact checks require enabled assertions")
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--dist", type=Path, default=Path("dist/v0.10.0-comics.2"))
-parser.add_argument("--version", default="v0.10.0-comics.2")
+parser.add_argument("--dist", type=Path, default=Path("dist/v0.11.0-reader.1"))
+parser.add_argument("--version", default="v0.11.0-reader.1")
 args = parser.parse_args()
 manifest = json.loads((args.dist / "manifest.json").read_text(encoding="utf-8"))
 assert Path(manifest["name"]).name == manifest["name"], "Invalid archive filename"
@@ -35,7 +35,7 @@ assets = validate_assets(nro, validate_nro(nro)["declared_size"])
 version = nro[assets["nacp"]["offset"] + 0x3060:assets["nacp"]["offset"] + 0x3070].split(b"\0")[0].decode()
 assert version == args.version.removeprefix("v"), version
 files = read_romfs(nro, assets["romfs"])
-for name in ("NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
+for name in BUNDLED_FONT_FILES:
     assert files["fonts/" + name] == (Path("fonts") / name).read_bytes()
 with ZipFile(archive) as zipped:
     assert zipped.testzip() is None
@@ -43,7 +43,7 @@ with ZipFile(archive) as zipped:
     assert not any(name.startswith("switch/PaperNX/docs/") for name in zipped.namelist()), "SD package contains dev docs"
     assert not any(name.startswith("switch/PaperNX/data/") for name in zipped.namelist()), "SD package contains data/ folder"
     assert not any(name.startswith(("switch/PaperNX/books/", "switch/PaperNX/logs/")) and not name.endswith("/") for name in zipped.namelist()), "Package overwrites user data"
-    for name in ("NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf", "NotoSerif-Regular.ttf", "OFL.txt"):
+    for name in BUNDLED_FONT_FILES:
         assert zipped.read("switch/PaperNX/fonts/" + name) == (Path("fonts") / name).read_bytes()
     members = len(zipped.namelist())
 

@@ -57,7 +57,7 @@ ICON := assets/branding/PaperNX-icon-switch.jpg
 
 APP_TITLE	:=	PaperNX
 APP_AUTHOR	:=	Yusuf Buzrul
-APP_VERSION	:=	0.10.0-comics.2
+APP_VERSION	:=	0.11.0-reader.1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -75,13 +75,14 @@ CFLAGS += -std=c11
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
 
-LIBS := -Wl,--start-group -lSDL2_ttf -lmupdf -lharfbuzz -lfreetype -lmupdf-third -larchive -lwebp -llzma -llz4 -lzstd -lexpat `sdl2-config --libs` -lbz2 -lpng -ljpeg -lz -Wl,--end-group -lm -lnx
+LIBS := -Wl,--start-group -lSDL2_ttf -lfribidi -lmupdf -lharfbuzz -lfreetype -lmupdf-third -larchive -lwebp -llzma -llz4 -lzstd -lexpat `sdl2-config --libs` -lbz2 -lpng -ljpeg -lz -Wl,--end-group -lm -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS := $(MUPDF_PREFIX) $(PORTLIBS) $(LIBNX)
+FRIBIDI_PREFIX ?= $(TOPDIR)/prefix-fribidi-switch
+LIBDIRS := $(FRIBIDI_PREFIX) $(MUPDF_PREFIX) $(PORTLIBS) $(LIBNX)
 
 
 #---------------------------------------------------------------------------------

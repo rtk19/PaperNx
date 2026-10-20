@@ -38,8 +38,10 @@ SWITCH_INCLUDES="-I${DEVKITPRO}/libnx/include"
 
 FONT_DEPS_SHA="$(sha256sum "${DEVKITPRO}/portlibs/switch/lib/libharfbuzz.a" "${DEVKITPRO}/portlibs/switch/lib/libfreetype.a" | sha256sum | cut -d' ' -f1)"
 COMPAT_SHA="$(sha256sum "${COMPAT_HEADER}" | cut -d' ' -f1)"
+RTL_PATCH="$(dirname "${COMPAT_HEADER}")/../../scripts/patch-mupdf-rtl.py"
+RTL_SHA="$(sha256sum "${RTL_PATCH}" | cut -d' ' -f1)"
 GCC_VER="$("${CC}" --version | head -n1)"
-FINGERPRINT="MUPDF=${MUPDF_VERSION}:${MUPDF_PINNED_SHA256}|CC=${GCC_VER}|FLAGS=${ARCH_FLAGS}|COMPAT=${COMPAT_SHA}|BUNDLED_HEADERS_ONLY=1|SYSTEM_HB_FT=1:${FONT_DEPS_SHA}"
+FINGERPRINT="MUPDF=${MUPDF_VERSION}:${MUPDF_PINNED_SHA256}|CC=${GCC_VER}|FLAGS=${ARCH_FLAGS}|COMPAT=${COMPAT_SHA}|RTL=${RTL_SHA}|BUNDLED_HEADERS_ONLY=1|SYSTEM_HB_FT=1:${FONT_DEPS_SHA}"
 
 mkdir -p "${INSTALL_PREFIX}"
 INSTALL_PREFIX="$(cd "${INSTALL_PREFIX}" && pwd)"
@@ -107,6 +109,7 @@ if [ ! -d "${SRC_DIR}" ]; then
     tar -xzf "${TARBALL}"
 fi
 
+python3 "${RTL_PATCH}" "${SRC_DIR}"
 cd "${SRC_DIR}"
 OUT="build/papernx-switch-$(printf %s "${FINGERPRINT}" | sha256sum | cut -c1-16)"
 
@@ -141,6 +144,7 @@ verify_arch "${INSTALL_PREFIX}/lib/libmupdf-third.a"
 
 python3 "$(dirname "${COMPAT_HEADER}")/../../scripts/collect_licenses.py" "$PWD" "${INSTALL_PREFIX}/licenses"
 
+cp "${RTL_PATCH}" "${INSTALL_PREFIX}/papernx-rtl-patch.py"
 # Write cache fingerprint
 echo "${FINGERPRINT}" > "${FINGERPRINT_FILE}"
 

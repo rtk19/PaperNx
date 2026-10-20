@@ -22,6 +22,8 @@ struct PxDocument {
     char embedded_subjects[1024];
     char embedded_series[512];
     char embedded_series_index[64];
+    char embedded_language[64];
+    char reading_direction[8];
     int nav_count;
     PxTocEntry nav[256];
     char nav_uri[256][2048];
@@ -263,6 +265,8 @@ int px_document_metadata(PxDocument *d, const char *key, char *out, int cap) {
         else if (!strcmp(key, "info:Subject")) embedded = d->embedded_subjects;
         else if (!strcmp(key, "info:Series")) embedded = d->embedded_series;
         else if (!strcmp(key, "info:SeriesIndex")) embedded = d->embedded_series_index;
+        else if (!strcmp(key, "info:Language")) embedded = d->embedded_language;
+        else if (!strcmp(key, "info:ReadingDirection")) embedded = d->reading_direction;
     }
     if (embedded && *embedded) return metadata_copy(out, (size_t)cap, embedded);
     int result = 0;
@@ -761,6 +765,8 @@ static void read_embedded_metadata(PxDocument *d, fz_xml *metadata) {
     int entries = 0;
     for (fz_xml *p = fz_xml_down(metadata); p && entries++ < 512; p = fz_xml_next(p)) {
         if (xml_tag(p, "creator")) metadata_append(d->embedded_authors, sizeof d->embedded_authors, p);
+        else if (xml_tag(p, "language") && !d->embedded_language[0])
+            metadata_value(p, d->embedded_language, sizeof d->embedded_language);
         else if (xml_tag(p, "subject")) metadata_append(d->embedded_subjects, sizeof d->embedded_subjects, p);
         else if (xml_tag(p, "meta")) {
             const char *value = fz_xml_att(p, "content");
@@ -837,6 +843,15 @@ static void load_epub_extras(PxDocument *d) {
         fz_xml *manifest = xml_child(package, "manifest");
         fz_xml *metadata = xml_child(package, "metadata");
         read_embedded_metadata(d, metadata);
+        const char *progression = fz_xml_att(xml_child(package, "spine"), "page-progression-direction");
+        if (progression && (!strcmp(progression, "rtl") || !strcmp(progression, "ltr")))
+            metadata_copy(d->reading_direction, sizeof d->reading_direction, progression);
+        else {
+            const char *lang = d->embedded_language;
+            int rtl = (!fz_strncasecmp(lang, "he", 2) && (!lang[2] || lang[2]=='-')) ||
+                (!fz_strncasecmp(lang, "iw", 2) && (!lang[2] || lang[2]=='-'));
+            metadata_copy(d->reading_direction, sizeof d->reading_direction, rtl ? "rtl" : "ltr");
+        }
         const char *cover_id = NULL;
         for (fz_xml *p = fz_xml_down(metadata); p; p = fz_xml_next(p))
             if (xml_tag(p, "meta") && fz_xml_att_eq(p, "name", "cover")) cover_id = fz_xml_att(p, "content");

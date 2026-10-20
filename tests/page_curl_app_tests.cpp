@@ -185,6 +185,27 @@ struct AppTest {
         assert(!app.pageTurnAnimation_.active);
         app.turnPage(1); assert(!app.pageTurnAnimation_.active);
         app.closeBook();
+
+        Book hebrew;
+        hebrew.id="hebrew-regression";hebrew.path=fs::absolute("tests/fixtures/hebrew_auto.epub").string();
+        hebrew.title=u8"הספר החדש PaperNX 123";hebrew.author=u8"ישראל ישראלי";
+        hebrew.format=Format::Epub;hebrew.bytes=fs::file_size(hebrew.path);
+        app.books_.push_back(hebrew);app.openBook(hebrew);
+        assert(app.doc_ && app.readingDirection()==-1);
+        assert(app.books_.back().title.find(u8"הספר")!=std::string::npos);
+        app.extraStyle_.readingMode=0;app.documentMode_=0;app.reflowEpub(22);
+        assert(app.readingDirection()==-1 && app.pageCount_>=2);
+        app.currentPage_=0;app.turnPage(1);
+        assert(app.pageTurnAnimation_.active && app.pageTurnAnimation_.direction==-1);
+        finish(app);app.turnPage(-1);finish(app);
+        app.currentPage_=0;app.toolbarVisible_=false;
+        touch(app,SDL_FINGERDOWN,.1f,.6f);touch(app,SDL_FINGERMOTION,.65f,.65f);
+        assert(app.pageTurnAnimation_.active && app.pageTurnAnimation_.direction==-1 && app.pageTurnAnimation_.targetPage==1);
+        touch(app,SDL_FINGERUP,.65f,.65f);finish(app);assert(app.currentPage_==1);
+        app.cancelPageTurn();app.currentPage_=0;snapshot(app,"hebrew-reader");
+        app.closeBook();snapshot(app,"hebrew-library");
+        app.openBook(epub);assert(app.readingDirection()==1);app.closeBook();
+        app.openBook(pdf);assert(app.readingDirection()==1);app.closeBook();
     }
 };
 }

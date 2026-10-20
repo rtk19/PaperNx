@@ -56,6 +56,9 @@ def main():
     (large/'Page1.png').write_bytes(png(3000,4500,(230,70,30)))
     (large/'ComicInfo.xml').write_text(INFO.replace('Image="1"','Image="0"'),encoding='utf-8')
     archive(ROOT/'large-cover.cbz',[(f.name,f.read_bytes()) for f in sorted(large.iterdir())])
+    for issue in range(9, 23):
+        info = INFO.replace('Issue 7', 'Issue '+str(issue)).replace('<Number>7</Number>', '<Number>'+str(issue)+'</Number>')
+        archive(ROOT / ('series-'+str(issue)+'.cbz'), pages+[('ComicInfo.xml', info.encode())])
     print('Generated comic ZIP fixtures:',ROOT)
 
 if __name__=='__main__':main()

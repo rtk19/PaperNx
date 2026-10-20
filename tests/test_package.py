@@ -158,6 +158,8 @@ def run_tests():
         assert (base / "fonts" / "NotoSans-Regular.ttf").is_file()
         assert (base / "fonts" / "NotoSerif-Regular.ttf").is_file()
         assert (base / "fonts" / "OFL.txt").is_file()
+        for name in ("NotoSansHebrew-Regular.ttf", "NotoSansHebrew-SemiBold.ttf", "NotoSerifHebrew-Regular.ttf", "NotoHebrew-OFL.txt", "HEBREW-SOURCE.md"):
+            assert (base / "fonts" / name).read_bytes() == (Path("fonts") / name).read_bytes()
 
     print("[PASS] Packaging and SD extraction test suite passed successfully!")
 

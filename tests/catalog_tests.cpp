@@ -1,4 +1,5 @@
 #include "papernx/catalog.hpp"
+#include "papernx/series.hpp"
 #include "papernx/reading_stats.hpp"
 #include <cassert>
 #include <cerrno>
@@ -7,6 +8,10 @@
 #include <iostream>
 using namespace papernx;
 int main(){
+    assert(naturalCompare("Issue 9","Issue 10")<0);
+    assert(naturalCompare("Issue 009","Issue 9")==0);
+    assert(naturalCompare("Issue 999999999999999999999999","Issue 1000000000000000000000000")<0);
+    assert(naturalCompare("ספר 9","ספר 10")<0);
     const auto root=fs::temp_directory_path()/("papernx-catalog-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::create_directories(root/"books");fs::create_directories(root/"outside");
     {std::ofstream out(root/"books"/"one.epub");out<<"disposable test copy";}
@@ -95,6 +100,21 @@ int main(){
     statsAgain.tick(999999999,first.id,.5,true,"2026-10-19");assert(statsAgain.totalMilliseconds()==153000);
     ProgressStore future(root/"future-catalog.db");Progress futureMarker;futureMarker.bookTitle="PAPERNX-CATALOG-99";future.put("catalog000000001",futureMarker);assert(future.save());
     CatalogStore futureCatalog(root/"future-catalog.db");assert(!futureCatalog.load());assert(!futureCatalog.save());
+    Book issue9{"0000000000000009","/books/The Walking Dead Deluxe 009 (2024).cbr","The Walking Dead Deluxe 009 (2024)","",Format::Cbr};
+    Book issue10{"0000000000000010","/books/The Walking Dead Deluxe 010 (2024).cbr","The Walking Dead Deluxe 010 (2024)","",Format::Cbr};
+    auto series9=identifySeries(issue9,{}),series10=identifySeries(issue10,{});
+    assert(series9.key==series10.key && series9.title=="The Walking Dead Deluxe" && series9.issue=="009");
+    auto capitals=issue10;capitals.title="THE WALKING DEAD DELUXE 010";assert(identifySeries(capitals,{}).key==series9.key);
+    assert(seriesIssueLess(issue9,issue10,catalog));
+    auto metadata=catalog.get(issue10.id);metadata.sourceSeries="Official Series";metadata.sourceSeriesIndex="0.5";metadata.metadataFingerprint="0:0:series-v1";assert(catalog.put(issue10.id,metadata));
+    metadata=catalog.get(issue9.id);metadata.sourceSeries="Official Series";metadata.sourceSeriesIndex="9";metadata.metadataFingerprint="0:0";assert(catalog.put(issue9.id,metadata));
+    assert(seriesIssueLess(issue10,issue9,catalog));
+    metadata=catalog.get(issue10.id);metadata.sourceSeriesIndex="10A";assert(catalog.put(issue10.id,metadata));
+    metadata=catalog.get(issue9.id);metadata.sourceSeriesIndex="11";assert(catalog.put(issue9.id,metadata));
+    assert(seriesIssueLess(issue10,issue9,catalog));
+    metadata.series="My edited series";assert(identifySeries(issue9,metadata).title=="My edited series");
+    Book standalone{"book","1984.epub","1984","",Format::Epub};assert(identifySeries(standalone,{}).key.empty());
+    auto naturallySorted=search({issue10,issue9},"",Sort::Title);assert(naturallySorted.front().id==issue9.id);
     fs::remove_all(root);
     std::cout<<"Catalog, safe deletion, recovery, Unicode, progress isolation, reading stats and goal tests passed\n";
     return 0;

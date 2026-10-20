@@ -3,9 +3,10 @@ set -euo pipefail
 mkdir -p verification
 exec > >(tee verification/switch.log) 2>&1
 export PATH="${DEVKITPRO}/portlibs/switch/bin:${PATH}"
+bash scripts/build-fribidi.sh switch
 bash scripts/build-mupdf-switch.sh /work/prefix-mupdf-switch
 export MUPDF_PREFIX=/work/prefix-mupdf-switch
-version="${PAPERNX_RELEASE_VERSION:-v0.10.0-comics.2}"
+version="${PAPERNX_RELEASE_VERSION:-v0.11.0-reader.1}"
 release_dir="${PAPERNX_RELEASE_DIST:-dist/${version}}"
 python3 scripts/build_receipt.py start
 make all -B -j4
@@ -19,6 +20,9 @@ mkdir -p third-party-licenses/SDK-notices
 cp scripts/license-notices/* third-party-licenses/SDK-notices/
 mkdir -p third-party-licenses/unarr
 cp third_party/unarr/COPYING third_party/unarr/COPYING.GPLv3 third_party/unarr/AUTHORS third_party/unarr/SOURCE.md third-party-licenses/unarr/
+mkdir -p third-party-licenses/FriBidi
+cp third_party/fribidi/COPYING third_party/fribidi/SOURCE.md third-party-licenses/FriBidi/
+cp prefix-fribidi-switch/.build_fingerprint verification/fribidi-switch-fingerprint.txt
 dkp-pacman -Q > verification/switch-packages.txt
 python3 scripts/verify_artifacts.py --version "$version"
 python3 scripts/package_release.py PaperNX.nro --destination "$release_dir" --version "$version" --build-receipt verification/v04-switch-build-receipt.json

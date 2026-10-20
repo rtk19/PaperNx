@@ -6,13 +6,14 @@ mkdir -p verification
 exec > >(tee "verification/v04-${mode}.log") 2>&1
 if [[ "$mode" == switch ]]; then
     test -s prefix-mupdf-switch/lib/libmupdf.a
+    bash scripts/build-fribidi.sh switch
     export MUPDF_PREFIX="$PWD/prefix-mupdf-switch"
     export PATH="${DEVKITPRO}/portlibs/switch/bin:${PATH}"
     python3 scripts/build_receipt.py start
     # Recompile application objects and regenerate NACP/NRO; retain SDK/MuPDF caches.
     make all -B -j4
     python3 scripts/build_receipt.py finish
-    python3 scripts/verify_artifacts.py --version "${PAPERNX_RELEASE_VERSION:-v0.10.0-comics.2}"
+    python3 scripts/verify_artifacts.py --version "${PAPERNX_RELEASE_VERSION:-v0.11.0-reader.1}"
     exit
 fi
 python3 tests/generate_fixtures.py
@@ -22,6 +23,8 @@ case "$mode" in
     portable) options+=(-DPAPERNX_NATIVE=OFF -DCMAKE_BUILD_TYPE=Release);;
     native|release|sanitizers)
         test -s prefix-mupdf-desktop/lib/libmupdf.a
+        bash scripts/build-fribidi.sh desktop
+        export PKG_CONFIG_PATH="$PWD/prefix-fribidi-desktop/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
         options+=(-DPAPERNX_NATIVE=ON "-DMUPDF_PREFIX=$PWD/prefix-mupdf-desktop")
         if [[ "$mode" == release ]]; then options+=(-DCMAKE_BUILD_TYPE=Release); fi
         if [[ "$mode" == sanitizers ]]; then

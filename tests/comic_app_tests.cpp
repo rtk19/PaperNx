@@ -93,7 +93,28 @@ struct AppTest {
         touch(app,SDL_FINGERDOWN,.92f,.2f);touch(app,SDL_FINGERMOTION,.76f,.3f);
         assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.anchorY<.2f && app.currentPage_==0);
         snapshot(app,"touch-curl");touch(app,SDL_FINGERUP,.4f,.3f);finish(app);assert(app.currentPage_==1);
-        app.zoomPdf(2);assert(!app.canCurlPage());app.handleAnalog(1,1);assert(app.pdfPanX_>=0);
+        app.zoomPdf(2);assert(app.canCurlPage());app.handleAnalog(1,1);assert(app.pdfPanX_>=0);
+        app.pdfPanY_=150;app.clampPdfPan();
+        app.turnPage(1);assert(app.pageTurnAnimation_.active && app.pdfZoom_==2 && app.pdfPanY_==0);
+        snapshot(app,"zoomed-curl");finish(app);assert(app.currentPage_==2 && app.pdfZoom_==2 && app.pdfPanY_==0);
+        app.turnPage(-1);finish(app);app.turnPage(-1);finish(app);
+        touch(app,SDL_FINGERDOWN,.94f,.4f);touch(app,SDL_FINGERMOTION,.5f,.42f);
+        assert(app.pageTurnAnimation_.active && app.pageTurnAnimation_.dragging);
+        touch(app,SDL_FINGERUP,.5f,.42f);finish(app);assert(app.currentPage_==1 && app.pdfPanY_==0 && app.pdfZoom_==2);
+        // Held arrows and both sticks pan continuously; release/deadzone stop.
+        app.zoomPdf(5);app.pdfPanX_=0;app.pdfPanY_=0;app.clearHeldControls();
+        SDL_Event down{};down.type=SDL_CONTROLLERBUTTONDOWN;down.cbutton.button=SDL_CONTROLLER_BUTTON_DPAD_DOWN;
+        bool keepRunning=true;app.handleEvent(down,keepRunning);assert(keepRunning && app.pdfPanY_==64);
+        for(int i=0;i<4;++i) {app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();}
+        assert(app.pdfPanY_>110 && app.currentPage_==1);
+        down.type=SDL_CONTROLLERBUTTONUP;app.handleEvent(down,keepRunning);
+        int stopped=app.pdfPanY_;app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanY_==stopped);
+        SDL_Event axis{};axis.type=SDL_CONTROLLERAXISMOTION;axis.caxis.axis=SDL_CONTROLLER_AXIS_LEFTY;axis.caxis.value=32767;
+        app.handleEvent(axis,keepRunning);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanY_>stopped);
+        axis.caxis.value=0;app.handleEvent(axis,keepRunning);
+        axis.caxis.axis=SDL_CONTROLLER_AXIS_RIGHTY;axis.caxis.value=-32767;app.handleEvent(axis,keepRunning);
+        stopped=app.pdfPanY_;app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanY_<stopped);
+        axis.caxis.value=0;app.handleEvent(axis,keepRunning);app.clearHeldControls();app.zoomPdf(2);
         app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.extraStyle_.pdfColorMode^=COMIC_READING_COLORS;app.queueStyleChange();assert(app.pdfZoom_==2);
         app.setPdfView(1);assert(app.pdfZoom_>=1);app.setPdfView(0);assert(app.canCurlPage());

@@ -1,3 +1,29 @@
+# Fork verification: v0.11.0-reader.1
+
+The new reader suite passes 19 native CTests with patched MuPDF 1.23.11 and the
+pinned FriBidi 1.0.12 source build, plus 7 portable tests and package/UTF-8 checks.
+Five focused ASan/UBSan tests with leak detection cover Hebrew UI/layout, catalog
+sorting, background series indexing, controller input and comic zoom/curls.
+The comic reader also runs through the offscreen OpenGL renderer. Final build
+and distribution receipts, original fixture screenshots and logs ship in the
+release's verification-evidence.zip. Physical Nintendo Switch behavior, FPS and
+touch latency remain unverified.
+
+New coverage includes Hebrew glyph/niqqud fallback in every font role, mixed
+numbers/Latin text and isolation controls, unchanged Latin pixel output, RTL
+start/justified/indented paragraphs, explicit direction, continuous EPUB layout
+and restored anchors; zoomed comic snapshots and top-of-page navigation, held
+D-pad/LS/RS movement; full-library metadata indexing, series shelf/back/search
+behavior, numeric 9/10/22 and decimal/suffixed issues, and per-issue progress.
+Legacy interaction tests open a series shelf before exercising its issue list.
+
+Reproduce with scripts/verify-pinned-desktop.sh, the native/portable/sanitizer
+workflows in the build guide, and scripts/verify-switch.sh. The latter validates
+AArch64 output, NACP version, the branding icon, all embedded Latin/Hebrew fonts,
+source receipts and the actual installation ZIP. No user databases are packaged.
+
+Historical upstream validation follows.
+
 # PaperNX v0.9.0 — Reported validation results
 
 The release-preparation handoff reports:

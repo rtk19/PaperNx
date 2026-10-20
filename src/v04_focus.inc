@@ -33,7 +33,7 @@
                 add("book."+std::to_string(i),r);
             }
             for(int i=0;i<6;++i)add("category."+std::to_string(i),categoryRect(i,w));
-            add("library.browse",{208,16,180,56});add("search",{w-216,16,112,56});add("plus",{w-80,8,64,64});
+            if(openSeriesKey_.empty())add("library.browse",{208,16,180,56});else add("series.back",{16,16,152,56});add("search",{w-216,16,112,56});add("plus",{w-80,8,64,64});
             if(books_.empty())add("browse",{56,l.top+16+std::min(260,h-l.top-48)-72,260,56});
         } else if(screen_==ScreenState::FileBrowser) {
             for(int i=0;i<int(browserEntries_.size());++i)add("file."+std::to_string(i),{32,112+i*64-int(browserScroll_),w-64,56});

@@ -1,3 +1,20 @@
+# Fork release: v0.11.0-reader.1
+
+The current fork release adds Hebrew fonts and automatic EPUB direction, series
+shelves and numeric issue sorting, zoom-preserving comic curls with a reset to
+the top of each new page, continuous held-control panning and global RS scrolling.
+Download the NRO or installation ZIP from
+[the fork Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.1).
+The manifest and checksums identify the actual binary and exact source revision;
+the source ZIP includes the full FriBidi 1.0.12 source archive and the MuPDF RTL
+patch/build scripts. Font notices, third-party licenses and verification logs
+are separate release assets. User books/progress are excluded from the package.
+
+See [current checks](TEST_RESULTS.md), [installation/build instructions](BUILD_SWITCH.md),
+[comic/series controls](COMICS.md) and [Hebrew behavior](HEBREW.md).
+Physical Switch acceptance remains unverified. The report below describes the
+historical upstream v0.9.0 release and its different artifacts.
+
 # PaperNX v0.9.0 — Release verification report
 
 **Published:** [v0.9.0](https://github.com/ysfbz/PaperNx/releases/tag/v0.9.0), 19 October 2026  

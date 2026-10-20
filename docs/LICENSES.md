@@ -26,3 +26,7 @@ contains the application source and build instructions for relinking with a
 modified decoder. The separate license archive includes unarr and refreshed
 Switch portlib notices for the archive/image codecs and compression libraries.
 See [comic reader guide](COMICS.md) and [the fork release](https://github.com/rtk19/PaperNx/releases/tag/v0.10.0-comics.1).
+
+## Hebrew support in this fork
+
+`v0.11.0-reader.1` adds FriBidi 1.0.12 (LGPL, complete unmodified upstream source archive and license included in [third_party/fribidi](../third_party/fribidi/SOURCE.md)) and unmodified Noto Sans Hebrew Regular/SemiBold and Noto Serif Hebrew Regular (SIL OFL 1.1). Font copyright, pinned upstream source and SHA256 hashes are in [fonts/HEBREW-SOURCE.md](../fonts/HEBREW-SOURCE.md); their license is [NotoHebrew-OFL.txt](../fonts/NotoHebrew-OFL.txt). The installation ZIP, NRO RomFS and separate license ZIP carry the font notices. The checked-in [MuPDF patch script](../scripts/patch-mupdf-rtl.py) contains the complete RTL changes applied to the checksum-pinned upstream source.

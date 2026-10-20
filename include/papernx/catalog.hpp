@@ -36,6 +36,10 @@ struct CatalogEntry {
     bool hidden{false};
     ReadingStatus status{ReadingStatus::Automatic};
 };
+inline bool catalogMetadataCurrent(const Book &book,const CatalogEntry &entry) {
+    const auto base=std::to_string(book.bytes)+":"+std::to_string(book.modified);
+    return entry.metadataFingerprint==base || entry.metadataFingerprint==base+":series-v1";
+}
 // Independent, versioned sidecar. Never writes the user's progress/bookmark file.
 // Reuses its checksummed, flushed, backup/recovery persistence transport.
 class CatalogStore {

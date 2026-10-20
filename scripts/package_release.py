@@ -14,9 +14,9 @@ import sys
 import re
 import shutil
 try:
-    from .artifact_validation import validate_assets, source_identity
+    from .artifact_validation import BUNDLED_FONT_FILES, validate_assets, source_identity
 except ImportError:
-    from artifact_validation import validate_assets, source_identity
+    from artifact_validation import BUNDLED_FONT_FILES, validate_assets, source_identity
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -89,11 +89,7 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
     archive_path = destination / archive_name
 
     fonts_dir = repo_root / "fonts"
-    required_fonts = [
-        "NotoSans-Regular.ttf", "NotoSans-SemiBold.ttf",
-        "NotoSerif-Regular.ttf",
-        "OFL.txt"
-    ]
+    required_fonts = BUNDLED_FONT_FILES
 
     for f in required_fonts:
         fpath = fonts_dir / f
@@ -123,6 +119,8 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
     licenses_archive_name = f"PaperNX-licenses-{version}.zip"
     licenses_archive_path = destination / licenses_archive_name
     with ZipFile(licenses_archive_path, "w", ZIP_DEFLATED, compresslevel=9) as lz:
+        for font_notice in ("OFL.txt", "NotoHebrew-OFL.txt", "HEBREW-SOURCE.md"):
+            write_entry(lz, "fonts/" + font_notice, (fonts_dir / font_notice).read_bytes())
         license_file = repo_root / "LICENSE"
         if license_file.is_file():
             write_entry(lz, "LICENSE", license_file.read_bytes())
@@ -180,8 +178,8 @@ def package(nro_path: Path, destination: Path, version: str, repo_root: Path = N
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Package PaperNX release ZIP for Nintendo Switch")
     parser.add_argument("nro", type=Path, help="Path to compiled PaperNX.nro")
-    parser.add_argument("--destination", "--dist", type=Path, default=Path("dist/v0.10.0-comics.2"), help="Output directory")
-    parser.add_argument("--version", default="v0.10.0-comics.2", help="Release version tag")
+    parser.add_argument("--destination", "--dist", type=Path, default=Path("dist/v0.11.0-reader.1"), help="Output directory")
+    parser.add_argument("--version", default="v0.11.0-reader.1", help="Release version tag")
     parser.add_argument("--build-receipt", type=Path, help="Validate pre/post-build source and NRO hash against this receipt")
     parser.add_argument("--repo-root", type=Path, default=Path("."), help="Path to repository root")
 

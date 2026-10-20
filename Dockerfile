@@ -1,6 +1,6 @@
 FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS desktop
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake ninja-build python3 pkg-config curl ca-certificates git libsdl2-dev libsdl2-ttf-dev libmupdf-dev libfreetype-dev libharfbuzz-dev libjbig2dec0-dev libopenjp2-7-dev libjpeg-dev zlib1g-dev libgumbo-dev libmujs-dev libarchive-dev libwebp-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake ninja-build python3 pkg-config curl ca-certificates git libsdl2-dev libsdl2-ttf-dev libmupdf-dev libfreetype-dev libharfbuzz-dev libfribidi-dev libjbig2dec0-dev libopenjp2-7-dev libjpeg-dev zlib1g-dev libgumbo-dev libmujs-dev libarchive-dev libwebp-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
 CMD ["bash", "scripts/verify-desktop.sh"]
 

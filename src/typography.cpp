@@ -1,5 +1,7 @@
 #include "papernx/typography.hpp"
 #include "papernx/core.hpp"
+#include "papernx/bidi.hpp"
+#include <fribidi/fribidi.h>
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -23,6 +25,21 @@ struct MetricScope {
 }
 int Typography::timedMeasure(TTF_Font *font,const char *text,int *width,int *height) {
     MetricScope timer(metrics_.textMeasure);
+    if(containsRtl(text)) {
+        int w=0,h=TTF_FontHeight(font);
+        for(const auto &run:bidiLine(text).runs) {
+            auto *face=fontForText(font,run.text);
+            TTF_SetFontDirection(face,run.rtl?TTF_DIRECTION_RTL:TTF_DIRECTION_LTR);
+            TTF_SetFontScriptName(face,run.hebrew?"Hebr":(run.rtl?"Arab":"Zzzz"));
+            int rw=0,rh=0; int ok=TTF_SizeUTF8(face,run.text.c_str(),&rw,&rh);
+            TTF_SetFontDirection(face,TTF_DIRECTION_LTR); TTF_SetFontScriptName(face,"Zzzz");
+            if(ok<0) return ok;
+            w+=rw; h=std::max(h,rh);
+        }
+        if(width) *width=w;
+        if(height) *height=h;
+        return 0;
+    }
     return TTF_SizeUTF8(font,text,width,height);
 }
 
@@ -30,6 +47,7 @@ Typography::Typography(const std::filesystem::path &root) : root_(root) {}
 
 Typography::~Typography() {
     clearTextCache();
+    for(auto &entry:fallbackFonts_) if(entry.second) TTF_CloseFont(entry.second);
     if(previewFont_) TTF_CloseFont(previewFont_);
     TTF_Font* fonts[] = {titleFont_, uiFont_, smallFont_, readerFont_,sectionFont_,buttonFont_};
     for (int i = 0; i < 6; ++i) {
@@ -49,7 +67,11 @@ TTF_Font *Typography::findAndLoad(const std::vector<std::string> &candidates, in
     for (const auto &c : candidates) {
         if (c.empty()) continue;
         TTF_Font *f = TTF_OpenFont(c.c_str(), ptSize);
-        if (f) return f;
+        if (f) {
+            int family=c.find("Serif")!=std::string::npos?2:(c.find("Bold")!=std::string::npos?1:0);
+            fontInfo_[f]={ptSize,family};
+            return f;
+        }
     }
     return nullptr;
 }
@@ -117,10 +139,121 @@ TTF_Font *Typography::previewFont(int family,int size) {
         clearTextCache();
         metricsCache_.clear();
         if(previewFont_) TTF_CloseFont(previewFont_);
+        fontInfo_.erase(previewFont_);
         previewFont_=findAndLoad(family==1?sansPaths_:serifPaths_,std::clamp(size,14,44));
         previewFamily_=family; previewSize_=size;
     }
     return previewFont_?previewFont_:readerFont_;
+}
+
+TTF_Font *Typography::fontForText(TTF_Font *font,const std::string &text) {
+    if(!font || text.empty()) return font;
+    std::vector<FriBidiChar> chars(text.size()+1);
+    int n=fribidi_charset_to_unicode(FRIBIDI_CHAR_SET_UTF8,text.data(),int(text.size()),chars.data());
+    bool missing=false,hebrew=false;
+    for(int i=0;i<n;++i) {
+        auto c=chars[i];
+        if((c>=0x590 && c<=0x5ff) || (c>=0xfb1d && c<=0xfb4f)) {
+            hebrew=true; if(!TTF_GlyphIsProvided32(font,c)) missing=true;
+        }
+    }
+    if(!hebrew || !missing) return font;
+    auto info=fontInfo_.find(font);
+    FontInfo role=info==fontInfo_.end()?FontInfo{TTF_FontHeight(font),0}:info->second;
+    auto key=std::make_pair(role.family,role.size);
+    auto found=fallbackFonts_.find(key);
+    if(found!=fallbackFonts_.end()) return found->second?found->second:font;
+    const char *file=role.family==2?"NotoSerifHebrew-Regular.ttf":
+        (role.family==1?"NotoSansHebrew-SemiBold.ttf":"NotoSansHebrew-Regular.ttf");
+    std::vector<std::string> paths={
+#ifdef __SWITCH__
+        std::string("romfs:/fonts/")+file,
+        std::string("sdmc:/switch/PaperNX/fonts/")+file,
+#endif
+        (root_/"fonts"/file).string()};
+    auto *fallback=findAndLoad(paths,role.size);
+    fallbackFonts_[key]=fallback;
+    return fallback?fallback:font;
+}
+
+SDL_Surface *Typography::rasterLine(TTF_Font *font,const std::string &text,SDL_Color color,int direction) {
+    if(!containsRtl(text) && direction!=1) return TTF_RenderUTF8_Blended(font,text.c_str(),color);
+    auto line=bidiLine(text,direction);
+    struct Piece { SDL_Surface *surface; int ascent; };
+    std::vector<Piece> pieces;
+    int width=0,ascent=TTF_FontAscent(font),descent=TTF_FontHeight(font)-ascent;
+    for(const auto &run:line.runs) {
+        auto *face=fontForText(font,run.text);
+        TTF_SetFontDirection(face,run.rtl?TTF_DIRECTION_RTL:TTF_DIRECTION_LTR);
+        TTF_SetFontScriptName(face,run.hebrew?"Hebr":(run.rtl?"Arab":"Zzzz"));
+        auto *piece=TTF_RenderUTF8_Blended(face,run.text.c_str(),color);
+        TTF_SetFontDirection(face,TTF_DIRECTION_LTR); TTF_SetFontScriptName(face,"Zzzz");
+        if(!piece) continue;
+        int a=TTF_FontAscent(face);
+        ascent=std::max(ascent,a); descent=std::max(descent,piece->h-a);
+        width+=piece->w; pieces.push_back({piece,a});
+    }
+    auto *surface=width>0?SDL_CreateRGBSurfaceWithFormat(0,width,ascent+descent,32,SDL_PIXELFORMAT_ARGB8888):nullptr;
+    int x=0;
+    for(auto &piece:pieces) {
+        if(surface) {
+            SDL_Rect dst{x,ascent-piece.ascent,piece.surface->w,piece.surface->h};
+            SDL_SetSurfaceBlendMode(piece.surface,SDL_BLENDMODE_NONE);
+            SDL_BlitSurface(piece.surface,nullptr,surface,&dst); x+=piece.surface->w;
+        }
+        SDL_FreeSurface(piece.surface);
+    }
+    return surface;
+}
+
+SDL_Surface *Typography::rasterWrapped(TTF_Font *font,const std::string &text,SDL_Color color,int width) {
+    if(!containsRtl(text)) return TTF_RenderUTF8_Blended_Wrapped(font,text.c_str(),color,width);
+    std::vector<std::pair<std::string,bool>> lines;
+    std::istringstream paragraphs(text); std::string paragraph;
+    while(std::getline(paragraphs,paragraph) && lines.size()<256) {
+        bool rtl=baseRtl(paragraph); std::istringstream words(paragraph);
+        std::string line,word;
+        while(words>>word && lines.size()<256) {
+            std::string candidate=line.empty()?word:line+" "+word; int w=0;
+            timedMeasure(font,candidate.c_str(),&w,nullptr);
+            if(!line.empty() && w>width) { lines.push_back({line,rtl}); line=word; }
+            else line=std::move(candidate);
+            // A title/filename may be one long word. Break only between complete
+            // clusters so RTL clipping never removes the beginning of the word.
+            timedMeasure(font,line.c_str(),&w,nullptr);
+            while(w>width && lines.size()<256) {
+                auto boundaries=textClusterBoundaries(line);
+                if(boundaries.size()<3) break;
+                std::size_t low=1,high=boundaries.size()-1;
+                while(low<high) {
+                    auto middle=(low+high+1)/2; int part=0;
+                    timedMeasure(font,line.substr(0,boundaries[middle]).c_str(),&part,nullptr);
+                    if(part<=width) low=middle; else high=middle-1;
+                }
+                lines.push_back({line.substr(0,boundaries[low]),rtl}); line.erase(0,boundaries[low]);
+                timedMeasure(font,line.c_str(),&w,nullptr);
+            }
+        }
+        lines.push_back({line,rtl});
+    }
+    int step=TTF_FontLineSkip(font),height=0;
+    std::vector<SDL_Surface *> rendered;
+    for(auto &line:lines) {
+        auto *s=line.first.empty()?nullptr:rasterLine(font,line.first,color,line.second?1:0);
+        if(s) step=std::max(step,s->h);
+        rendered.push_back(s);
+    }
+    height=int(lines.size())*step;
+    auto *surface=height>0?SDL_CreateRGBSurfaceWithFormat(0,width,height,32,SDL_PIXELFORMAT_ARGB8888):nullptr;
+    for(std::size_t i=0;i<rendered.size();++i) if(rendered[i]) {
+        if(surface) {
+            SDL_Rect dst{lines[i].second?std::max(0,width-rendered[i]->w):0,int(i)*step,rendered[i]->w,rendered[i]->h};
+            SDL_SetSurfaceBlendMode(rendered[i],SDL_BLENDMODE_NONE);
+            SDL_BlitSurface(rendered[i],nullptr,surface,&dst);
+        }
+        SDL_FreeSurface(rendered[i]);
+    }
+    return surface;
 }
 
 int Typography::renderParagraph(SDL_Renderer *r,TTF_Font *font,const std::string &str,
@@ -144,6 +277,17 @@ int Typography::renderParagraph(SDL_Renderer *r,TTF_Font *font,const std::string
         for(const auto &part:lines[i]) { int ww=0; measureText(font,part,&ww,&height); total+=ww; }
         int spacing=space;
         if(!left && i+1<lines.size() && lines[i].size()>1) spacing=std::max(space,(area.w-total-(i?0:indent))/int(lines[i].size()-1));
+        if(containsRtl(str)) {
+            // Keep the paragraph's base direction across wrapped mixed lines.
+            // The engine handles reader justification; this path is the UI preview.
+            std::string logical;
+            for(const auto &part:lines[i]) { if(!logical.empty()) logical+=' ';logical+=part; }
+            bool rtl=baseRtl(str);
+            if(rtl) logical=u8"\u200f"+logical;
+            int measured=0; measureText(font,logical,&measured,&height);
+            renderText(r,font,logical,rtl?area.x+area.w-measured-(i?0:indent):x,y,color);
+            continue;
+        }
         for(const auto &part:lines[i]) {
             renderText(r,font,part,x,y,color);
             int ww=0; measureText(font,part,&ww,&height); x+=ww+spacing;
@@ -161,7 +305,8 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
         ++metrics_.textCacheHits;
         cached->second.tick=++textTick_;
         int width=maxWidth>0?std::min(maxWidth,cached->second.width):cached->second.width;
-        SDL_Rect src{0,0,width,cached->second.height},dst{x,y,width,cached->second.height};
+        int offset=maxWidth>0 && baseRtl(str)?maxWidth-width:0;
+        SDL_Rect src{0,0,width,cached->second.height},dst{x+offset,y,width,cached->second.height};
         SDL_RenderCopy(r,cached->second.texture,&src,&dst); return;
     }
 
@@ -174,9 +319,7 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
             timedMeasure(font, ellipsis.c_str(), &ellW, nullptr);
             int budgetW = maxWidth - ellW;
 
-            std::vector<std::size_t> boundaries{0};
-            for(std::size_t i=1;i<=textToRender.size();++i)
-                if(i==textToRender.size() || (static_cast<unsigned char>(textToRender[i])&0xc0)!=0x80) boundaries.push_back(i);
+            auto boundaries=textClusterBoundaries(textToRender);
             std::size_t low=0,high=boundaries.size()-1;
             while(low<high) {
                 auto middle=(low+high+1)/2;
@@ -190,14 +333,15 @@ void Typography::renderText(SDL_Renderer *r, TTF_Font *font, const std::string &
     if (textToRender.empty()) return;
 
     SDL_Surface *surface=nullptr;
-    { MetricScope timer(metrics_.textRaster); surface=TTF_RenderUTF8_Blended(font,textToRender.c_str(),color); }
+    { MetricScope timer(metrics_.textRaster); surface=rasterLine(font,textToRender,color,baseRtl(str)?1:0); }
     if (!surface) return;
 
     SDL_Texture *texture=nullptr;
     { MetricScope timer(metrics_.textureCreate); texture=SDL_CreateTextureFromSurface(r,surface); }
     if (texture) {
         int width=maxWidth>0?std::min(maxWidth,surface->w):surface->w;
-        SDL_Rect src{0,0,width,surface->h},dst{x,y,width,surface->h};
+        int offset=maxWidth>0 && baseRtl(str)?maxWidth-width:0;
+        SDL_Rect src{0,0,width,surface->h},dst{x+offset,y,width,surface->h};
         SDL_RenderCopy(r, texture, &src, &dst);
         storeText(std::move(key),texture,surface->w,surface->h);
     }
@@ -228,7 +372,7 @@ void Typography::renderWrapped(SDL_Renderer *r,TTF_Font *font,const std::string 
     auto key=textKey(r,font,str,color,rect.w,true); auto found=textCache_.find(key);
     if(found==textCache_.end()) {
         SDL_Surface *surface=nullptr;
-        { MetricScope timer(metrics_.textRaster);surface=TTF_RenderUTF8_Blended_Wrapped(font,str.c_str(),color,rect.w); }
+        { MetricScope timer(metrics_.textRaster);surface=rasterWrapped(font,str,color,rect.w); }
         if(!surface) return;
         SDL_Texture *texture=nullptr;
         { MetricScope timer(metrics_.textureCreate);texture=SDL_CreateTextureFromSurface(r,surface); }

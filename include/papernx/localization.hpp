@@ -71,7 +71,7 @@ inline std::string localizeUiText(const std::string &text, int language) {
         {"Genel ayarlar · Bu kitabı özelleştir","Global settings · Customize this book"},
         {"Yayıncı","Publisher"}, {"Yayıncı stilleri: Açık","Publisher styles: On"}, {"Yayıncı stilleri: Kapalı","Publisher styles: Off"},
         {"Paragraf girintisi: Açık","Paragraph indentation: On"}, {"Paragraf girintisi: Kapalı","Paragraph indentation: Off"},
-        {"Hizalama: Sola yaslı","Alignment: Left"}, {"Hizalama: İki yana yaslı","Alignment: Justified"},
+        {"Hizalama: Başlangıca yaslı","Alignment: Start (auto direction)"}, {"Hizalama: İki yana yaslı","Alignment: Justified"},
         {"Metin rengi · HEX gir","Text color · Enter HEX"}, {"Arka plan · HEX gir","Background · Enter HEX"},
         {"Tema renklerine sıfırla","Reset theme colors"},
         {"Sayfalı Mod · Yatay gezinme","Paginated Mode · Horizontal navigation"},

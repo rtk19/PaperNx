@@ -215,12 +215,36 @@ def create_valid_pdf(output_path: Path):
     pdf_content = header + body + xref_str.encode("latin1") + trailer.encode("latin1")
     output_path.write_bytes(pdf_content)
 
+def create_hebrew_variants(base):
+    """Original mixed-language text, no direction metadata on the paragraphs."""
+    with zipfile.ZipFile(base) as archive:
+        source = {name: archive.read(name) for name in archive.namelist()}
+    for name, language, spine in (("hebrew_auto", "he", ""),
+                                   ("hebrew_legacy", "iw-IL", ""),
+                                   ("hebrew_spine_ltr", "he", ' page-progression-direction="ltr"'),
+                                   ("hebrew_spine_rtl", "en", ' page-progression-direction="rtl"')):
+        entries = dict(source)
+        opf = entries["OEBPS/content.opf"].decode()
+        opf = opf.replace("İstanbul Masalları ve Şiirler", "הספר החדש PaperNX 123").replace("Ahmet Hamdi Tanpınar", "ישראל ישראלי")
+        opf = opf.replace("<dc:language>tr</dc:language>", f"<dc:language>{language}</dc:language>").replace("<spine>", f"<spine{spine}>")
+        entries["OEBPS/content.opf"] = opf.encode()
+        entries["OEBPS/ch1.xhtml"] = ('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>עברית</title></head><body>'
+            '<p>שלום עולם</p><p>English 123</p><p dir="ltr">שלום עולם</p><p dir="rtl">English 123</p>'
+            '<p>ספר עם מילים English 456 ומספרים 123 בשורה אחת.</p>'
+            '<p>' + 'זהו ספר בעברית ובו פסקה ארוכה שמיועדת לבדוק מעבר שורות וסידור נכון של המילים. ' * 8 + '</p>'
+            '<p>שורה ראשונה<br/>שורה אחרונה</p></body></html>').encode()
+        entries["OEBPS/toc.xhtml"] = entries["OEBPS/toc.xhtml"].decode().replace("Birinci Bölüm", "פרק ראשון").encode()
+        with zipfile.ZipFile(FIXTURES_DIR / (name + ".epub"), "w") as archive:
+            for entry, data in entries.items():
+                write_entry(archive, entry, data)
+
 def main():
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
     
     epub_path = FIXTURES_DIR / "sample_book.epub"
     create_valid_epub(epub_path)
     create_metadata_variants(epub_path)
+    create_hebrew_variants(epub_path)
     print(f"Generated EPUB fixture: {epub_path} ({epub_path.stat().st_size} bytes)")
 
     pdf_path = FIXTURES_DIR / "sample_doc.pdf"

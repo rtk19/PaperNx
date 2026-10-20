@@ -11,8 +11,8 @@ namespace fs = std::filesystem;
 
 constexpr const char *APP_TITLE = "PaperNX";
 constexpr const char *APP_AUTHOR = "Yusuf Buzrul";
-constexpr const char *APP_VERSION = "0.10.0-comics.2";
-constexpr const char *APP_VERSION_FULL = "v0.10.0-comics.2";
+constexpr const char *APP_VERSION = "0.11.0-reader.1";
+constexpr const char *APP_VERSION_FULL = "v0.11.0-reader.1";
 
 enum class Format { Epub, Pdf, Cbz, Cbr, Unsupported };
 const char *formatName(Format format);
@@ -88,6 +88,7 @@ std::vector<Book> scan(const fs::path &root, std::size_t maxBooks = 10000);
 // Unicode & Turkish Support
 std::string turkishCaseFold(const std::string &s);
 std::string utf8SafeTruncate(const std::string &s, std::size_t maxBytes);
+int naturalCompare(const std::string &a, const std::string &b);
 std::size_t utf8CodepointCount(const std::string &s);
 
 // Categorization & Filtering

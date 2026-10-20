@@ -325,6 +325,27 @@ std::vector<Book> filterByCategory(const std::vector<Book> &books, const Progres
     return result;
 }
 
+int naturalCompare(const std::string &a,const std::string &b) {
+    const auto left=turkishCaseFold(a),right=turkishCaseFold(b);
+    std::size_t i=0,j=0;
+    while(i<left.size() && j<right.size()) {
+        if(left[i]>='0' && left[i]<='9' && right[j]>='0' && right[j]<='9') {
+            auto ie=i,je=j;
+            while(ie<left.size() && left[ie]>='0' && left[ie]<='9') ++ie;
+            while(je<right.size() && right[je]>='0' && right[je]<='9') ++je;
+            auto iz=i,jz=j;
+            while(iz<ie && left[iz]=='0') ++iz;
+            while(jz<je && right[jz]=='0') ++jz;
+            if(ie-iz!=je-jz) return ie-iz<je-jz?-1:1;
+            int n=left.compare(iz,ie-iz,right,jz,je-jz); if(n) return n<0?-1:1;
+            i=ie;j=je;continue;
+        }
+        if(left[i]!=right[j]) return static_cast<unsigned char>(left[i])<static_cast<unsigned char>(right[j])?-1:1;
+        ++i;++j;
+    }
+    return i==left.size()?(j==right.size()?0:-1):1;
+}
+
 std::vector<Book> search(const std::vector<Book> &books, const std::string &needle, Sort sort) {
     std::vector<Book> result;
     const std::string q = turkishCaseFold(needle);
@@ -343,16 +364,14 @@ std::vector<Book> search(const std::vector<Book> &books, const std::string &need
             return a.modified == b.modified ? a.id < b.id : a.modified > b.modified;
         }
         if (sort == Sort::Author) {
-            auto la = turkishCaseFold(a.author), lb = turkishCaseFold(b.author);
-            if (la != lb) return la < lb;
+            int order=naturalCompare(a.author,b.author);if(order) return order<0;
         }
         if (sort == Sort::Filename) {
-            auto la = turkishCaseFold(fs::path(a.path).filename().string());
-            auto lb = turkishCaseFold(fs::path(b.path).filename().string());
-            return la == lb ? a.id < b.id : la < lb;
+            auto la = fs::path(a.path).filename().string();
+            auto lb = fs::path(b.path).filename().string();
+            auto order=naturalCompare(la,lb);return order?order<0:a.id<b.id;
         }
-        auto l = turkishCaseFold(a.title), r = turkishCaseFold(b.title);
-        return l == r ? a.id < b.id : l < r;
+        auto order=naturalCompare(a.title,b.title);return order?order<0:a.id<b.id;
     });
 
     return result;

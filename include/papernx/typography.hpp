@@ -32,6 +32,8 @@ public:
     TTF_Font *buttonFont() const { return buttonFont_?buttonFont_:uiFont_; }
     TTF_Font *readerFont() const { return readerFont_; }
     TTF_Font *previewFont(int family, int size);
+    // Select a fallback for a Hebrew run, preserving the chosen Latin font.
+    TTF_Font *fontForText(TTF_Font *font, const std::string &text);
 
     void renderText(SDL_Renderer *r, TTF_Font *font, const std::string &str,
                     int x, int y, SDL_Color color, int maxWidth = 0);
@@ -48,6 +50,11 @@ public:
 private:
     TypographyMetrics metrics_;
     int timedMeasure(TTF_Font *font,const char *text,int *width,int *height);
+    SDL_Surface *rasterLine(TTF_Font *font,const std::string &text,SDL_Color color,int direction=-1);
+    SDL_Surface *rasterWrapped(TTF_Font *font,const std::string &text,SDL_Color color,int width);
+    struct FontInfo { int size; int family; };
+    std::map<TTF_Font *,FontInfo> fontInfo_;
+    std::map<std::pair<int,int>,TTF_Font *> fallbackFonts_;
     std::filesystem::path root_;
     TTF_Font *titleFont_{nullptr};
     TTF_Font *uiFont_{nullptr};

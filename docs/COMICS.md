@@ -11,16 +11,21 @@ they do for existing books. Existing EPUB/PDF records and files remain compatibl
 - Paginated mode fits the complete artwork on screen. Drag a page horizontally
   to curl it, hold it, or reverse the drag. Grip height and vertical movement
   affect the fold. Release distance and speed decide completion or cancellation.
-  Taps, D-pad and optional L/R shortcuts also turn pages.
+  At fit-page, taps, D-pad and optional L/R shortcuts also turn pages.
 - **Reading settings → Page view** offers fit-page, fit-width, actual size, zoom,
   zoom preservation, original/reader colors and left-to-right/right-to-left
   reading. Pinch or use the toolbar to zoom; drag enlarged artwork to pan.
   A floating **Fit page** button remains visible while zoomed, including with
-  the toolbar hidden. It resets zoom and pan, selects fit-page, and restores
-  curls. The + menu and right-stick click expose the same reset.
-  As with PDF, a zoomed viewport pans instead of curling. Return to fit-page
-  for a complete sheet curl. Logical next/previous buttons stay next/previous;
-  spatial touch edges, swipes and D-pad follow the manga direction.
+  the toolbar hidden. It resets zoom and pan and fits the entire page. The + menu and right-stick **click** expose the same reset.
+  Page curls also work while zoomed: drag horizontally from the left/right edge
+  (outer 12% of the screen), tap a page-turn edge, or use L/R. Zoom stays at the
+  same level; every new page starts at the top and the appropriate reading side.
+  Drag the middle of the image to pan. D-pad/arrows and LS pan zoomed comics;
+  hold a direction for smooth continuous movement (64 pixels on the initial
+  press, up to 850 pixels/second while held). RS tilt pans enlarged pages and
+  scrolls lists/menus throughout the app, proportionally to stick deflection.
+  Logical next/previous buttons stay next/previous; spatial touch edges and
+  swipes follow the manga direction. PDF arrow/page-turn behavior is unchanged.
 - **Reading mode → Continuous scrolling** places pages edge to edge at viewport
   width, with momentum and sensitivity controls. Drag vertically or use vertical
   navigation; horizontal navigation moves between pages. Zoom/fit settings apply
@@ -107,8 +112,7 @@ Zoomed comic motion reuses a GPU page texture (up to 3072 pixels per side and
 6 Mi pixels, constrained by renderer limits), rather than rasterizing/uploading
 a new viewport per touch event. Drag positions accumulate from the starting
 point, pinch preserves the image point under the fingers, and panning has optional
-momentum using the existing inertia preference. A pan inside a zoomed comic does
-not accidentally turn a page. At extreme zoom, a single native-resolution viewport
+momentum using the existing inertia preference. Pans that start in the image interior do not turn a page; a horizontal edge drag deliberately starts a curl, including at zoom. At extreme zoom, a single native-resolution viewport
 is refined after movement stops, retaining reading detail without per-motion
 rasterization. The document and texture budgets remain bounded.
 
@@ -117,3 +121,30 @@ RAR4. Tests reproduce the old low-budget failure, verify the library worker and
 cache migration, exercise the visible reset followed by a page curl, check
 fractional pan movement/pinch focus and momentum, and verify that 60 moving frames
 reuse the same page rasterization. Desktop timing is not a Switch frame-rate claim.
+
+## Series shelves and issue numbers
+
+The **All books** home view combines two or more books with the same Series into
+one card with an issue count and the first issue's cover. Tap it or press A to
+open its issues; **Back** or B returns to the home view. Reading progress,
+favorites, bookmarks and journal entries belong to the individual issues.
+Search, Favorites, Continue Reading and other category results open matching
+issues directly. The existing Browse → Series filter remains available.
+
+ComicInfo `Series`/`Number` and EPUB series metadata are indexed asynchronously
+across the whole library, including books whose covers have not been shown.
+The first index after an upgrade may take time, particularly for solid CBR files.
+Opening a book takes priority. Rescan schedules indexing for new files; existing
+books and metadata edits remain intact.
+
+A user-edited **Series** takes priority. Without metadata, comic filenames/titles
+such as `The Walking Dead Deluxe 009 (2024).cbr` and `... 010 ...` can form a shelf
+from their shared prefix. A bare publication year is not treated as an issue.
+Single books remain individual cards. If a filename groups unexpectedly, edit
+its Series in book metadata to give it a distinct shelf.
+
+Within a shelf, issue numbers sort numerically: 9 precedes 10, leading zeros are
+accepted, decimal issues such as 0.5 work, and numbered suffixes such as 10A
+remain next to their issue. Books without a known issue use natural title/path
+order. Title, author and filename sorting and the SD browser also compare digit
+runs numerically, without converting arbitrarily long numbers to machine ints.
