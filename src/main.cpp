@@ -4,6 +4,7 @@
 #include "papernx/typography.hpp"
 #include "papernx/gestures.hpp"
 #include "papernx/page_cache.hpp"
+#include "papernx/page_curl.hpp"
 #include "papernx/ui.hpp"
 #include "papernx/app_settings.hpp"
 #include "papernx/cover_repository.hpp"
@@ -264,7 +265,7 @@ public:
 #endif
             SDL_Event e;
             // Event-driven loop: wait up to 100ms for events, then flush and draw if dirty
-            bool receivedEvent=SDL_WaitEventTimeout(&e, (continuous() && std::abs(scrollVelocity_) > 1) || std::abs(listVelocity_)>1 || layoutPending_ || layoutWorker_.joinable() ? 8 : controller_ ? 16 : 100);
+            bool receivedEvent=SDL_WaitEventTimeout(&e, (continuous() && std::abs(scrollVelocity_) > 1) || pageTurnAnimation_.active || std::abs(listVelocity_)>1 || layoutPending_ || layoutWorker_.joinable() ? 8 : controller_ ? 16 : 100);
             if (receivedEvent) {
                 handleEvent(e, running);
                 if(dirty_ && (e.type==SDL_FINGERDOWN || e.type==SDL_MOUSEBUTTONDOWN)) {render();dirty_=false;}
@@ -287,6 +288,7 @@ public:
 
             tickScroll();
             tickListScroll();
+            tickPageTurn();
             tickLibraryHold();
             tickReadingStats();
             processLayout();
@@ -357,6 +359,18 @@ private:
     std::string currentBookId_;
     int currentPage_{0};
     int pageCount_{0};
+    using PageTurnTexture = std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)>;
+    struct PageTurnAnimation {
+        PageTurnTexture previous{nullptr, SDL_DestroyTexture};
+        PageTurnTexture next{nullptr, SDL_DestroyTexture};
+        bool active{false};
+        int page{-1};
+        int direction{1};
+        int queued{0};
+        int width{0}, height{0};
+        Uint32 started{0};
+    } pageTurnAnimation_;
+    static constexpr Uint32 PAGE_TURN_MS = 460;
     float scrollY_{0}, scrollVelocity_{0};
     float scrollLastX_{0}, scrollLastY_{0};
     bool scrollTracking_{false}, scrollMoved_{false};
@@ -734,6 +748,7 @@ private:
         dirty_=true;
     }
     void openSettings(bool global=false,int tab=0) {
+        cancelPageTurn();
         quickMenu_=false; helpMenu_=false;
         if(screen_!=ScreenState::AaModal) settingsReturn_=screen_;
         globalSettings_=global;
@@ -747,6 +762,7 @@ private:
         globalSettings_=false; gestureTracker_.reset(); dirty_=true; flushProgress();
     }
     void queueStyleChange(bool preserveScope=false) {
+        cancelPageTurn();
         if(doc_ && !globalSettings_) {
             // Reader appearance changes belong to THIS book; never silently
             // rewrite the global theme. Scope-toggle reset is the exception.
@@ -1184,6 +1200,7 @@ private:
     void closeBook() {
         journal_.pause(SDL_GetTicks(),std::time(nullptr));journal_.save();
         pageFlipPosition_.reset();readingStats_.reanchor();
+        cancelPageTurn();
         cancelLayout(); navigationHistory_.clear(); quickMenu_=false;
         globalSettings_=false;
         coversPaused_=false; queueCv_.notify_one();
@@ -1296,6 +1313,7 @@ private:
     }
 
     void zoomPdf(float zoom, float focalX = .5f, float focalY = .5f) {
+        cancelPageTurn();
         if (!doc_ || px_document_is_epub(doc_)) return;
         const float previous = pdfZoom_;
         pdfZoom_ = std::round(std::clamp(zoom, 0.1f, 5.0f) * 100) / 100;
@@ -1320,17 +1338,110 @@ private:
         return std::clamp(resolved >= 0 ? resolved : bm.page, 0, std::max(0, pageCount_ - 1));
     }
 
+    void cancelPageTurn() {
+        pageTurnAnimation_ = PageTurnAnimation{};
+    }
+
+    // Own viewport snapshots independently of the LRU cache. Mixed PDF page sizes
+    // share a canvas, and rendering/prefetch cannot invalidate animation textures.
+    PageTurnTexture captureTurnPage(int page) {
+        PageTurnTexture snapshot{nullptr, SDL_DestroyTexture};
+        int w, h; getWindowSize(w, h);
+        const int height = std::max(1, h - 144);
+        SDL_Texture *source = getOrRenderPageTexture(page);
+        if (!source || !SDL_RenderTargetSupported(renderer_)) return snapshot;
+        int tw = 0, th = 0;
+        if (SDL_QueryTexture(source, nullptr, nullptr, &tw, &th) != 0) return snapshot;
+        snapshot.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888,
+                                        SDL_TEXTUREACCESS_TARGET, w, height));
+        if (!snapshot) return snapshot;
+        SDL_Texture *target = SDL_GetRenderTarget(renderer_);
+        SDL_Rect viewport{}, clip{};
+        SDL_RenderGetViewport(renderer_, &viewport);
+        const bool clipped = SDL_RenderIsClipEnabled(renderer_);
+        SDL_RenderGetClipRect(renderer_, &clip);
+        float sx = 1, sy = 1; SDL_RenderGetScale(renderer_, &sx, &sy);
+        Uint8 r, g, b, a; SDL_GetRenderDrawColor(renderer_, &r, &g, &b, &a);
+        if (SDL_SetRenderTarget(renderer_, snapshot.get()) != 0) {
+            snapshot.reset(); return snapshot;
+        }
+        SDL_RenderSetScale(renderer_, 1, 1);
+        SDL_RenderSetViewport(renderer_, nullptr);
+        SDL_RenderSetClipRect(renderer_, nullptr);
+        const auto paper = palette().bg;
+        SDL_SetRenderDrawColor(renderer_, paper.r, paper.g, paper.b, 255);
+        const SDL_Rect dst{(w - tw) / 2, (height - th) / 2, tw, th};
+        const bool ok = SDL_RenderClear(renderer_) == 0 &&
+                        SDL_RenderCopy(renderer_, source, nullptr, &dst) == 0;
+        SDL_SetRenderTarget(renderer_, target);
+        SDL_RenderSetScale(renderer_, sx, sy);
+        SDL_RenderSetViewport(renderer_, &viewport);
+        SDL_RenderSetClipRect(renderer_, clipped ? &clip : nullptr);
+        SDL_SetRenderDrawColor(renderer_, r, g, b, a);
+        if (!ok) snapshot.reset();
+        return snapshot;
+    }
+
     void turnPage(int delta) {
         if (!doc_ || pageCount_ <= 0) return;
-        int target = std::clamp(currentPage_ + delta, 0, pageCount_ - 1);
-        if (target != currentPage_) {
-            scrollY_ = scrollVelocity_ = 0;
-            currentPage_ = target;
-            if(!appSettings_.get().preservePdfZoom && !px_document_is_epub(doc_)) setPdfView(extraStyle_.pdfViewMode);
-            clampPdfPan();
-            saveCurrentPosition();
-            dirty_ = true;
+        if (pageTurnAnimation_.active) {
+            // Preserve every requested turn, including reversal, without snapping
+            // from a half-folded page to an unrelated full page.
+            const int target = std::clamp(currentPage_ + pageTurnAnimation_.queued + delta,
+                                          0, pageCount_ - 1);
+            pageTurnAnimation_.queued = target - currentPage_;
+            return;
         }
+        int target = std::clamp(currentPage_ + delta, 0, pageCount_ - 1);
+        if (target == currentPage_) return;
+        const bool animate = screen_ == ScreenState::Reader && !quickMenu_ && !appBackground_ &&
+                             !continuous() && std::abs(delta) == 1 &&
+                             !layoutPending_ && !layoutWorker_.joinable() &&
+                             (px_document_is_epub(doc_) || std::abs(pdfZoom_ - 1.f) < .01f);
+        auto previous = animate ? captureTurnPage(currentPage_) :
+                                  PageTurnTexture{nullptr, SDL_DestroyTexture};
+        const int direction = target > currentPage_ ? 1 : -1;
+        scrollY_ = scrollVelocity_ = 0;
+        currentPage_ = target;
+        if (!appSettings_.get().preservePdfZoom && !px_document_is_epub(doc_))
+            setPdfView(extraStyle_.pdfViewMode);
+        clampPdfPan();
+        saveCurrentPosition();
+        if (previous && (px_document_is_epub(doc_) || std::abs(pdfZoom_ - 1.f) < .01f)) {
+            auto next = captureTurnPage(currentPage_);
+            if (next) {
+                pageTurnAnimation_.previous = std::move(previous);
+                pageTurnAnimation_.next = std::move(next);
+                getWindowSize(pageTurnAnimation_.width, pageTurnAnimation_.height);
+                pageTurnAnimation_.page = currentPage_;
+                pageTurnAnimation_.direction = direction;
+                // Start only after both pages have rendered (cold pages can be slow).
+                pageTurnAnimation_.started = SDL_GetTicks();
+                pageTurnAnimation_.active = true;
+            }
+        }
+        dirty_ = true;
+    }
+
+    void tickPageTurn() {
+        if (!pageTurnAnimation_.active) return;
+        int w, h; getWindowSize(w, h);
+        if (!doc_ || screen_ != ScreenState::Reader || quickMenu_ || appBackground_ || continuous() ||
+            layoutPending_ || layoutWorker_.joinable() || pageTurnAnimation_.page != currentPage_ ||
+            w != pageTurnAnimation_.width || h != pageTurnAnimation_.height) {
+            cancelPageTurn();
+        } else if (SDL_GetTicks() - pageTurnAnimation_.started >= PAGE_TURN_MS) {
+            const int queued = pageTurnAnimation_.queued;
+            cancelPageTurn();
+            if (queued != 0) {
+                turnPage(queued > 0 ? 1 : -1);
+                if (pageTurnAnimation_.active)
+                    pageTurnAnimation_.queued = queued - (queued > 0 ? 1 : -1);
+                else if (std::abs(queued) > 1)
+                    turnPage(queued - (queued > 0 ? 1 : -1));
+            }
+        }
+        dirty_ = true;
     }
 
     void reflowEpub(int newFontSize, int newTheme = -1) {
@@ -1415,7 +1526,7 @@ private:
         }
     }
     void idlePrefetch() {
-        if(!doc_ || continuous() || screen_!=ScreenState::Reader || quickMenu_ || layoutPending_ || layoutWorker_.joinable() || !activeFingers_.empty()) return;
+        if(!doc_ || pageTurnAnimation_.active || continuous() || screen_!=ScreenState::Reader || quickMenu_ || layoutPending_ || layoutWorker_.joinable() || !activeFingers_.empty()) return;
         auto now=SDL_GetTicks();
         if(prefetchPage_!=currentPage_) { prefetchPage_=currentPage_; prefetchStep_=0; prefetchDue_=now+60; return; }
         if(prefetchStep_>=2 || now<prefetchDue_) return;
@@ -1625,7 +1736,7 @@ private:
             running = false;
             return;
         }
-        if(e.type==SDL_APP_WILLENTERBACKGROUND){appBackground_=true;readingStats_.reanchor();readingStats_.save();journal_.pause(SDL_GetTicks(),std::time(nullptr));journal_.save();}
+        if(e.type==SDL_APP_WILLENTERBACKGROUND){cancelPageTurn();appBackground_=true;readingStats_.reanchor();readingStats_.save();journal_.pause(SDL_GetTicks(),std::time(nullptr));journal_.save();}
         if(e.type==SDL_APP_DIDENTERFOREGROUND){appBackground_=false;readingStats_.reanchor();}
         if(e.type==SDL_FINGERDOWN||e.type==SDL_FINGERMOTION||e.type==SDL_KEYDOWN||e.type==SDL_CONTROLLERBUTTONDOWN||e.type==SDL_CONTROLLERAXISMOTION){
             readingStats_.interaction(SDL_GetTicks());
@@ -1691,6 +1802,7 @@ private:
 
         // Touch Input
         if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            cancelPageTurn();
             pageCache_.clear();
             if (doc_ && px_document_is_epub(doc_)) { ++layoutGeneration_; layoutPending_=true; layoutDue_=SDL_GetTicks()+140; }
             else if (doc_) setPdfView(extraStyle_.pdfViewMode);
@@ -2572,9 +2684,18 @@ private:
     void renderReaderScreen(int w, int h, const ThemePalette &pal) {
         if(continuous()) renderScroll(w,h);
         trace("page_begin");
-        SDL_Texture *pageTex = continuous() ? nullptr : getOrRenderPageTexture(currentPage_);
+        tickPageTurn();
+        SDL_Texture *pageTex = continuous() || pageTurnAnimation_.active ? nullptr :
+                              getOrRenderPageTexture(currentPage_);
         trace("page_end");
-        if (pageTex) {
+        if (pageTurnAnimation_.active) {
+            const SDL_Rect viewport{0, 72, w, std::max(1, h - 144)};
+            const float progress = std::clamp(float(SDL_GetTicks() - pageTurnAnimation_.started) /
+                                             float(PAGE_TURN_MS), 0.f, 1.f);
+            PageCurlRenderer::render(renderer_, pageTurnAnimation_.previous.get(),
+                                     pageTurnAnimation_.next.get(), viewport,
+                                     progress, pageTurnAnimation_.direction);
+        } else if (pageTex) {
             int texW = 0, texH = 0;
             SDL_QueryTexture(pageTex, nullptr, nullptr, &texW, &texH);
             SDL_Rect dst{(w - texW) / 2, (h - texH) / 2, texW, texH};
