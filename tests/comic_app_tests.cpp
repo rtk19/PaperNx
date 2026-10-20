@@ -6,6 +6,45 @@
 
 namespace {
 struct AppTest {
+    static void rotatedControls(PaperNxApp &app) {
+        const auto original=app.appSettings_.get();const int oldX=app.pdfPanX_,oldY=app.pdfPanY_;
+        const int keys[]{SDLK_RIGHT,SDLK_DOWN,SDLK_LEFT,SDLK_UP};
+        const int buttons[]{SDL_CONTROLLER_BUTTON_DPAD_RIGHT,SDL_CONTROLLER_BUTTON_DPAD_DOWN,SDL_CONTROLLER_BUTTON_DPAD_LEFT,SDL_CONTROLLER_BUTTON_DPAD_UP};
+        const int dx[]{1,0,-1,0},dy[]{0,1,0,-1};
+        bool running=true;
+        for(int orientation=0;orientation<3;++orientation) {
+            auto settings=original;settings.displayOrientation=orientation;app.appSettings_.put(settings);
+            const DisplayTransform transform{1280,720,orientation};
+            for(int control=0;control<4;++control)for(int direction=0;direction<4;++direction) {
+                app.clearHeldControls();app.pdfPanX_=app.pdfPanY_=500;app.clampPdfPan();
+                const auto before=transform.toPhysical(-float(app.pdfPanX_),-float(app.pdfPanY_));
+                SDL_Event event{};
+                if(control==0){event.type=SDL_KEYDOWN;event.key.keysym.sym=SDL_Keycode(keys[direction]);}
+                else if(control==1){event.type=SDL_CONTROLLERBUTTONDOWN;event.cbutton.button=Uint8(buttons[direction]);}
+                else {event.type=SDL_CONTROLLERAXISMOTION;event.caxis.axis=Uint8((control==2?SDL_CONTROLLER_AXIS_LEFTX:SDL_CONTROLLER_AXIS_RIGHTX)+(dy[direction]?1:0));event.caxis.value=Sint16((dx[direction]+dy[direction])*32767);}
+                app.handleEvent(event,running);
+                for(int frame=0;frame<3;++frame){app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();}
+                const auto after=transform.toPhysical(-float(app.pdfPanX_),-float(app.pdfPanY_));
+                const float movementX=after.first-before.first,movementY=after.second-before.second;
+                // Artwork moves opposite the requested physical scroll direction,
+                // regardless of how the logical reader was rotated for rendering.
+                assert(-(movementX*dx[direction]+movementY*dy[direction])>=39);
+                assert(std::abs(movementX*dy[direction]-movementY*dx[direction])<1);
+                if(control==0)event.type=SDL_KEYUP;else if(control==1)event.type=SDL_CONTROLLERBUTTONUP;else event.caxis.value=0;
+                app.handleEvent(event,running);const int stoppedX=app.pdfPanX_,stoppedY=app.pdfPanY_;
+                app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanX_==stoppedX && app.pdfPanY_==stoppedY);
+            }
+        }
+        // Keep a physical direction held while rotating: no new press is needed.
+        app.clearHeldControls();app.pdfPanX_=app.pdfPanY_=500;
+        SDL_Event held{};held.type=SDL_CONTROLLERBUTTONDOWN;held.cbutton.button=SDL_CONTROLLER_BUTTON_DPAD_RIGHT;app.handleEvent(held,running);
+        auto settings=original;settings.displayOrientation=1;app.appSettings_.put(settings);
+        app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanX_==500 && app.pdfPanY_<500);
+        settings.displayOrientation=2;app.appSettings_.put(settings);const int y=app.pdfPanY_;
+        app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.pdfPanX_==500 && app.pdfPanY_>y);
+        app.clearHeldControls();app.appSettings_.put(original);app.pdfPanX_=oldX;app.pdfPanY_=oldY;app.clampPdfPan();
+        std::cout<<"PASS: keyboard/D-pad/LS/RS scroll in all four physical directions at all three rotations, release and live held rotation\n";
+    }
     static void finish(PaperNxApp &app) {
         assert(app.pageTurnAnimation_.active);
         app.pageTurnAnimation_.started=SDL_GetTicks()-1000;app.tickPageTurn();
@@ -71,6 +110,7 @@ struct AppTest {
         assert(app.currentPage_==0 && app.panVelocityX_>0);
         app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.panVelocityX_>0);
         const int releasedX=app.pdfPanX_;app.panPhysicsTick_=SDL_GetTicks()-16;app.tickComicPan();assert(app.pdfPanX_>releasedX);
+        rotatedControls(app);
         auto portrait=app.appSettings_.get();portrait.displayOrientation=1;app.appSettings_.put(portrait);
         app.setPdfView(0);app.zoomPdf(5);app.panVelocityX_=app.panVelocityY_=0;app.render();
         app.idlePrefetch();app.comicDetailDue_=SDL_GetTicks()-1;app.idlePrefetch();

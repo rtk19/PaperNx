@@ -7,7 +7,7 @@
 <p align="center">Offline EPUB, PDF, CBZ and CBR reading on Nintendo Switch, with interactive paper curls and automatic Hebrew support.</p>
 
 <p align="center">
-  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.2">Download this fork</a> ·
+  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.3">Download this fork</a> ·
   <a href="docs/COMICS.md">Comic reader guide</a> ·
   <a href="https://github.com/ysfbz/PaperNx">Original project</a> ·
   <a href="LICENSE">AGPL-3.0</a>
@@ -19,22 +19,22 @@
 
 The fork adds touch-controlled, perspective page curls and CBZ/CBR comic reading while retaining the original EPUB/PDF reader, offline library, reading journal and settings. The original project's authorship and license are preserved.
 
-**Current release: [v0.11.0-reader.2](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.2), a prerelease.** Hebrew UI/reader tests, series indexing, identical LS/RS navigation, continuous trigger zoom, comic sheet geometry, existing reader regressions and Switch build/package checks passed. Physical Nintendo Switch compatibility, frame rate and touch latency have **not yet been verified**.
+**Current release: [v0.11.0-reader.3](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.3), a prerelease.** Hebrew UI/reader tests, series indexing, identical LS/RS navigation, continuous trigger zoom, comic sheet geometry, existing reader regressions and Switch build/package checks passed. Physical Nintendo Switch compatibility, frame rate and touch latency have **not yet been verified**.
 
 ## Downloads — use Release Assets
 
-Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.2) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
+Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.3) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
 
 | Asset | Purpose |
 |---|---|
-| [PaperNX-switch-v0.11.0-reader.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/PaperNX-switch-v0.11.0-reader.2.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
-| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
-| [PaperNX-licenses-v0.11.0-reader.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/PaperNX-licenses-v0.11.0-reader.2.zip) | Project and third-party license notices. |
-| [PaperNX-source-v0.11.0-reader.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/PaperNX-source-v0.11.0-reader.2.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
-| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
-| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/manifest.json) | Binary hashes, build receipt and source revision. |
-| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
-| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.2/README.md) | Short installation and source reference to keep with the downloads. |
+| [PaperNX-switch-v0.11.0-reader.3.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/PaperNX-switch-v0.11.0-reader.3.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
+| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
+| [PaperNX-licenses-v0.11.0-reader.3.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/PaperNX-licenses-v0.11.0-reader.3.zip) | Project and third-party license notices. |
+| [PaperNX-source-v0.11.0-reader.3.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/PaperNX-source-v0.11.0-reader.3.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
+| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
+| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/manifest.json) | Binary hashes, build receipt and source revision. |
+| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
+| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.11.0-reader.3/README.md) | Short installation and source reference to keep with the downloads. |
 
 GitHub's automatic **Source code** archives also contain source. To run the reader on Switch, use the NRO or installation ZIP.
 
@@ -72,7 +72,7 @@ On PowerShell, use `Get-FileHash .\PaperNX.nro -Algorithm SHA256` and compare wi
 
 - **Hebrew and mixed text:** bundled Noto Hebrew sans/semibold/serif fallback fonts, Unicode bidirectional layout for titles/authors and other UI text, niqqud-aware shaping and truncation. EPUB paragraphs infer their direction independently; justified final lines and indentation follow that direction. Explicit HTML `dir` remains authoritative. EPUB spine direction, or Hebrew `he`/`iw` metadata when it is absent, sets page-turn direction. See [Hebrew support](docs/HEBREW.md).
 - **Series shelves and natural numbering:** All books combines a series into one card. Open it for its issues in numeric order (9 before 10), then use Back/B to return. Background metadata indexing covers the whole library; ComicInfo Series/Number takes priority over conservative filename inference. Search and reading categories continue to open individual books.
-- **Comfortable comic zoom:** curls remain available while enlarged; a new page keeps the zoom and starts at the top. Both LS and RS pan enlarged artwork with the same proportional response and navigate the same focused items elsewhere. Hold ZR to zoom in or ZL to zoom out smoothly; release to stop. D-pad/arrows pan continuously without an initial jump. Curl geometry follows the full paper sheet, clipped to the reading area. Horizontal edge drags and L/R turn pages.
+- **Comfortable comic zoom:** curls remain available while enlarged; a new page keeps the zoom and starts at the top. Both LS and RS pan enlarged artwork with the same proportional response and navigate the same focused items elsewhere. Arrows, D-pad and both sticks follow the display rotation automatically in either portrait direction, including while held. Hold ZR to zoom in or ZL to zoom out smoothly; release to stop. D-pad/arrows pan continuously without an initial jump. Curl geometry follows the full paper sheet, clipped to the reading area. Horizontal edge drags and L/R turn pages.
 - **Interactive paper curl:** drag horizontally, hold the sheet, or reverse the drag to return it. Initial grip height and vertical movement affect the fold; release distance and speed determine completion or cancellation. Paginated EPUB, fit-to-page PDF and comics at any zoom use the animation. Enlarged PDFs retain their existing panning behavior.
 - **Comic cover and zoom fixes (comics.2):** larger bounded cover decoding, automatic comic cover-cache refresh, a visible **Fit page** reset, cached GPU panning/pinching, momentum and native viewport detail after motion stops.
 - **CBZ/CBR comics:** ZIP, RAR4 and RAR5, including solid archives; natural numeric page order, nested folders, Unicode names, ComicInfo metadata, front covers and contents bookmarks. Images are decoded without extracting the archive onto the SD card.
@@ -115,7 +115,7 @@ docker compose run --rm desktop bash scripts/verify-desktop.sh
 docker compose run --rm desktop bash scripts/verify-pinned-desktop.sh
 ```
 
-Switch outputs are written to `dist/v0.11.0-reader.2/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
+Switch outputs are written to `dist/v0.11.0-reader.3/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
 
 The manually dispatched **Publish verified release assets** workflow attaches existing, verified `builds/<tag>` artifacts to the corresponding release. It checks the original hashes and source tag, includes a source archive, and publishes an updated checksum list. It does not rebuild or retag the NRO.
 
@@ -131,16 +131,16 @@ Fork maintainer: **[@rtk19](https://github.com/rtk19)**. The fork retains the **
 
 ## הנחיות קצרות בעברית
 
-זהו פורק עצמאי של **rtk19**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.2), תחת **Assets**.
+זהו פורק עצמאי של **rtk19**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.3), תחת **Assets**.
 
-להתקנה ראשונה הורידו את `PaperNX-switch-v0.11.0-reader.2.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
+להתקנה ראשונה הורידו את `PaperNX-switch-v0.11.0-reader.3.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
 
 תמיכה בעברית פועלת אוטומטית: גופני עברית כלולים גם ב־NRO עצמו, שמות ספרים ומחברים מוצגים בעברית, וכיוון כל פסקה ב־EPUB מזוהה לפי הטקסט. אין צורך לשנות את שפת הממשק או למחוק נתונים. אם הגדרתם בעבר שימוש בעיצוב המו״ל, כבו **Publisher styles** כדי להשתמש בעיצוב הקריאה המתוקן. האפשרות **Alignment: Start (auto direction)** מיישרת עברית לימין ואנגלית לשמאל; **Justified** מיישרת לשני הצדדים והשורה האחרונה נשארת בצד המתאים.
 
 אפשר להוסיף EPUB, PDF, CBZ ו־CBR לתיקיית `books/` או לפתוח דרך דפדפן הקבצים. קומיקס תומך באנימציות במגע, זום, גלילה רציפה ומנגה; צבעי האיורים נשמרים כברירת מחדל. ארכיונים מוצפנים או מפוצלים אינם נתמכים. במצב זום, הכפתור **Fit page** מאפס את ההגדלה והמיקום ומחזיר את אנימציית הדפדוף. עדכון זה מתקן גם כריכות של קומיקס גדול ומשפר את הגרירה בתוך התמונה. זו גרסת ניסיון שטרם אומתה על Switch פיזי. הממשק עצמו באנגלית או בטורקית.
 
 בקומיקס מוגדל, החצים והסטיק השמאלי מזיזים את התמונה; לחיצה ממושכת ממשיכה להזיז.
-RS מתנהג כמו LS בניווט ובהזזה. החזקת ZR מגדילה והחזקת ZL מקטינה באופן רציף; שחרור עוצר. החצים מתחילים לזוז ללא קפיצה. הקיפול חל על הדף עצמו. לדפדוף עם אנימציה השתמשו ב־L/R, בהקשה
+RS מתנהג כמו LS בניווט ובהזזה. החצים ושני הסטיקים מתאימים את הכיוון אוטומטית גם לאחר סיבוב המסך לשני הכיוונים. החזקת ZR מגדילה והחזקת ZL מקטינה באופן רציף; שחרור עוצר. החצים מתחילים לזוז ללא קפיצה. הקיפול חל על הדף עצמו. לדפדוף עם אנימציה השתמשו ב־L/R, בהקשה
 בקצה העמוד או בגרירה אופקית מהקצה. הזום נשמר והעמוד הבא מתחיל מלמעלה.
 סדרות מקובצות אוטומטית במסך **All books** לאחר סריקת המטא־דאטה ברקע;
 פתיחת כרטיס הסדרה מציגה את החוברות בסדר מספרי. **Back** או B מחזירים לספרייה.

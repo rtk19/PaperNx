@@ -1,4 +1,4 @@
-# Fork verification: v0.11.0-reader.2
+# Fork verification: v0.11.0-reader.3
 
 The new reader suite passes 19 native CTests with patched MuPDF 1.23.11 and the
 pinned FriBidi 1.0.12 source build, plus 7 portable tests and package/UTF-8 checks.
@@ -9,7 +9,13 @@ and distribution receipts, original fixture screenshots and logs ship in the
 release's verification-evidence.zip. Physical Nintendo Switch behavior, FPS and
 touch latency remain unverified.
 
-New controller coverage compares LS and RS from identical navigation states in
+Rotation coverage checks keyboard arrows, D-pad, LS and RS in four physical
+directions at all three display orientations. It compares rendered paper
+displacement, release behavior, live held rotation and modal selection, including
+a check against applying rotation twice to stick-generated actions. The shared
+direction transform is checked against the pointer transform.
+
+Existing controller coverage compares LS and RS from identical navigation states in
 both axes and directions, including modal choices/palettes and held repeat.
 Trigger tests cover stationary holds, release, opposing triggers, menus, zoom
 limits and focus loss; 100 small zoom steps check focal drift. Comic and curl

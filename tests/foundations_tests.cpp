@@ -13,6 +13,11 @@ int main() {
             auto l=t.toLogical(p.first,p.second),r=t.toPhysical(l.first,l.second);
             assert(std::abs(r.first-p.first)<.01f && std::abs(r.second-p.second)<.01f);
         }
+        for(auto d:{std::pair<float,float>{1,0},{-1,0},{0,1},{0,-1},{.3f,-.7f}}) {
+            const auto a=t.toLogical(600,300),b=t.toLogical(600+d.first,300+d.second);
+            const auto direction=t.directionToLogical(d.first,d.second);
+            assert(std::abs(direction.first-(b.first-a.first))<.0001f && std::abs(direction.second-(b.second-a.second))<.0001f);
+        }
     }
     assert(classifyPdfGesture({-240,15,1280,230})==PdfGesture::PageNext);
     assert(classifyPdfGesture({240,15,1280,230})==PdfGesture::PagePrevious);

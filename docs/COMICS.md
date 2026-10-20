@@ -1,4 +1,4 @@
-# CBZ and CBR comics — v0.11.0-reader.2
+# CBZ and CBR comics — v0.11.0-reader.3
 
 Copy `.cbz` or `.cbr` files into `sdmc:/switch/PaperNX/books/`, including
 subfolders, or open them directly through the SD browser. Extensions are case
@@ -24,7 +24,11 @@ they do for existing books. Existing EPUB/PDF records and files remain compatibl
   holding a direction moves continuously at up to 850 pixels/second, including
   the first frame with no extra initial jump. LS and RS use identical deadzones,
   proportional panning and navigation/repeat behavior throughout the app, including
-  modal lists, choices and palettes. Existing stick-click shortcuts remain.
+  modal lists, choices and palettes. Arrows/D-pad and both sticks are rotated
+  with the displayed content in landscape and either portrait orientation.
+  A direction held during rotation updates immediately. Touch coordinates use
+  the same inverse rotation; L/R next/previous and ZR/ZL zoom stay unchanged.
+  Existing stick-click shortcuts remain.
   The animation bends the complete paper sheet at its actual size and pan
   position; surrounding reader margins stay stationary. The incoming sheet has
   its own aspect ratio and top-of-page position. Offscreen paper is clipped to

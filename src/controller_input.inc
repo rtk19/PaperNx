@@ -6,6 +6,22 @@ bool controllerFocused_{true};
 unsigned heldKeyboardPan_{0},heldPadPan_{0};
 Uint32 controllerInputTick_{0};
 float controllerRemainderX_{0},controllerRemainderY_{0};
+std::pair<float,float> controlDirection(float x,float y) const {
+    return DisplayTransform{0,0,appSettings_.get().displayOrientation}.directionToLogical(x,y);
+}
+void orientDirectionalEvent(SDL_Event &event) const {
+    const bool key=event.type==SDL_KEYDOWN || event.type==SDL_KEYUP;
+    const bool pad=event.type==SDL_CONTROLLERBUTTONDOWN || event.type==SDL_CONTROLLERBUTTONUP;
+    if(!key && !pad)return;
+    const int value=key?event.key.keysym.sym:event.cbutton.button;
+    const int left=key?int(SDLK_LEFT):int(SDL_CONTROLLER_BUTTON_DPAD_LEFT),right=key?int(SDLK_RIGHT):int(SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+    const int up=key?int(SDLK_UP):int(SDL_CONTROLLER_BUTTON_DPAD_UP),down=key?int(SDLK_DOWN):int(SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+    const int dx=value==left?-1:value==right?1:0,dy=value==up?-1:value==down?1:0;
+    if(!dx && !dy)return;
+    const auto direction=controlDirection(float(dx),float(dy));
+    const int mapped=direction.first<0?left:direction.first>0?right:direction.second<0?up:down;
+    if(key)event.key.keysym.sym=SDL_Keycode(mapped);else event.cbutton.button=Uint8(mapped);
+}
 bool zoomPanContext() const {
     return doc_ && screen_==ScreenState::Reader && !quickMenu_ &&
         catalogPanel_==CatalogPanel::None && choiceKind_<0 && colorEditing_<0 &&
@@ -39,7 +55,10 @@ void navigateStick(int axis,int value) {
         event.cbutton.button=dx<0?SDL_CONTROLLER_BUTTON_DPAD_LEFT:dx>0?SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
             dy<0?SDL_CONTROLLER_BUTTON_DPAD_UP:SDL_CONTROLLER_BUTTON_DPAD_DOWN;
         bool running=true;handleEvent(event,running);
-    } else handleAnalog(dx,dy);
+    } else {
+        const auto direction=controlDirection(float(dx),float(dy));
+        handleAnalog(int(direction.first),int(direction.second));
+    }
 }
 void panReaderBy(float dx,float dy) {
     if(!doc_ || px_document_is_epub(doc_) || pageTurnAnimation_.active)return;
@@ -98,7 +117,8 @@ void tickControllerInput() {
         float y=stickAmount(stickAxes_[1])+ry+float(bool(held&8))-float(bool(held&4));
         const float length=std::max(1.f,std::hypot(x,y));
         // A centered stick must not cancel momentum from a touch gesture.
-        if(std::abs(x)+std::abs(y)>.001f)panReaderBy(x/length*850.f*dt,y/length*850.f*dt);
+        const auto direction=controlDirection(x/length,y/length);
+        if(std::abs(x)+std::abs(y)>.001f)panReaderBy(direction.first*850.f*dt,direction.second*850.f*dt);
         return;
     }
     heldKeyboardPan_=heldPadPan_=0;

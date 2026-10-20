@@ -2154,6 +2154,9 @@ private:
         if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_GAINED) {controllerFocused_=true;clearHeldControls();}
         if(e.type==SDL_APP_WILLENTERBACKGROUND)clearHeldControls();
         if(trackHeldControl(e))return;
+        // Held pan masks stay in physical coordinates so a live rotation also
+        // redirects a held button. Discrete UI actions are mapped exactly once.
+        orientDirectionalEvent(e);
         if(modalTouchGuard(e))return;
         if(choiceEvent(e))return;
         if(handleCatalogEvent(e))return;

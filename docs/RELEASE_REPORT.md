@@ -1,12 +1,14 @@
-# Fork release: v0.11.0-reader.2
+# Fork release: v0.11.0-reader.3
 
 The current fork release adds Hebrew fonts and automatic EPUB direction, series
 shelves and numeric issue sorting, zoom-preserving comic curls with a reset to
-the top of each new page. This update unifies LS/RS navigation, adds continuous
+the top of each new page. This update also rotates arrows, D-pad and both sticks with the display in
+either portrait direction, including held panning and modal focus. It retains
+unified LS/RS navigation, continuous
 ZR/ZL zoom, removes the initial directional-pan jump and makes zoomed curls
 follow the complete paper geometry instead of a viewport rectangle.
 Download the NRO or installation ZIP from
-[the fork Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.2).
+[the fork Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.3).
 The manifest and checksums identify the actual binary and exact source revision;
 the source ZIP includes the full FriBidi 1.0.12 source archive and the MuPDF RTL
 patch/build scripts. Font notices, third-party licenses and verification logs

@@ -1,3 +1,7 @@
+# Fork update: v0.11.0-reader.3
+
+Arrows, D-pad, LS and RS now follow the display orientation in landscape and both portrait directions. The same rotation used for touch is applied to directional controls, including continuous zoomed panning and modal navigation. Holding a direction across an orientation change redirects movement immediately; release stops it. Zoom and logical next/previous shortcuts keep their behavior. See [COMICS.md](COMICS.md) and [TEST_RESULTS.md](TEST_RESULTS.md). Physical Switch acceptance remains pending.
+
 # Fork update: v0.11.0-reader.2
 
 LS and RS now share directional navigation, modal focus, repeat timing and zoomed panning. Holding ZR/ZL changes zoom smoothly around the viewport center; D-pad/arrows begin panning without the former 64-pixel impulse. Enlarged comic curls use the actual complete sheet and a separately positioned incoming page, clipped to the reading area. Zoom and top-of-page resets remain. See [COMICS.md](COMICS.md) for controls and [TEST_RESULTS.md](TEST_RESULTS.md) for validation. Physical Switch acceptance remains pending.

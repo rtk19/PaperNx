@@ -36,6 +36,26 @@ struct AppTest {
         fs::create_directories("verification/library-controls");
         assert(SDL_SaveBMP(surface,(std::string("verification/library-controls/")+name+".bmp").c_str())==0);SDL_FreeSurface(surface);
     }
+    static void rotatedChoices(PaperNxApp &app) {
+        const auto original=app.appSettings_.get();app.openChoice(7,3);
+        const int keys[]{SDLK_RIGHT,SDLK_DOWN,SDLK_LEFT,SDLK_UP};
+        const int buttons[]{SDL_CONTROLLER_BUTTON_DPAD_RIGHT,SDL_CONTROLLER_BUTTON_DPAD_DOWN,SDL_CONTROLLER_BUTTON_DPAD_LEFT,SDL_CONTROLLER_BUTTON_DPAD_UP};
+        const int expected[3][4]{{1,1,-1,-1},{-1,1,1,-1},{1,-1,-1,1}};
+        for(int orientation=0;orientation<3;++orientation) {
+            auto settings=original;settings.displayOrientation=orientation;app.appSettings_.put(settings);sameSticks(app);
+            for(int control=0;control<4;++control)for(int direction=0;direction<4;++direction) {
+                app.clearHeldControls();app.choiceFocusedIndex_=app.choiceIndex_=3;
+                SDL_Event event{};bool running=true;
+                if(control==0){event.type=SDL_KEYDOWN;event.key.keysym.sym=SDL_Keycode(keys[direction]);}
+                else if(control==1){event.type=SDL_CONTROLLERBUTTONDOWN;event.cbutton.button=Uint8(buttons[direction]);}
+                else {event.type=SDL_CONTROLLERAXISMOTION;event.caxis.axis=Uint8((control==2?SDL_CONTROLLER_AXIS_LEFTX:SDL_CONTROLLER_AXIS_RIGHTX)+(direction%2));event.caxis.value=direction<2?32767:-32767;}
+                app.handleEvent(event,running);assert(app.choiceFocusedIndex_==3+expected[orientation][direction]);
+                assert(app.screen_==ScreenState::FileBrowser); // modal owns the action
+            }
+        }
+        app.clearHeldControls();app.appSettings_.put(original);app.choiceKind_=-1;
+        std::cout<<"PASS: rotated keyboard/D-pad/LS/RS modal navigation, four directions and no double rotation\n";
+    }
     static void run(const fs::path &root) {
         PaperNxApp app(root);assert(app.init());ui::language=1;
         const auto deadline=SDL_GetTicks()+6000;
@@ -82,6 +102,7 @@ struct AppTest {
         axis(app,32767);const int selected=app.choiceFocusedIndex_;assert(selected==1);
         SDL_Delay(230);app.controllerInputTick_=SDL_GetTicks()-16;app.tickControllerInput();assert(app.choiceFocusedIndex_==selected+1);
         axis(app,0);app.choiceKind_=-1;app.colorEditing_=0;app.swatchFocus_=5;sameSticks(app);app.colorEditing_=-1;
+        rotatedChoices(app);
         app.clearHeldControls();
         std::cout<<"PASS: full background series indexing, issue order 9/10/22, shelf/back/search/history, persisted issue identity, identical LS/RS directions, deadzone/repeat and modal priority in library/menus/settings/browser/contents/bookmarks/continuous reader\n";
     }
