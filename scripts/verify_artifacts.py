@@ -8,7 +8,7 @@ from artifact_validation import BUNDLED_FONT_FILES, validate_assets, read_romfs,
 from package_release import validate_nro
 
 parser = argparse.ArgumentParser(description="Validate the real Switch ELF/NRO and embedded assets")
-parser.add_argument("--version", default="0.11.0-reader.3")
+parser.add_argument("--version", default="0.11.0-reader.4")
 args = parser.parse_args()
 assert __debug__, "Artifact checks require enabled assertions"
 elf = Path("PaperNX.elf").read_bytes()
@@ -21,12 +21,13 @@ assert nro[icon["offset"]:icon["offset"] + icon["size"]] == Path("assets/brandin
 nacp = assets["nacp"]
 nacp_data = nro[nacp["offset"]:nacp["offset"] + nacp["size"]]
 assert nacp_data[:512].split(b"\0")[0] == b"PaperNX"
-assert nacp_data[512:768].split(b"\0")[0] == b"Yusuf Buzrul"
+assert nacp_data[512:768].split(b"\0")[0] == b"Refael Bar"
 assert nacp_data[0x3060:0x3070].split(b"\0")[0].decode() == args.version.removeprefix("v"), "NACP version mismatch"
 files = read_romfs(nro, assets["romfs"])
 for name in BUNDLED_FONT_FILES:
     assert files["fonts/" + name] == (Path("fonts") / name).read_bytes(), name
 result = {"source": source_identity(Path.cwd()), "elf": validate_elf(elf), "nro": meta, "assets": assets, "icon": icon_meta, "embedded_icon_identical": True,
+          "nacp_author": nacp_data[512:768].split(b"\0")[0].decode(),
           "romfs_files": sorted(files), "nro_sha256": hashlib.sha256(nro).hexdigest(),
           "hardware": "UNVERIFIED"}
 Path("verification").mkdir(exist_ok=True)

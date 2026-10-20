@@ -1,4 +1,4 @@
-# CBZ and CBR comics — v0.11.0-reader.3
+# CBZ and CBR comics — v0.11.0-reader.4
 
 Copy `.cbz` or `.cbr` files into `sdmc:/switch/PaperNX/books/`, including
 subfolders, or open them directly through the SD browser. Extensions are case

@@ -1,3 +1,7 @@
+# Fork verification: v0.11.0-reader.4
+
+This developer-name update is checked by the real Switch build, NRO/NACP author and version validation, AArch64/RomFS/font inspection, source receipts, installation ZIP integrity and portable/package checks. The displayed developer must be **Refael Bar**. Reader behavior is inherited from reader.3; its native/OpenGL/sanitizer regression evidence follows below and is not a fresh rerun for this metadata change. Physical Switch acceptance remains unverified.
+
 # Fork verification: v0.11.0-reader.3
 
 The new reader suite passes 19 native CTests with patched MuPDF 1.23.11 and the

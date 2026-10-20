@@ -1,3 +1,7 @@
+# Fork release: v0.11.0-reader.4
+
+Updates the fork developer to **Refael Bar** in Switch NACP metadata, the application constant and current documentation. Original PaperNX credits and licensing are retained. Reading behavior is inherited from reader.3. The NRO, installation ZIP, exact source, license notices, hashes and evidence are available in [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.4).
+
 # Fork release: v0.11.0-reader.3
 
 The current fork release adds Hebrew fonts and automatic EPUB direction, series

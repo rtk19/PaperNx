@@ -1,3 +1,7 @@
+# Fork update: v0.11.0-reader.4
+
+The fork developer displayed by Homebrew Menu is now **Refael Bar**. Build metadata and README credits identify the fork developer; original PaperNX attribution and licenses remain. Reading behavior is inherited from reader.3.
+
 # Fork update: v0.11.0-reader.3
 
 Arrows, D-pad, LS and RS now follow the display orientation in landscape and both portrait directions. The same rotation used for touch is applied to directional controls, including continuous zoomed panning and modal navigation. Holding a direction across an orientation change redirects movement immediately; release stops it. Zoom and logical next/previous shortcuts keep their behavior. See [COMICS.md](COMICS.md) and [TEST_RESULTS.md](TEST_RESULTS.md). Physical Switch acceptance remains pending.
