@@ -20,6 +20,7 @@
 #include "papernx/reading_journal.hpp"
 #include "papernx/reading_journal_ui.hpp"
 #include "papernx/cover_design.hpp"
+#include "papernx/self_update.hpp"
 #include <cstring>
 
 #ifdef __SWITCH__
@@ -42,6 +43,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -109,8 +111,9 @@ struct LoadedMetadata {
 
 class PaperNxApp {
 public:
-    explicit PaperNxApp(fs::path rootPath)
+    explicit PaperNxApp(fs::path rootPath,std::shared_ptr<SelfUpdater> updater=std::make_shared<SelfUpdater>())
         : root_(std::move(rootPath)),
+          updater_(std::move(updater)),
           progressStore_(root_ / "data" / "progress.txt"),
           appSettings_(root_ / "data" / "settings.txt"),
           coverRepository_(root_ / "data" / "covers"),
@@ -118,6 +121,7 @@ public:
           thumbCache_(32 * 1024 * 1024) {}
 
     ~PaperNxApp() {
+        updater_->stop();
         pagePreviews_.stop();
         exportTimings();
         if(appSavePending_)appSettings_.save();
@@ -263,6 +267,18 @@ public:
         return true;
     }
 
+    void startUpdates(int argc,char **argv) {
+        std::string path=argc>0&&argv&&argv[0]?argv[0]:"";
+#ifdef __SWITCH__
+        if(!path.empty()&&path[0]=='/')path="sdmc:"+path;
+        updater_->configure(path,APP_VERSION,"romfs:/cacert.pem");
+#else
+        updater_->configure(path,APP_VERSION);
+#endif
+        updater_->check();
+    }
+    bool restartAfterUpdate() const {return updateRestart_;}
+
     void run() {
         bool running = true;
         while (running) {
@@ -285,6 +301,7 @@ public:
             if (progressDirty_ && std::chrono::steady_clock::now() - lastProgressSave_ >
                     std::chrono::seconds(saveRetrySeconds_)) flushProgress();
 
+            pollUpdates();
             tickControllerInput();
             tickPageNavigation();
             tickScroll();
@@ -321,6 +338,7 @@ public:
 private:
     friend struct AppTest;
     fs::path root_;
+    std::shared_ptr<SelfUpdater> updater_;
     ProgressStore progressStore_;
     AppSettingsStore appSettings_;
     ReadingJournal journal_{root_/"data"/"reading_journal"};
@@ -925,6 +943,11 @@ private:
         scrollY_=scrollVelocity_=0; saveCurrentPosition(); dirty_=true;
     }
     std::vector<std::string> quickActions() const {
+        auto actions=baseQuickActions();
+        if(!helpMenu_)actions.push_back(ui::label("Check for update"));
+        return actions;
+    }
+    std::vector<std::string> baseQuickActions() const {
         if(helpMenu_) return {};
         if(screen_==ScreenState::ReadingJournal)return {catLabel("Geri dön","Go back"),catLabel("Hedeflerim","My goals")};
         if(doc_) {
@@ -961,6 +984,7 @@ private:
         auto actions=quickActions();
         if(py<r.y+44 || index<0 || index>=int(actions.size())) return;
         std::string action=actions[index]; quickMenu_=false;
+        if(action==ui::label("Check for update")){checkForUpdate();return;}
         if(screen_==ScreenState::ReadingJournal){
             if(index==0){screen_=journalReturn_;dirty_=true;}
             else journalUI_.tap(w-200,40,w,h,journal_);
@@ -2132,6 +2156,7 @@ private:
     #include "series_library.inc"
     #include "reader_book_chrome.inc"
     #include "page_navigation.inc"
+    #include "self_update_ui.inc"
 
     // Input & Event Handling
     void handleEvent(const SDL_Event &incoming, bool &running) {
@@ -2180,6 +2205,7 @@ private:
             return;
         }
 
+        if(updateEvent(e))return;
         if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST) {controllerFocused_=false;clearHeldControls();}
         if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_GAINED) {controllerFocused_=true;clearHeldControls();}
         if(e.type==SDL_APP_WILLENTERBACKGROUND)clearHeldControls();
@@ -2939,6 +2965,7 @@ private:
 
     // Rendering Screens
     void render() {
+        pollUpdates();
         trace("frame_begin");
         processPagePreviews();tickPageNavigation();
         int w = 1280, h = 720;
@@ -3018,6 +3045,7 @@ private:
             ui::button(renderer_,*typography_,{panel.x+panel.w/2+8,panel.y+348,(panel.w-64)/2,56},"Kaydet",pal,true);
         }
         renderChoices(w,h,pal);
+        renderUpdateDialog(w,h,pal);
         if(rotation && orientationTarget_) {
             SDL_SetRenderTarget(renderer_,nullptr);
             SDL_SetRenderDrawColor(renderer_,pal.bg.r,pal.bg.g,pal.bg.b,255); SDL_RenderClear(renderer_);
@@ -3363,6 +3391,10 @@ private:
 } // namespace
 
 int main(int argc, char **argv) {
+#ifdef __SWITCH__
+    const bool socketsReady=R_SUCCEEDED(socketInitializeDefault());
+    const bool networkReady=R_SUCCEEDED(nifmInitialize(NifmServiceType_User));
+#endif
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) != 0) {
         std::fprintf(stderr, "Failed to initialize SDL2: %s\n", SDL_GetError());
         return 1;
@@ -3380,11 +3412,23 @@ int main(int argc, char **argv) {
 #endif
 
     int result = 0;
+    auto updater=std::make_shared<SelfUpdater>();bool restart=false;
     {
-        PaperNxApp app(root);
-        if (app.init()) app.run();
+        PaperNxApp app(root,updater);
+        if (app.init()){app.startUpdates(argc,argv);app.run();restart=app.restartAfterUpdate();}
         else result = 1;
     }
+
+    // PaperNxApp has released its fonts, renderer and RomFS before this swap.
+    std::string updateError;const bool installed=updater->applyPending(updateError);
+    if(!updateError.empty())std::fprintf(stderr,"Update: %s\n",updateError.c_str());
+#ifdef __SWITCH__
+    if(installed&&restart&&envHasNextLoad())envSetNextLoad(updater->executable().string().c_str(),updater->executable().string().c_str());
+    if(networkReady)nifmExit();
+    if(socketsReady)socketExit();
+#else
+    (void)installed;(void)restart;
+#endif
 
     TTF_Quit();
     SDL_Quit();

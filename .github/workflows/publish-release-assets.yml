@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing release tag with a matching builds/<tag> branch
         required: true
-        default: v0.12.0-reader.2
+        default: v0.12.0-reader.3
         type: string
 
 permissions:

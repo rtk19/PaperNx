@@ -7,7 +7,7 @@
 <p align="center">Offline EPUB, PDF, CBZ and CBR reading on Nintendo Switch, with interactive paper curls and automatic Hebrew support.</p>
 
 <p align="center">
-  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2">Download this fork</a> ·
+  <a href="https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.3">Download this fork</a> ·
   <a href="docs/COMICS.md">Comic reader guide</a> ·
   <a href="https://github.com/ysfbz/PaperNx">Original project</a> ·
   <a href="LICENSE">AGPL-3.0</a>
@@ -19,22 +19,22 @@
 
 The fork adds touch-controlled, perspective page curls and CBZ/CBR comic reading while retaining the original EPUB/PDF reader, offline library, reading journal and settings. The original project's authorship and license are preserved.
 
-**Current release: [v0.12.0-reader.2](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2), a prerelease.** Books show chapter pages remaining at the top while the toolbar is open, and only the current page number at the bottom at all times. Both captions use the existing empty margin strips. Hebrew bold/italic and author emphasis survive reader typography settings. Comics retain their controls and appearance. See [book controls](docs/PAGE_NAVIGATION.md) and [test results](docs/TEST_RESULTS.md). Physical Nintendo Switch acceptance remains unverified.
+**Current release: [v0.12.0-reader.3](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.3), a prerelease.** Adds a background update check on launch and **+ → Check for update**. New releases from this fork show Later, What's new and Update; the verified NRO installs on clean exit and Restart launches the new version when the loader supports it. Fork prereleases are included. Book captions and Hebrew emphasis from reader.2 remain. See [automatic updates](docs/AUTO_UPDATE.md) and [test results](docs/TEST_RESULTS.md). Physical Switch acceptance remains unverified.
 
-## Downloads — use Release Assets
+## Downloads — first install / bootstrap
 
-Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
+Open the [release page](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.3) and expand **Assets**. Choose the installation ZIP for a first install, or the NRO for an upgrade.
 
 | Asset | Purpose |
 |---|---|
-| [PaperNX-switch-v0.12.0-reader.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/PaperNX-switch-v0.12.0-reader.2.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
-| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
-| [PaperNX-licenses-v0.12.0-reader.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/PaperNX-licenses-v0.12.0-reader.2.zip) | Project and third-party license notices. |
-| [PaperNX-source-v0.12.0-reader.2.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/PaperNX-source-v0.12.0-reader.2.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
-| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
-| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/manifest.json) | Binary hashes, build receipt and source revision. |
-| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
-| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.2/README.md) | Short installation and source reference to keep with the downloads. |
+| [PaperNX-switch-v0.12.0-reader.3.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/PaperNX-switch-v0.12.0-reader.3.zip) | SD installation layout: application, bundled fonts and an empty books directory. |
+| [PaperNX.nro](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/PaperNX.nro) | Switch executable, with fonts also embedded; convenient for upgrades. |
+| [PaperNX-licenses-v0.12.0-reader.3.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/PaperNX-licenses-v0.12.0-reader.3.zip) | Project and third-party license notices. |
+| [PaperNX-source-v0.12.0-reader.3.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/PaperNX-source-v0.12.0-reader.3.zip) | Corresponding source at the exact tag used to build the NRO, including the vendored RAR decoder. |
+| [SHA256SUMS](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/SHA256SUMS) and individual `.sha256` files | Download integrity checks. |
+| [manifest.json](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/manifest.json) | Binary hashes, build receipt and source revision. |
+| [verification-evidence.zip](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/verification-evidence.zip) | Test/build logs and screenshots using original test artwork. |
+| [README.md](https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.3/README.md) | Short installation and source reference to keep with the downloads. |
 
 GitHub's automatic **Source code** archives also contain source. To run the reader on Switch, use the NRO or installation ZIP.
 
@@ -116,7 +116,7 @@ docker compose run --rm desktop bash scripts/verify-desktop.sh
 docker compose run --rm desktop bash scripts/verify-pinned-desktop.sh
 ```
 
-Switch outputs are written to `dist/v0.12.0-reader.2/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
+Switch outputs are written to `dist/v0.12.0-reader.3/`. The Switch build uses pinned MuPDF 1.23.11 source and records the source revision, implementation digest and binary hashes. SDK package updates mean future builds are not guaranteed byte-identical. See [the build guide](docs/BUILD_SWITCH.md) for pinned desktop/sanitizer workflows and [licenses](docs/LICENSES.md) for dependency notices and source obligations.
 
 The manually dispatched **Publish verified release assets** workflow attaches existing, verified `builds/<tag>` artifacts to the corresponding release. It checks the original hashes and source tag, includes a source archive, and publishes an updated checksum list. It does not rebuild or retag the NRO.
 
@@ -132,9 +132,9 @@ Fork developer and maintainer: **Refael Bar / [@rtk19](https://github.com/rtk19)
 
 ## הנחיות קצרות בעברית
 
-זהו פורק עצמאי של **Refael Bar (rtk19)**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2), תחת **Assets**.
+זהו פורק עצמאי של **Refael Bar (rtk19)**, המבוסס על הפרויקט המקורי של **Yusuf Buzrul**. ההורדות המתאימות לפורק נמצאות ב־[Release שלו](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.3), תחת **Assets**.
 
-להתקנה ראשונה הורידו את `PaperNX-switch-v0.12.0-reader.2.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
+להתקנה ראשונה הורידו את `PaperNX-switch-v0.12.0-reader.3.zip` וחלצו לשורש כרטיס ה־SD. לשדרוג גַבו תחילה את `books/` ו־`data/`, ואז החליפו את `sdmc:/switch/PaperNX/PaperNX.nro`. הפורק והגרסה המקורית משתמשים באותו נתיב ובאותם נתוני קריאה.
 
 תמיכה בעברית פועלת אוטומטית: גופני עברית כלולים גם ב־NRO עצמו, שמות ספרים ומחברים מוצגים בעברית, וכיוון כל פסקה ב־EPUB מזוהה לפי הטקסט. אין צורך לשנות את שפת הממשק או למחוק נתונים. אם הגדרתם בעבר שימוש בעיצוב המו״ל, כבו **Publisher styles** כדי להשתמש בעיצוב הקריאה המתוקן. האפשרות **Alignment: Start (auto direction)** מיישרת עברית לימין ואנגלית לשמאל; **Justified** מיישרת לשני הצדדים והשורה האחרונה נשארת בצד המתאים.
 
@@ -147,3 +147,5 @@ RS מתנהג כמו LS בניווט ובהזזה. החצים ושני הסטי�
 פתיחת כרטיס הסדרה מציגה את החוברות בסדר מספרי. **Back** או B מחזירים לספרייה.
 
 בסרגל התחתון אפשר לגרור כדי לראות תצוגה מקדימה, ולשחרר כדי לעבור למיקום הנבחר. כפתור הריבועים פותח עמודים ממוזערים, פרקים וסימניות. כותרות פרקים בעברית מוצגות בכיוון הנכון. לחיצה על LS פותחת בחירת מיקום עם השלט; החצים ושני הסטיקים בוחרים, A מאשר ו־B מבטל.
+
+אחרי התקנת **v0.12.0-reader.3** פעם אחת, האפליקציה בודקת את הפורק הזה אוטומטית בפתיחה. אפשר לבדוק גם דרך **+ → Check for update**. כשיש גרסה חדשה, **Update** מוריד ומאמת את ה־NRO ו־**Restart** מסיים את ההתקנה. הספרים ונתוני הקריאה נשמרים.

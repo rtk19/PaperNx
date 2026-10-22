@@ -13,8 +13,8 @@ if not __debug__:
     raise RuntimeError("Artifact checks require enabled assertions")
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--dist", type=Path, default=Path("dist/v0.12.0-reader.2"))
-parser.add_argument("--version", default="v0.12.0-reader.2")
+parser.add_argument("--dist", type=Path, default=Path("dist/v0.12.0-reader.3"))
+parser.add_argument("--version", default="v0.12.0-reader.3")
 args = parser.parse_args()
 manifest = json.loads((args.dist / "manifest.json").read_text(encoding="utf-8"))
 assert Path(manifest["name"]).name == manifest["name"], "Invalid archive filename"
@@ -35,6 +35,7 @@ assets = validate_assets(nro, validate_nro(nro)["declared_size"])
 version = nro[assets["nacp"]["offset"] + 0x3060:assets["nacp"]["offset"] + 0x3070].split(b"\0")[0].decode()
 assert version == args.version.removeprefix("v"), version
 files = read_romfs(nro, assets["romfs"])
+assert files["cacert.pem"] == Path("romfs/cacert.pem").read_bytes(), "Missing HTTPS certificate store"
 for name in BUNDLED_FONT_FILES:
     assert files["fonts/" + name] == (Path("fonts") / name).read_bytes()
 with ZipFile(archive) as zipped:

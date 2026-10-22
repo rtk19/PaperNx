@@ -1,3 +1,11 @@
+# Fork release: v0.12.0-reader.3
+
+Adds automatic startup checks and **+ → Check for update** against rtk19/PaperNx. The updater includes fork prereleases, compares complete versions, shows release notes and streams the NRO with progress. HTTPS certificate, SHA256, size, NRO resources, application identity and version checks precede staging. Only the executable reported by the loader is eligible; books, settings and reading progress are untouched.
+
+The running file is replaced after PaperNX releases its fonts and RomFS. Restart relaunches the updated path when hbloader supports it; otherwise reopen PaperNX from Homebrew Menu. Interrupted transfers cannot become pending updates. A failed swap attempts to restore the old executable. Developer: Refael Bar.
+
+The first updater-enabled NRO must be installed manually. [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.3) include NRO, installation ZIP, exact source, licenses, checksums, manifest and verification evidence. See [automatic updates](AUTO_UPDATE.md) and [test results](TEST_RESULTS.md). Physical Switch acceptance remains unverified.
+
 # Fork release: v0.12.0-reader.2
 
 Books now show chapter pages remaining in the top empty strip only when the reader toolbar is visible. A centered current-page numeral remains in the bottom strip on every page, without a total or remaining count. The document viewport is unchanged. Continuous EPUB uses screen-sized reading pages rather than spine/chapter numbers. Chapter boundaries use outlines, falling back to EPUB spine items; PDFs without outlines omit the unknown chapter caption.

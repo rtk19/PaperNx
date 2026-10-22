@@ -3,6 +3,9 @@
 #include <iostream>
 using papernx::localizeUiText;
 int main() {
+    assert(localizeUiText("Check for update",0)=="Güncellemeleri denetle");
+    assert(localizeUiText("Check for update",1)=="Check for update");
+    assert(localizeUiText("Software update",0)=="Yazılım güncellemesi");
     assert(localizeUiText("Last page in chapter",0)=="Bölümün son sayfası");
     assert(localizeUiText(" page left in chapter",0)==" sayfa kaldı");
     assert(localizeUiText(" pages left in chapter",0)==" sayfa kaldı");

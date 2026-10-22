@@ -51,7 +51,7 @@ std::string localReadingDay() const {
 void tickReadingStats() {
     const auto now=SDL_GetTicks();
     double fraction=pageCount_>0?(currentPage_+(continuous()?std::clamp(double(scrollY_)/std::max(1.f,segmentHeight(currentPage_)),0.0,1.0):0.0))/pageCount_:0;
-    const bool visible=doc_&&screen_==ScreenState::Reader&&!quickMenu_&&
+    const bool visible=doc_&&screen_==ScreenState::Reader&&!quickMenu_&&!updateDialog_&&
         catalogPanel_==CatalogPanel::None&&!appBackground_&&!layoutPending_;
     readingStats_.tick(now,currentBookId_,fraction,visible,localReadingDay());
     journal_.tick(now,std::time(nullptr),localReadingDay(),currentBookId_,journalTitle_,journalAuthor_,fraction,visible);

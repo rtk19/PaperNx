@@ -1,3 +1,11 @@
+# Fork verification: v0.12.0-reader.3
+
+Fresh verification: 23/23 native CTests, 23/23 ASan/UBSan CTests with leak detection, 7/7 portable tests, packaging tests and the updater UI with offscreen OpenGL. The final updater suites were repeated after adding rotated LS/RS modal controls. A live verified-TLS request against rtk19/PaperNx selected the real reader.2 prerelease from a reader.1 baseline.
+
+Updater coverage exercises full prerelease ordering (reader.10 versus reader.9), scoped/invalid JSON and Unicode notes, draft/foreign-asset rejection, and 20 local HTTP/HTTPS scenarios: valid/current/missing releases, HTTP errors, corrupt/truncated/oversized downloads, wrong NRO identity/version, cancellation, unwritable staging, redirects, pending recovery, tampered staged data, failed replacement, missing readiness metadata, trusted/untrusted certificates and HTTPS-to-HTTP downgrade rejection. SDL tests cover silent startup errors, explicit checks in the + menu, automatic prompts, virtualized scrollable notes, landscape/both portrait touch, both sticks, input isolation, download progress and restart requests. The running NRO must remain byte-identical until the deferred apply call.
+
+Switch checks validate AArch64, NRO/NACP, developer/version, bundled CA certificates/fonts, source/build receipts and the installation ZIP. Evidence includes logs and original test screenshots. Physical Switch network, SD replacement and hbloader relaunch remain unverified. See [AUTO_UPDATE.md](AUTO_UPDATE.md) for behavior and reproduction; prior release evidence follows.
+
 # Fork verification: v0.12.0-reader.2
 
 Fresh verification: 21/21 native CTests with patched MuPDF 1.23.11, 21/21 ASan/UBSan CTests with leak detection, 7/7 portable tests, the packaging rejection/extraction suite, and the book-caption suite with offscreen OpenGL. Switch validation checks the AArch64 ELF, NRO/NACP version/developer, RomFS fonts, source receipt, license notices and installation ZIP. Logs and original fixture screenshots accompany the release.

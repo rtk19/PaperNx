@@ -1,3 +1,7 @@
+# Fork update: v0.12.0-reader.3
+
+PaperNX now checks this fork on launch and through **+ → Check for update**. Version prompts, notes, verified streamed NRO downloads, deferred replacement and restart follow the NX-torrent-player interaction. Fork prereleases and numeric reader suffixes are supported. Existing reader/comic features remain. See [automatic updates](AUTO_UPDATE.md) and [verification](TEST_RESULTS.md). Physical Switch acceptance remains unverified.
+
 # Fork update: v0.12.0-reader.2
 
 Book-only captions occupy the existing empty top/bottom strips: chapter pages remaining while the toolbar is visible, current-page numeral always. Hebrew bold/italic and author emphasis survive reader typography settings, with styled fallback fonts isolated from regular text. Comics keep their existing behavior. See [controls](PAGE_NAVIGATION.md), [Hebrew rendering](HEBREW.md) and [verification](TEST_RESULTS.md). Physical Switch acceptance remains unverified.
