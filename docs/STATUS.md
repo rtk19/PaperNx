@@ -1,3 +1,7 @@
+# Fork update: 0.14.0
+
+Landscape paginated books and comics now use two physical leaves with language-aware ordering and centre-seam curls. Folios belong to the animated sheets in landscape and portrait. Duplicate EPUB margins are removed; clear header/footer space remains. Open tools show the visible page range and progress. Continuous scrolling and enlarged artwork retain their selected modes. See [layout and behavior](READER_SPREADS.md) and [verification](TEST_RESULTS.md).
+
 # Fork update: 0.13.0
 
 The page footer is now shared by books and comics in every reading mode: a numeral with tools hidden; `current of total • x%` with tools shown. Both occupy the same empty bottom strip. Releases now use ordinary numeric versions without reader/comics suffixes: 0.13.0 for this addition, 0.13.1 for a later fix, 0.14.0 for a later feature. Automatic upgrades from the old versions remain supported. See [reader controls](PAGE_NAVIGATION.md) and [verification](TEST_RESULTS.md).

@@ -40,8 +40,8 @@ static void check(const char *path,int align,int height,int indent,bool publishe
     assert(bands[3].minx>image.width/2 && bands[3].maxx>image.width-110); // Explicit dir=rtl.
     if(indent) {
         float scale=image.width/600.f;
-        assert((image.width-bands[0].maxx)/scale>68);
-        assert(bands[1].minx/scale>68);
+        assert((image.width-bands[0].maxx)/scale>24);
+        assert(bands[1].minx/scale>24);
     }
     if(align==0 && height>0 && !indent && !publisher) {
         std::filesystem::create_directories("verification/hebrew");

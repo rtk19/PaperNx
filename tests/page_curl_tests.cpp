@@ -20,6 +20,10 @@ int main() {
         return result;
     };
     auto previous = texture(240, 30, 30), next = texture(20, 210, 30);
+    auto reverseImage=SDL_CreateRGBSurfaceWithFormat(0,160,200,32,SDL_PIXELFORMAT_ARGB8888);assert(reverseImage);
+    SDL_FillRect(reverseImage,nullptr,SDL_MapRGB(reverseImage->format,240,20,20));
+    SDL_Rect reverseHalf{0,0,80,200};SDL_FillRect(reverseImage,&reverseHalf,SDL_MapRGB(reverseImage->format,20,20,240));
+    auto reverse=SDL_CreateTextureFromSurface(renderer,reverseImage);SDL_FreeSurface(reverseImage);assert(reverse);
     const SDL_Rect page{20, 20, 320, 200}, clip{10, 10, 340, 220};
     auto pixel = [&](int x, int y) {
         Uint8 r, g, b;
@@ -28,6 +32,23 @@ int main() {
         return SDL_Color{r, g, b, 255};
     };
     std::filesystem::create_directories("verification/page-curl");
+    // Real reverse-page ink must be readable after crossing the centre seam,
+    // rather than mirrored. This also exercises the geometry-less fallback.
+    for(int direction:{1,-1})for(float p:{0.f,.35f,.7f,.98f,1.f}) {
+        SDL_RenderSetClipRect(renderer,nullptr);SDL_SetRenderDrawColor(renderer,4,5,180,255);SDL_RenderClear(renderer);
+        SDL_Rect leaf{direction>0?180:20,20,160,200};
+        papernx::PageCurlRenderer::renderSpread(renderer,previous,reverse,next,leaf,page,p,direction,.5f,0);
+        SDL_RenderPresent(renderer);
+        if(p>=.98f) {
+            const int offset=direction>0?20:180;
+            const auto left=pixel(offset+40,120),right=pixel(offset+120,120);
+            assert(left.b>left.r*2 && right.r>right.b*2);
+        }
+        Uint8 r,g,b,a;SDL_GetTextureColorMod(reverse,&r,&g,&b);SDL_GetTextureAlphaMod(reverse,&a);
+        assert(r==255 && g==255 && b==255 && a==255);
+        assert(pixel(10,120).b==180 && pixel(350,120).b==180);
+    }
+    SDL_DestroyTexture(reverse);
     for (int direction : {1, -1}) {
         int earlyRed = 0, lateRed = 0;
         for (float progress : {0.f, .0005f, .25f, .5f, .75f, .99f, 1.f}) {

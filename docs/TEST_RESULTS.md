@@ -1,3 +1,9 @@
+# Fork verification: 0.14.0
+
+The new spread suite checks actual EPUB/PDF/CBZ/CBR pixels in light/night themes, RTL/LTR leaf order, owned front/reverse folios, exact animation endpoints after cache eviction, mixed PDF aspect ratios, odd/single-page endings, queued and held/cancelled turns, portrait snapshots and rotation cancellation. Geometry and fallback tests check asymmetric reverse-page ink for mirroring and preservation of texture modulation state. Prior single-leaf touch regressions now explicitly use portrait; landscape workflows assert two-page advancement. Hebrew alignment and emphasis tests remain active with the tighter page margins.
+
+Release verification uses 24 native CTests, the same 24 ASan/UBSan tests with leak detection, 7 portable tests, packaging validation and offscreen OpenGL spread/chrome tests. Switch checks validate AArch64, NRO/NACP version/developer, bundled fonts/CA, source/build receipts, licenses and the installation archive. Logs and original-fixture screenshots accompany the release. Physical Switch rendering, touch latency, FPS and update installation remain unverified.
+
 # Fork verification: 0.13.0
 
 Fresh verification: 23/23 native CTests, 23/23 ASan/UBSan CTests with leak detection, 7/7 portable tests and packaging validation. The expanded reader-caption suite also runs with offscreen OpenGL. Switch checks verify AArch64, numeric NACP/application version, embedded fonts/CA store, exact source receipts and installation ZIP integrity.

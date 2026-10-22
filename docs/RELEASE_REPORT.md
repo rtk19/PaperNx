@@ -1,3 +1,9 @@
+# Fork release: 0.14.0
+
+Adds landscape two-page spreads for paginated EPUB, PDF, CBZ and CBR, with RTL ordering for Hebrew/manga. A leaf turns across the centre onto its real reverse page; outgoing and incoming page numerals are part of the paper. Portrait also curls its folio. EPUB uses more screen area by removing duplicate MuPDF margins, and fitted artwork gains a smaller bottom margin. Open-tool summaries show a page range for spreads and reach 100% on the final spread. Explicit continuous scroll and zoom/pan modes remain available.
+
+Available through automatic update or [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.14.0): NRO, installation ZIP, exact source, licenses, checksums and verification evidence. Developer: Refael Bar. See [layout details](READER_SPREADS.md). Physical Switch acceptance remains unverified.
+
 # Fork release: 0.13.0
 
 EPUB, PDF, CBZ and CBR now share the bottom caption: current page with tools hidden; `current of total • x%` with tools visible. The caption always occupies the existing bottom strip, with the seek bar above it. The obsolete comic footer and transient hint no longer cover this caption. Book chapter progress and comic artwork, zoom, pan and ordering retain their behavior.

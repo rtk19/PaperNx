@@ -265,28 +265,28 @@ struct AppTest {
             if (!px_document_is_epub(app.doc_)) { app.closeBook(); app.openBook(epub); }
             epubId = app.currentBookId_;
             for (int i = 0; i < 10; ++i) tap(app, .75f, .5f);
-            assert(app.currentPage_ == 10);
-            tap(app, .25f, .5f); assert(app.currentPage_ == 9);
+            assert(app.currentPage_ == 20);
+            tap(app, .25f, .5f); assert(app.currentPage_ == 18);
             finger(app, SDL_FINGERDOWN, .7f, .5f); SDL_Delay(900);
             finger(app, SDL_FINGERMOTION, .45f, .51f); finger(app, SDL_FINGERUP, .4f, .51f);
-            assert(app.currentPage_ == 10); // Slow swipe used to be rejected.
+            assert(app.currentPage_ == 20); // Slow swipe used to be rejected.
             finger(app, SDL_FINGERDOWN, .25f, .5f); SDL_Delay(550); finger(app, SDL_FINGERUP, .27f, .51f);
-            assert(app.currentPage_ == 9); // Long tap and ordinary finger drift.
+            assert(app.currentPage_ == 18); // Long tap and ordinary finger drift.
             finger(app, SDL_FINGERDOWN, .3f, .5f); finger(app, SDL_FINGERUP, .65f, .5f);
-            assert(app.currentPage_ == 8);
+            assert(app.currentPage_ == 16);
             // Two-finger input cannot also turn a page.
             finger(app, SDL_FINGERDOWN, .8f, .5f, 1); finger(app, SDL_FINGERDOWN, .7f, .5f, 2);
             finger(app, SDL_FINGERUP, .8f, .5f, 1); finger(app, SDL_FINGERUP, .7f, .5f, 2);
-            assert(app.currentPage_ == 8);
+            assert(app.currentPage_ == 16);
             // Synthesized mouse event arriving after the native finger is ignored.
             SDL_Event mouse{}; mouse.type = SDL_MOUSEBUTTONDOWN; mouse.button.which = SDL_TOUCH_MOUSEID;
             mouse.button.button = SDL_BUTTON_LEFT; mouse.button.x = 1100; mouse.button.y = 350;
             bool running = true; app.handleEvent(mouse, running); mouse.type = SDL_MOUSEBUTTONUP; app.handleEvent(mouse, running);
-            assert(app.currentPage_ == 8);
+            assert(app.currentPage_ == 16);
             // A mouse-only SDL backend remains usable, on release (not down).
             app.sawFinger_ = false;
-            mouse.type = SDL_MOUSEBUTTONDOWN; app.handleEvent(mouse, running); assert(app.currentPage_ == 8);
-            mouse.type = SDL_MOUSEBUTTONUP; app.handleEvent(mouse, running); assert(app.currentPage_ == 9);
+            mouse.type = SDL_MOUSEBUTTONDOWN; app.handleEvent(mouse, running); assert(app.currentPage_ == 16);
+            mouse.type = SDL_MOUSEBUTTONUP; app.handleEvent(mouse, running); assert(app.currentPage_ == 18);
             tap(app, .5f, .5f); assert(app.toolbarVisible_);
             tap(app, .89f, .04f); assert(app.screen_ == ScreenState::AaModal);
             int oldCh=-1,oldCharacter=-1; double oldOffset=0;
@@ -347,6 +347,8 @@ struct AppTest {
             app.handleAnalog(100000, 100000); assert(app.pdfPanY_ == maxPan);
             snapshot(app, "pdf-fit-width-filter");
             app.setPdfView(0); assert(app.pdfZoom_ == 1 && app.pdfPanY_ == 0);
+            // Two-page PDFs fit on one landscape spread; portrait advances a leaf.
+            SDL_SetWindowSize(app.window_,720,1280);
             tap(app, .75f, .5f); assert(app.currentPage_ == 1);
             SDL_Event background{}; background.type = SDL_APP_WILLENTERBACKGROUND;
             app.handleEvent(background, running); assert(!app.progressDirty_);
@@ -418,7 +420,7 @@ struct AppTest {
         app.openBook(epub); assert(app.doc_ && app.screen_ == ScreenState::Reader);
         assert(app.tocEntries_.size() == 2 && app.pageCount_ > 2);
         app.render();
-        pad(app, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); assert(app.currentPage_ == 1);
+        pad(app, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER); assert(app.currentPage_ == 2);
         pad(app, SDL_CONTROLLER_BUTTON_Y);
         assert(app.progressStore_.get(epub.id).bookmarks.size() == 1);
         pad(app, SDL_CONTROLLER_BUTTON_X); assert(app.screen_ == ScreenState::TocModal);

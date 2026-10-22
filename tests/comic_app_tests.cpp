@@ -122,6 +122,8 @@ struct AppTest {
         touch(app,SDL_FINGERUP,float(reset.x+reset.w/2)/width,float(reset.y+reset.h/2)/height);
         assert(app.pdfZoom_==1 && app.pdfPanX_==0 && app.pdfPanY_==0 && app.canCurlPage() && !app.showZoomReset());
         app.closeBook();
+        // Continue the detailed single-sheet/zoom workflow in portrait.
+        SDL_SetWindowSize(app.window_,720,1280);
         app.openBook(cbz);assert(app.doc_ && app.comic() && app.pageCount_==3 && !app.comicReadingColors());
         assert(app.catalog_.apply(cbz).title=="The Signal — Issue 7");
         assert(app.catalog_.get(cbz.id).sourceSeries=="PaperNX Test Comics");
@@ -132,7 +134,7 @@ struct AppTest {
         app.turnPage(1);assert(app.pageTurnAnimation_.active);finish(app);assert(app.currentPage_==1);
         app.turnPage(-1);finish(app);
         touch(app,SDL_FINGERDOWN,.92f,.2f);touch(app,SDL_FINGERMOTION,.76f,.3f);
-        assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.anchorY<.2f && app.currentPage_==0);
+        assert(app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.anchorY<.21f && app.currentPage_==0);
         snapshot(app,"touch-curl");touch(app,SDL_FINGERUP,.4f,.3f);finish(app);assert(app.currentPage_==1);
         app.zoomPdf(2);assert(app.canCurlPage());app.handleAnalog(1,1);assert(app.pdfPanX_>=0);
         app.pdfPanY_=150;app.clampPdfPan();

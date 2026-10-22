@@ -27,6 +27,11 @@ struct AppTest {
         const auto p=transform.toPhysical(w*.5f,h*.5f);bool running=true;
         for(auto type:{SDL_FINGERDOWN,SDL_FINGERUP}){SDL_Event e{};e.type=type;e.tfinger.fingerId=42;e.tfinger.x=p.first/physicalW;e.tfinger.y=p.second/physicalH;app.handleEvent(e,running);assert(running);}
     }
+    static std::string menuCaption(PaperNxApp &app,int page,int total) {
+        const bool spread=app.readerLayout().spread;
+        const int first=spread?(page-1)/2*2+1:page,last=spread?std::min(total,first+1):page;
+        return std::to_string(first)+(last>first?"–"+std::to_string(last):"")+" of "+std::to_string(total)+" • "+std::to_string(int(std::lround(100.0*last/total)))+"%";
+    }
     static void run(const fs::path &root) {
         PaperNxApp app(root);assert(app.init());ui::language=1;
         auto book=[&](const char *name){auto it=std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==name;});assert(it!=app.books_.end());return *it;};
@@ -43,7 +48,7 @@ struct AppTest {
             const auto hidden=snapshot(app,prefix+"-hidden");centerTap(app,w,h);assert(app.toolbarVisible_);
             const auto shown=snapshot(app,prefix+"-shown");
             const auto total=app.pageCount_;
-            assert(app.readerFooterCaption(w,h)=="1 of "+std::to_string(total)+" • "+std::to_string(int(std::lround(100.0/total)))+"%");
+            assert(app.readerFooterCaption(w,h)==menuCaption(app,1,total));
             // Only the empty chrome strips change when the menu opens.
             assert(equal(hidden,shown,{0,72,w,h-144}));
             assert(!equal(hidden,shown,{w/2-100,h-48,200,30}));
@@ -56,12 +61,12 @@ struct AppTest {
             settings.toolbar=false;app.appSettings_.put(settings);
             if(app.pageCount_>1){app.currentPage_=1;assert(app.readerPageNumber(w,h)==2);}
             app.currentPage_=app.pageCount_-1;app.toolbarVisible_=true;
-            assert(app.readerFooterCaption(w,h)==std::to_string(total)+" of "+std::to_string(total)+" • 100%");app.toolbarVisible_=false;
+            assert(app.readerFooterCaption(w,h)==menuCaption(app,total,total));app.toolbarVisible_=false;
             const auto saved=app.tocEntries_;app.tocEntries_.clear();app.currentPage_=0;
             int chapter=0,page=0;assert(px_document_get_location(app.doc_,0,&chapter,&page));
             assert(app.bookChapterPagesLeft(h)==std::max(0,px_document_chapter_page_count(app.doc_,chapter)-1));app.tocEntries_=saved;
         }
-        app.extraStyle_.readingMode=1;app.reflowEpub(app.currentFontSize_);app.currentPage_=0;app.scrollY_=0;
+        app.extraStyle_.readingMode=1;app.reflowEpub(40);app.currentPage_=0;app.scrollY_=0;
         int w,h;app.getWindowSize(w,h);assert(app.continuous() && app.readerPageNumber(w,h)==1);
         int total=0;for(int page=0;page<app.pageCount_;++page)total+=std::max(1,int(std::ceil(app.segmentHeight(page)/(h-144))));
         assert(app.readerPageCount(w,h)==total && total>app.pageCount_);
@@ -72,10 +77,10 @@ struct AppTest {
         const auto chapterStart=app.tocEntries_.back();app.currentPage_=chapterStart.page;app.scrollY_=chapterStart.y;
         assert(app.readerPageNumber(w,h)>2);assert(app.bookChapterPagesLeft(h)>=0);
         app.currentPage_=app.pageCount_-1;app.scrollY_=std::max(0.f,app.segmentHeight(app.currentPage_)-(h-144));app.toolbarVisible_=true;
-        assert(app.readerFooterCaption(w,h)==std::to_string(total)+" of "+std::to_string(total)+" • 100%");
+        assert(app.readerFooterCaption(w,h)==menuCaption(app,total,total));
         app.closeBook();app.openBook(book("sample.pdf"));assert(app.readerPageNumber(w,h)==1);app.tocEntries_.clear();assert(app.bookChapterPagesLeft(h)==-1);
         app.toolbarVisible_=false;assert(app.readerFooterCaption(w,h)=="1");
-        app.toolbarVisible_=true;assert(app.readerFooterCaption(w,h).find("1 of "+std::to_string(app.pageCount_)+" • ")==0);
+        app.toolbarVisible_=true;assert(app.readerFooterCaption(w,h)==menuCaption(app,1,app.pageCount_));
         app.closeBook();
         for(const char *name:{"comic.cbz","comic.cbr"}) {
             app.openBook(book(name));assert(app.comic() && app.bookChapterPagesLeft(h)==-1);
@@ -90,22 +95,23 @@ struct AppTest {
                 const auto hidden=snapshot(app,prefix+"-hidden");
                 assert(hidden.w==w && hidden.h==h);
                 const auto bg=app.palette().bg;const Uint32 background=(Uint32(bg.r)<<16)|(Uint32(bg.g)<<8)|bg.b;bool ink=false;
-                for(int y=h-48;y<h-18;++y)for(int x=w/2-30;x<w/2+30;++x)ink|=(hidden.pixels[y*w+x]&0xffffff)!=background;
+                const int folioX=app.readerLayout().spread?w/4:w/2;
+                for(int y=h-44;y<h-4;++y)for(int x=folioX-30;x<folioX+30;++x)ink|=(hidden.pixels[y*w+x]&0xffffff)!=background;
                 assert(ink); // The actual hidden-toolbar comic frame contains the page numeral.
                 centerTap(app,w,h);assert(app.toolbarVisible_);
-                assert(app.readerFooterCaption(w,h)==label+" of "+std::to_string(total)+" • "+std::to_string(int(std::lround(100.0*page/total)))+"%");
+                assert(app.readerFooterCaption(w,h)==menuCaption(app,page,total));
                 const auto shown=snapshot(app,prefix+"-shown");assert(equal(hidden,shown,{0,72,w,h-144}));assert(!equal(hidden,shown,{w/2-100,h-48,200,30}));
                 centerTap(app,w,h);assert(!app.toolbarVisible_ && app.readerFooterCaption(w,h)==label);
                 assert(equal(hidden,snapshot(app,prefix+"-closed"),{0,0,w,h}));
                 assert(app.readerHeaderButton(0,w).w==152 && app.readerTrack(w,h).y==h-62);
                 app.currentPage_=app.pageCount_-1;app.toolbarVisible_=true;
-                assert(app.readerFooterCaption(w,h)==std::to_string(total)+" of "+std::to_string(total)+" • 100%");
+                assert(app.readerFooterCaption(w,h)==menuCaption(app,total,total));
             }
             app.closeBook();
         }
         for(const char *name:{"manga.cbz","single.cbz"}){
             app.openBook(book(name));app.currentPage_=0;app.toolbarVisible_=false;assert(app.readerFooterCaption(w,h)=="1");
-            app.toolbarVisible_=true;assert(app.readerFooterCaption(w,h).find("1 of "+std::to_string(app.pageCount_)+" • ")==0);
+            app.toolbarVisible_=true;assert(app.readerFooterCaption(w,h)==menuCaption(app,1,app.pageCount_));
             if(app.pageCount_==1)assert(app.readerFooterCaption(w,h)=="1 of 1 • 100%");
             app.closeBook();
         }

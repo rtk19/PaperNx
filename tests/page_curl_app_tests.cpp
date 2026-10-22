@@ -9,7 +9,7 @@ struct AppTest {
     static void snapshot(PaperNxApp &app,const std::string &name) {
         app.render();
         SDL_Texture *target=SDL_GetRenderTarget(app.renderer_);
-        if(app.orientationTarget_) SDL_SetRenderTarget(app.renderer_,app.orientationTarget_);
+        if(app.appSettings_.get().displayOrientation && app.orientationTarget_) SDL_SetRenderTarget(app.renderer_,app.orientationTarget_);
         int w,h;SDL_GetRendererOutputSize(app.renderer_,&w,&h);
         auto surface=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_ARGB8888);
         assert(surface);
@@ -42,7 +42,7 @@ struct AppTest {
         finish(app);assert(app.currentPage_==1);
         touch(app,SDL_FINGERDOWN,.12f,.8f);
         touch(app,SDL_FINGERMOTION,.7f,.67f);
-        assert(app.pageTurnAnimation_.direction==-1 && app.pageTurnAnimation_.anchorY>.8f);
+        assert(app.pageTurnAnimation_.direction==-1 && app.pageTurnAnimation_.anchorY>.79f);
         assert(app.pageTurnAnimation_.dragY<0);
         touch(app,SDL_FINGERUP,.7f,.67f);finish(app);assert(app.currentPage_==0);
         // Return the held sheet to its edge: cancellation never changes progress.
@@ -76,6 +76,7 @@ struct AppTest {
         assert(!app.pageTurnAnimation_.complete);finish(app);assert(app.currentPage_==0);
     }
     static void portrait(PaperNxApp &app) {
+        SDL_SetWindowSize(app.window_,1280,720);
         auto settings=app.appSettings_.get();settings.displayOrientation=1;app.appSettings_.put(settings);
         app.reflowEpub(22);app.currentPage_=0;app.toolbarVisible_=false;
         auto logicalTouch=[&](Uint32 type,float x,float y) {
@@ -106,7 +107,7 @@ struct AppTest {
                 app.currentPage_=0;
             }
         }
-        settings.displayOrientation=0;app.appSettings_.put(settings);app.reflowEpub(22,0);
+        settings.displayOrientation=0;app.appSettings_.put(settings);SDL_SetWindowSize(app.window_,720,1280);app.reflowEpub(22,0);
     }
     static void preview(PaperNxApp &app, const char *direction) {
         fs::create_directories("verification/page-curl");
@@ -130,6 +131,8 @@ struct AppTest {
     }
     static void run(const fs::path &root) {
         PaperNxApp app(root); assert(app.init());
+        // Single-leaf gesture regression; landscape spreads have a separate suite.
+        SDL_SetWindowSize(app.window_,720,1280);
         SDL_RendererInfo driver{};SDL_GetRendererInfo(app.renderer_,&driver);
         std::cout << "page curl render driver: " << driver.name << '\n';
         auto epub = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });

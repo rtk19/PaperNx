@@ -160,6 +160,30 @@ def create_metadata_variants(source: Path):
                                   data.decode("utf-8"), flags=re.S).encode("utf-8")
                 write_entry(out, name, data)
 
+def create_spread_pdf(output_path: Path):
+    """Seven original, mixed-aspect pages to exercise full spread turns."""
+    count = 7
+    objects = [b"<< /Type /Catalog /Pages 2 0 R >>",
+               ("<< /Type /Pages /Count 7 /Kids [" + " ".join(f"{4+2*p} 0 R" for p in range(count)) + "] >>").encode(),
+               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    for page in range(count):
+        width, height = (595, 842) if page % 2 == 0 else (720, 540)
+        content = f"BT /F1 28 Tf 40 {height-60} Td (Original spread test - page {page+1}) Tj 0 -48 Td /F1 16 Tf (Readable text and a separate physical page number.) Tj ET".encode()
+        objects.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources << /Font << /F1 3 0 R >> >> /Contents {5+2*page} 0 R >>".encode())
+        objects.append(f"<< /Length {len(content)} >>\nstream\n".encode()+content+b"\nendstream")
+    data = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for index, obj in enumerate(objects, 1):
+        offsets.append(len(data))
+        data.extend(f"{index} 0 obj\n".encode()+obj+b"\nendobj\n")
+    xref = len(data)
+    data.extend(f"xref\n0 {len(offsets)}\n0000000000 65535 f \n".encode())
+    for offset in offsets[1:]:
+        data.extend(f"{offset:010d} 00000 n \n".encode())
+    data.extend(f"trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode())
+    output_path.write_bytes(data)
+
+
 def create_valid_pdf(output_path: Path):
     """Create a fully compliant multi-page PDF with outlines and Turkish text."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -295,6 +319,7 @@ def main():
 
     pdf_path = FIXTURES_DIR / "sample_doc.pdf"
     create_valid_pdf(pdf_path)
+    create_spread_pdf(FIXTURES_DIR / "spread_doc.pdf")
     print(f"Generated PDF fixture: {pdf_path} ({pdf_path.stat().st_size} bytes)")
 
     # Corrupt fixtures for error resiliency tests

@@ -1,5 +1,5 @@
-// Reader captions occupy the existing 72px chrome strips for every format.
-// Chapter progress and the compact header remain book-specific.
+// Open-menu summaries occupy the chrome strips. Hidden-menu folios are drawn
+// on each physical leaf by reader_sheets.inc.
 std::string bookPageKey_;
 std::vector<int> bookPagePrefix_;
 
@@ -65,8 +65,12 @@ std::string readerFooterCaption(int w,int h) {
     const int page=readerPageNumber(w,h);
     if(!toolbarVisible_ && !appSettings_.get().toolbar)return std::to_string(page);
     const int total=readerPageCount(w,h);
-    const int percent=std::clamp(int(std::lround(100.0*page/total)),0,100);
-    return std::to_string(page)+ui::label(" of ")+std::to_string(total)+" • "+std::to_string(percent)+"%";
+    const bool spread=readerLayout().spread;
+    const int first=spread?currentPage_/2*2+1:page;
+    const int last=spread?std::min(total,first+1):page;
+    const int percent=std::clamp(int(std::lround(100.0*last/total)),0,100);
+    const auto pages=std::to_string(first)+(last>first?"–"+std::to_string(last):"");
+    return pages+ui::label(" of ")+std::to_string(total)+" • "+std::to_string(percent)+"%";
 }
 
 int bookChapterPagesLeft(int h) {

@@ -8,6 +8,7 @@
 #include "papernx/page_previews.hpp"
 #include "papernx/bidi.hpp"
 #include "papernx/page_curl.hpp"
+#include "papernx/reader_layout.hpp"
 #include "papernx/ui.hpp"
 #include "papernx/app_settings.hpp"
 #include "papernx/cover_repository.hpp"
@@ -386,6 +387,8 @@ private:
         PageTurnTexture previous{nullptr, SDL_DestroyTexture};
         PageTurnTexture next{nullptr, SDL_DestroyTexture};
         PageTurnTexture back{nullptr, SDL_DestroyTexture};
+        PageTurnTexture under{nullptr, SDL_DestroyTexture};
+        bool spread{false};
         bool active{false};
         int page{-1}, targetPage{-1};
         bool interactive{false}, dragging{false}, complete{true};
@@ -720,6 +723,22 @@ private:
         if(appSettings_.get().displayOrientation) std::swap(w,h);
     }
 
+    static ReaderLayout epubLayout(int w,int h,const ReaderPreferences &style) {
+        return {w,h,std::clamp(style.margin,0,120),w>h && !style.readingMode};
+    }
+    ReaderLayout readerLayout() {
+        int w,h;getWindowSize(w,h);
+        return {w,h,std::clamp(presentedStyle().margin,0,120),
+            w>h && !continuous() && (px_document_is_epub(doc_) || std::abs(pdfZoom_-1.f)<.01f)};
+    }
+    int readerTurnTarget(int page,int steps) {
+        if(readerLayout().spread) {
+            const int base=page/2*2;
+            return std::clamp(base+steps*2,0,(std::max(1,pageCount_)-1)/2*2);
+        }
+        return std::clamp(page+steps,0,std::max(0,pageCount_-1));
+    }
+
     ReaderPreferences currentStyle() const {
         auto p = extraStyle_;
         p.theme = currentTheme_; p.fontSize = currentFontSize_; p.fontFamily = currentFontFamily_;
@@ -891,7 +910,8 @@ private:
         // Context and document exclusively owned by this worker until atomic publication.
         layoutWorker_=std::thread([this,path,css,style,w,h,generation]() {
             char err[256]{};
-            preparedDoc_=px_document_open_limited(path.c_str(),w-style.margin*2,style.readingMode?0:h-144,
+            const auto layout=epubLayout(w,h,style);
+            preparedDoc_=px_document_open_limited(path.c_str(),layout.contentWidth(),style.readingMode?0:layout.contentHeight(),
                 float(style.fontSize),css.c_str(),err,sizeof err,64u*1024u*1024u);
             preparedStyle_=style; preparedError_=err; preparedGeneration_=generation;
             preparedWidth_=w; preparedHeight_=h; layoutReady_.store(true);
@@ -1233,7 +1253,8 @@ private:
         pdfPanY_ = 0;
 
         char err[256] = {};
-        doc_ = px_document_open(b.path.c_str(), w - (currentMargin_ * 2), b.format == Format::Epub && extraStyle_.readingMode ? 0 : h - 144,
+        const auto layout=epubLayout(w,h,currentStyle());
+        doc_ = px_document_open(b.path.c_str(), layout.contentWidth(), b.format == Format::Epub && extraStyle_.readingMode ? 0 : layout.contentHeight(),
                                 static_cast<float>(currentFontSize_),
                                 buildEpubCss().c_str(), err, sizeof(err));
 
@@ -1563,21 +1584,19 @@ private:
 
     // Own page snapshots independently of the LRU cache. Mixed PDF page sizes
     // share a canvas, and rendering/prefetch cannot invalidate animation textures.
+    #include "reader_sheets.inc"
+
     SDL_Rect turnCanvas(int target) {
-        int w,h;getWindowSize(w,h);SDL_Rect canvas{0,72,w,std::max(1,h-144)};
-        if(!comic())return canvas;
-        if(std::abs(pdfZoom_-1.f)>.01f)return comicPageRect(currentPage_);
-        SDL_Rect bounds[2];int index=0;
-        for(int page:{currentPage_,target}) {
-            auto tex=getOrRenderPageTexture(page);int tw=0,th=0;
-            if(!tex || SDL_QueryTexture(tex,nullptr,nullptr,&tw,&th)!=0)return canvas;
-            bounds[index++]={(w-tw)/2,(h-th)/2,tw,th};
-        }
-        SDL_UnionRect(&bounds[0],&bounds[1],&canvas);return canvas;
+        (void)target;
+        int w,h;getWindowSize(w,h);
+        return comic() && std::abs(pdfZoom_-1.f)>.01f?comicPageRect(currentPage_):SDL_Rect{0,0,w,h};
     }
     PageTurnTexture captureTurnPage(int page, bool underside=false,SDL_Rect canvas={0,0,0,0}) {
         PageTurnTexture snapshot{nullptr, SDL_DestroyTexture};
         int w, h; getWindowSize(w, h);
+        if(!comic() || std::abs(pdfZoom_-1.f)<.01f) {
+            return captureReaderSurface(w,h,[&]{drawReaderLeaf(page,{0,0,w,h});});
+        }
         if(canvas.w<=0 || canvas.h<=0)canvas={0,72,w,std::max(1,h-144)};
         const bool zoomedComic=comic() && std::abs(pdfZoom_-1.f)>.01f;
         SDL_Texture *source = zoomedComic?comicZoomTexture(page):getOrRenderPageTexture(page);
@@ -1642,42 +1661,32 @@ private:
     }
 
     void turnPage(int delta) {
-        if (!doc_ || pageCount_<=0) return;
+        if (!doc_ || pageCount_<=0 || !delta) return;
         if (pageTurnAnimation_.active) {
             if (pageTurnAnimation_.dragging) return;
-            const int base = pageTurnAnimation_.interactive && pageTurnAnimation_.complete ?
-                             pageTurnAnimation_.targetPage : currentPage_;
-            pageTurnAnimation_.queued=std::clamp(base+pageTurnAnimation_.queued+delta,0,pageCount_-1)-base;
+            auto &turn=pageTurnAnimation_;
+            const int base=turn.interactive && turn.complete?turn.targetPage:currentPage_;
+            const int requested=turn.queued+delta;
+            const int target=readerTurnTarget(base,requested);
+            turn.queued=(target-(readerLayout().spread?base/2*2:base))/(readerLayout().spread?2:1);
             return;
         }
-        const int target=std::clamp(currentPage_+delta,0,pageCount_-1);
-        if (target==currentPage_) return;
-        const bool animate=canCurlPage() && std::abs(delta)==1;
-        const bool comicSheet=comic() && std::abs(pdfZoom_-1.f)>.01f;
-        const auto canvas=animate?turnCanvas(target):SDL_Rect{};
-        const auto nextCanvas=comicSheet?comicPageRect(target,true):canvas;
-        auto previous=animate?captureTurnPage(currentPage_,false,canvas):PageTurnTexture{nullptr,SDL_DestroyTexture};
-        auto back=previous?captureTurnPage(currentPage_,true,canvas):PageTurnTexture{nullptr,SDL_DestroyTexture};
+        const int target=readerTurnTarget(currentPage_,delta);
+        if (target==currentPage_ || (readerLayout().spread && target/2==currentPage_/2)) return;
         const int direction=(target>currentPage_?1:-1)*readingDirection();
+        if(!comic() && !px_document_is_epub(doc_) && !appSettings_.get().preservePdfZoom)
+            setPdfView(extraStyle_.pdfViewMode);
+        const bool animate=canCurlPage() && std::abs(delta)==1 && prepareReaderTurn(currentPage_,target,direction);
+        if(!animate)cancelPageTurn();
         scrollY_=scrollVelocity_=0;
         currentPage_=target;
         if(comic()) resetComicPagePan();
-        else if(!appSettings_.get().preservePdfZoom && !px_document_is_epub(doc_)) setPdfView(extraStyle_.pdfViewMode);
         clampPdfPan(); saveCurrentPosition();
-        if(previous && (px_document_is_epub(doc_) || comic() || std::abs(pdfZoom_-1.f)<.01f)) {
-            auto next=captureTurnPage(currentPage_,false,canvas);
-            if(next) {
-                pageTurnAnimation_.previous=std::move(previous);
-                pageTurnAnimation_.next=std::move(next);
-                pageTurnAnimation_.back=std::move(back);
-                getWindowSize(pageTurnAnimation_.width,pageTurnAnimation_.height);
-                pageTurnAnimation_.page=pageTurnAnimation_.targetPage=currentPage_;
-                pageTurnAnimation_.direction=direction;
-                pageTurnAnimation_.viewport=canvas;
-                pageTurnAnimation_.nextViewport=nextCanvas;pageTurnAnimation_.comicSheet=comicSheet;
-                pageTurnAnimation_.started=SDL_GetTicks();
-                pageTurnAnimation_.active=true;
-            }
+        if(animate) {
+            auto &turn=pageTurnAnimation_;
+            getWindowSize(turn.width,turn.height);
+            turn.page=turn.targetPage=currentPage_;turn.direction=direction;
+            turn.started=SDL_GetTicks();turn.active=true;
         }
         dirty_=true;
     }
@@ -1695,27 +1704,21 @@ private:
         const float dx=pageTurnTouch_.startX-x, dy=y-pageTurnTouch_.startY;
         if(!pageTurnAnimation_.active) {
             if(!allowBegin || !canCurlPage() || std::abs(dx)*w<10 || std::abs(dx)*w<std::abs(dy)*h*.65f) return false;
-            const int direction=dx>0?1:-1, target=currentPage_+direction*readingDirection();
-            if(target<0 || target>=pageCount_) return false;
-            const auto canvas=turnCanvas(target);
-            auto previous=captureTurnPage(currentPage_,false,canvas);
-            auto back=previous?captureTurnPage(currentPage_,true,canvas):PageTurnTexture{nullptr,SDL_DestroyTexture};
-            auto next=previous?captureTurnPage(target,false,canvas):PageTurnTexture{nullptr,SDL_DestroyTexture};
-            if(!previous || !next) {pageTurnTouch_.tracking=false;return false;}
+            const int direction=dx>0?1:-1, target=readerTurnTarget(currentPage_,direction*readingDirection());
+            if(target==currentPage_ || (readerLayout().spread && target/2==currentPage_/2)) return false;
+            if(!prepareReaderTurn(currentPage_,target,direction)){cancelPageTurn();return false;}
             auto &turn=pageTurnAnimation_;
-            turn.previous=std::move(previous);turn.next=std::move(next);turn.back=std::move(back);
+            const auto canvas=turn.viewport;
             turn.active=turn.interactive=turn.dragging=true;
             turn.page=currentPage_;turn.targetPage=target;turn.direction=direction;
-            turn.width=w;turn.height=h;turn.viewport=canvas;
-            turn.comicSheet=comic() && std::abs(pdfZoom_-1.f)>.01f;
-            turn.nextViewport=turn.comicSheet?comicPageRect(target,true):canvas;
+            turn.width=w;turn.height=h;
             turn.anchorY=std::clamp((pageTurnTouch_.startY*h-canvas.y)/std::max(1.f,float(canvas.h)),0.f,1.f);
             toolbarVisible_=false;
             gestureTracker_.reset();
         }
         auto &turn=pageTurnAnimation_;
         if(!turn.dragging) return false;
-        const float dragWidth=float(turn.comicSheet?std::min(turn.viewport.w,fixedViewportWidth(w)):turn.viewport.w);
+        const float dragWidth=float(turn.spread?w:turn.comicSheet?std::min(turn.viewport.w,fixedViewportWidth(w)):turn.viewport.w);
         turn.progress=std::clamp(turn.direction*dx*w/std::max(1.f,dragWidth)*.5f,0.f,.88f);
         turn.dragY=std::clamp(dy*h/std::max(1.f,float(turn.viewport.h)),-.5f,.5f);
         const auto now=SDL_GetTicks(), dt=now-pageTurnTouch_.lastTick;
@@ -1791,7 +1794,8 @@ private:
         if (newTheme >= 0) currentTheme_ = newTheme;
 
         char err[256] = {};
-        if (px_document_relayout(doc_, w - (currentMargin_ * 2), extraStyle_.readingMode ? 0 : h - 144,
+        const auto layout=epubLayout(w,h,currentStyle());
+        if (px_document_relayout(doc_, layout.contentWidth(), extraStyle_.readingMode ? 0 : layout.contentHeight(),
                                  static_cast<float>(currentFontSize_),
                                  buildEpubCss().c_str(), err, sizeof(err))) {
             documentMode_=extraStyle_.readingMode; renderedStyle_=currentStyle();
@@ -2027,14 +2031,16 @@ private:
         int ok = 0;
 
         if (px_document_is_epub(doc_)) {
-            ok = px_document_render(doc_, pageIdx, w - (currentMargin_ * 2), h - 144, &img, err, sizeof(err));
+            const auto layout=readerLayout();
+            ok = px_document_render(doc_, pageIdx, layout.contentWidth(), layout.contentHeight(), &img, err, sizeof(err));
         } else {
             // PDF: support viewport zoom and panning
             if (pdfZoom_ != 1.0f) {
                 ok = px_document_render_view(doc_, pageIdx, pdfZoom_, pdfPanX_, pdfPanY_,
                                              fixedViewportWidth(w), h - 144, &img, err, sizeof(err));
             } else {
-                ok = px_document_render(doc_, pageIdx, fixedViewportWidth(w), h - 144, &img, err, sizeof(err));
+                const auto layout=readerLayout();
+                ok = px_document_render(doc_, pageIdx, layout.contentWidth(), layout.contentHeight(), &img, err, sizeof(err));
             }
         }
 
@@ -3172,14 +3178,15 @@ private:
         trace("page_begin");
         tickPageTurn();
         const bool gpuComic=comic() && !continuous() && std::abs(pdfZoom_-1.f)>.01f;
-        SDL_Texture *pageTex = continuous() || pageTurnAnimation_.active || gpuComic ? nullptr :
-                              getOrRenderPageTexture(currentPage_);
-        trace("page_end");
         if (pageTurnAnimation_.active) {
             const SDL_Rect viewport=pageTurnAnimation_.viewport;
             const SDL_Rect readerClip{currentMargin_,72,fixedViewportWidth(w),std::max(1,h-144)};
             if(pageTurnAnimation_.comicSheet)SDL_RenderSetClipRect(renderer_,&readerClip);
-            PageCurlRenderer::render(renderer_, pageTurnAnimation_.previous.get(),
+            if(pageTurnAnimation_.spread) {
+                PageCurlRenderer::renderSpread(renderer_,pageTurnAnimation_.previous.get(),pageTurnAnimation_.back.get(),
+                    pageTurnAnimation_.under.get(),viewport,{0,0,w,h},pageTurnAnimation_.progress,
+                    pageTurnAnimation_.direction,pageTurnAnimation_.anchorY,pageTurnAnimation_.dragY);
+            } else PageCurlRenderer::render(renderer_, pageTurnAnimation_.previous.get(),
                                      pageTurnAnimation_.next.get(), viewport,
                                      pageTurnAnimation_.progress, pageTurnAnimation_.direction,
                                      pageTurnAnimation_.anchorY,pageTurnAnimation_.dragY,pageTurnAnimation_.back.get(),
@@ -3187,16 +3194,10 @@ private:
             if(pageTurnAnimation_.comicSheet)SDL_RenderSetClipRect(renderer_,nullptr);
         } else if(gpuComic) {
             renderComicZoom(w,h);
-        } else if (pageTex) {
-            int texW = 0, texH = 0;
-            SDL_QueryTexture(pageTex, nullptr, nullptr, &texW, &texH);
-            SDL_Rect dst{(w - texW) / 2, (h - texH) / 2, texW, texH};
-            SDL_Rect viewport{0, 72, w, std::max(1, h - 144)};
-            SDL_RenderSetClipRect(renderer_, &viewport);
-            SDL_RenderCopy(renderer_, pageTex, nullptr, &dst);
-            SDL_RenderSetClipRect(renderer_, nullptr);
+        } else if(!continuous()) {
+            drawReaderSheets(currentPage_);
         }
-
+        trace("page_end");
         if(showZoomReset())ui::button(renderer_,*typography_,zoomResetRect(w,h),catLabel("Sayfaya sığdır","Fit page"),pal);
         if (!currentErrorMessage_.empty() || !pageRenderError_.empty()) {
             settingsButton({36, h - 120, w - 72, 48},pageRenderError_.empty()?currentErrorMessage_:pageRenderError_,pal);
@@ -3224,7 +3225,8 @@ private:
 
             renderReaderNavigation(w,h,pal);
         }
-        if(doc_)drawReaderCaption(readerFooterCaption(w,h),{96,h-58,std::max(1,w-192),44},pal);
+        if(doc_ && (continuous() || gpuComic || toolbarVisible_ || appSettings_.get().toolbar))
+            drawReaderCaption(readerFooterCaption(w,h),{96,h-58,std::max(1,w-192),44},pal);
     }
 
     void renderFileBrowserScreen(int w,int h,const ThemePalette &pal) {

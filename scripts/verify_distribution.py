@@ -13,8 +13,8 @@ if not __debug__:
     raise RuntimeError("Artifact checks require enabled assertions")
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--dist", type=Path, default=Path("dist/v0.13.0"))
-parser.add_argument("--version", default="v0.13.0")
+parser.add_argument("--dist", type=Path, default=Path("dist/v0.14.0"))
+parser.add_argument("--version", default="v0.14.0")
 args = parser.parse_args()
 manifest = json.loads((args.dist / "manifest.json").read_text(encoding="utf-8"))
 assert Path(manifest["name"]).name == manifest["name"], "Invalid archive filename"

@@ -135,7 +135,10 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
     std::snprintf(css, sizeof css,
         "html, body { background-color: #%02x%02x%02x !important; color: #%02x%02x%02x !important; } ",
         bg.r, bg.g, bg.b, fg.r, fg.g, fg.b);
-    std::string result = css;
+    // The application owns the outer page margins. MuPDF's default @page
+    // adds another 2em horizontally and 3em vertically, wasting screen area.
+    std::string result = "@page { margin: 0 !important; padding: 0 !important; } ";
+    result += css;
     result += "u, ins { text-decoration: underline; } s, strike, del { text-decoration: line-through; } ";
     // Selected paper colors override embedded white publisher backgrounds.
     // MuPDF would otherwise repaint the interior after the reader chrome changes.

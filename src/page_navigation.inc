@@ -63,8 +63,9 @@ void preparePagePreviews() {
     if(book==books_.end())return;
     int w,h;getWindowSize(w,h);const auto style=presentedStyle();const auto color=palette();
     PagePreviews::Spec spec;spec.path=book->path;spec.viewportHeight=std::max(1,h-144);
-    spec.width=px_document_is_epub(doc_)?std::max(1,layoutWidth_-style.margin*2):fixedViewportWidth(w);
-    spec.height=px_document_is_epub(doc_) && continuous()?0:std::max(1,layoutHeight_-144);
+    const auto layout=epubLayout(std::max(1,layoutWidth_),std::max(1,layoutHeight_),style);
+    spec.width=px_document_is_epub(doc_)?layout.contentWidth():readerLayout().contentWidth();
+    spec.height=px_document_is_epub(doc_) && continuous()?0:layout.contentHeight();
     spec.em=float(style.fontSize);spec.css=px_document_is_epub(doc_)?generateEpubCss(style):"";
     spec.identity=currentBookId_+":"+std::to_string(previewEpoch_)+":"+std::to_string(spec.width)+":"+std::to_string(spec.height)+":"+std::to_string(spec.viewportHeight)+":"+std::to_string(spec.em)+":"+spec.css+":"+
         std::to_string(comicReadingColors())+":"+std::to_string((color.bg.r<<16)|(color.bg.g<<8)|color.bg.b)+":"+std::to_string((color.fg.r<<16)|(color.fg.g<<8)|color.fg.b);
