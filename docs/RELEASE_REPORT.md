@@ -1,3 +1,11 @@
+# Fork release: v0.12.0-reader.2
+
+Books now show chapter pages remaining in the top empty strip only when the reader toolbar is visible. A centered current-page numeral remains in the bottom strip on every page, without a total or remaining count. The document viewport is unchanged. Continuous EPUB uses screen-sized reading pages rather than spine/chapter numbers. Chapter boundaries use outlines, falling back to EPUB spine items; PDFs without outlines omit the unknown chapter caption.
+
+Hebrew bold/italic and combined styles render through independent fallback font faces. Reader-controlled typography retains semantic, class and inline weight/style, underline, strikethrough and vertical emphasis while preserving chosen colors, spacing and alignment. Comic controls/appearance remain unchanged. Developer: Refael Bar.
+
+The NRO, installation ZIP, exact tagged source, licenses, manifest, checksums and verification evidence are in [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2). See [verification](TEST_RESULTS.md) and [book controls](PAGE_NAVIGATION.md). Physical Switch acceptance remains unverified.
+
 # Fork release: v0.12.0-reader.1
 
 The bottom progress bar now previews pages during a drag and commits one position on release. A footer grid button and the + menu open Chapters, All pages and Bookmarks. The browser uses bounded, asynchronous thumbnails and virtualized rows, preserves comic zoom, supports RTL order and renders Hebrew chapter titles and nested links correctly. Continuous EPUB headings retain their resolved within-chapter offsets. Developer: Refael Bar; upstream attribution remains.

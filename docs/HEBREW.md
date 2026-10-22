@@ -12,14 +12,14 @@ order; display ordering never rewrites catalog or journal data.
 
 Back up `sdmc:/switch/PaperNX/books/` and `data/`, then replace
 `sdmc:/switch/PaperNX/PaperNX.nro` with the NRO from
-[v0.11.0-reader.1](https://github.com/rtk19/PaperNx/releases/tag/v0.11.0-reader.1).
+[v0.12.0-reader.2](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2).
 Alternatively extract the installation ZIP at the SD root, allowing files to be
 replaced. Keep existing books and data. All six Latin/Hebrew fonts and their
 notices are also embedded in the NRO, so an NRO-only upgrade works even with an
 older `fonts/` folder. Restart PaperNX and reopen the book after updating.
 
 No language switch, library reset, cover-cache deletion or data migration is
-needed. Confirm version **v0.11.0-reader.1** in the app's information screen; duplicate
+needed. Confirm version **v0.12.0-reader.2** in the app's information screen; duplicate
 old NRO files can launch an older build by mistake.
 
 ## EPUB layout
@@ -73,3 +73,7 @@ unchanged English/Turkish rasterization, actual EPUB pixel alignment in both
 reading modes, relayout/bookmark restoration and RTL touch curls followed by
 returning to English/PDF books. Physical Switch font appearance and touch
 performance still require testing on the device.
+
+## Author emphasis
+
+Reader typography preserves semantic bold/italic, combined styles, class/inline font weight/style, underline, strikethrough and vertical emphasis. The author’s font size, color, spacing and physical alignment do not override the reader settings in this mode. MuPDF caches Hebrew fallback faces separately for regular, bold, italic and combined requests; when a fallback has only a regular face, it synthesizes weight/slant. This keeps following plain paragraphs regular. Text receives only the emphasis present in the EPUB; the reader does not infer formatting from plain text or a screenshot. PDF pages already contain their fixed formatting.

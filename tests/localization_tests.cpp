@@ -3,6 +3,9 @@
 #include <iostream>
 using papernx::localizeUiText;
 int main() {
+    assert(localizeUiText("Last page in chapter",0)=="Bölümün son sayfası");
+    assert(localizeUiText(" page left in chapter",0)==" sayfa kaldı");
+    assert(localizeUiText(" pages left in chapter",0)==" sayfa kaldı");
     assert(localizeUiText("İçindekiler",0)=="İçindekiler");
     assert(localizeUiText("İçindekiler",1)=="Contents");
     assert(localizeUiText("Sürekli Kaydırma · Yukarı / aşağı",1)=="Continuous Scroll · Up / down");

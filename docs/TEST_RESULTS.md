@@ -1,3 +1,11 @@
+# Fork verification: v0.12.0-reader.2
+
+Fresh verification: 21/21 native CTests with patched MuPDF 1.23.11, 21/21 ASan/UBSan CTests with leak detection, 7/7 portable tests, the packaging rejection/extraction suite, and the book-caption suite with offscreen OpenGL. Switch validation checks the AArch64 ELF, NRO/NACP version/developer, RomFS fonts, source receipt, license notices and installation ZIP. Logs and original fixture screenshots accompany the release.
+
+The new book suite compares actual document pixels before/after a middle tap: the content rectangle must remain identical, the top caption changes with toolbar visibility, and the bottom numeral stays identical. It covers all three orientations, light/dark paper, nested chapters, spine fallback without a TOC, continuous screen-page numbering, PDF without an outline and comic control isolation. Hebrew-only render fixtures distinguish regular, bold, italic and combined styles in serif/sans fonts; external/embedded CSS and inline emphasis must match semantic tags. Later regular text must remain regular. Underline, strikethrough and superscript are checked while author font sizes/colors/margins cannot override reader layout.
+
+Physical Switch acceptance remains unverified. Reproduce with `scripts/verify-v04.sh portable`, `scripts/verify-pinned-desktop.sh`, `scripts/verify-v04.sh sanitizers`, `python3 tests/test_package.py`, and `SDL_VIDEODRIVER=offscreen LIBGL_ALWAYS_SOFTWARE=1 build-pinned/papernx_book_chrome_tests`. Prior release evidence follows.
+
 # Fork verification: v0.12.0-reader.1
 
 The suite contains 20 native CTests, 7 portable tests and 6 focused ASan/UBSan tests with leak detection. The new page-navigation application test also runs with offscreen OpenGL. Switch validation checks AArch64, NRO/NACP developer/version, embedded fonts, source receipts and the actual installation ZIP.

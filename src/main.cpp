@@ -2130,6 +2130,7 @@ private:
     #include "v04_choices.inc"
     #include "controller_input.inc"
     #include "series_library.inc"
+    #include "reader_book_chrome.inc"
     #include "page_navigation.inc"
 
     // Input & Event Handling
@@ -2504,6 +2505,13 @@ private:
             if (toolbarVisible_ || appSettings_.get().toolbar) {
                 // Header buttons
                 if (py < 72) {
+                    if(!comic()) {
+                        if(ui::contains(readerHeaderButton(0,w),px,py))closeBook();
+                        else if(ui::contains(readerHeaderButton(1,w),px,py))openContents();
+                        else if(ui::contains(readerHeaderButton(2,w),px,py)){screen_=ScreenState::BookmarksModal;dirty_=true;}
+                        else if(ui::contains(readerHeaderButton(3,w),px,py))openSettings();
+                        return;
+                    }
                     if (px < 176) { closeBook(); return; }
                     if (px >= (w<900?464:w-196)) { openSettings(); return; }
                     if (px >= (w<900?336:w-344)) { screen_ = ScreenState::BookmarksModal; dirty_ = true; return; }
@@ -3165,12 +3173,16 @@ private:
         if (!currentErrorMessage_.empty() || !pageRenderError_.empty()) {
             settingsButton({36, h - 120, w - 72, 48},pageRenderError_.empty()?currentErrorMessage_:pageRenderError_,pal);
         }
-        if (!toolbarVisible_ && hintUntil_) settingsButton({w / 2 - 240, h - 62, 480, 48}, "Ortaya dokun: Araçlar ve Aa ayarları", pal);
+        if (comic() && !toolbarVisible_ && hintUntil_) settingsButton({w / 2 - 240, h - 62, 480, 48}, "Ortaya dokun: Araçlar ve Aa ayarları", pal);
         if (debugTouch_) settingsButton({36, 72, w - 72, 48}, lastTouchDebug_, pal);
         // Toolbar Overlays
         if (toolbarVisible_ || appSettings_.get().toolbar) {
             // Header bar
-            ui::surface(renderer_, {0, 0, w, 72}, pal.card,0);
+            ui::surface(renderer_, {0, 0, w, 72}, comic()?pal.card:pal.bg,0);
+            if(!comic()) {
+                for(int i=0;i<4;++i)drawBookHeaderButton(i,w,pal);
+                drawBookCaption(bookChapterCaption(h),{232,0,std::max(1,w-464),72},pal);
+            } else {
             ui::button(renderer_,*typography_,{16,8,152,56},"Kitaplık",pal);
 
             std::string title = currentBookId_;
@@ -3181,9 +3193,11 @@ private:
             ui::button(renderer_,*typography_,{w<900?184:w-520,8,w<900?136:160,56},"İçindekiler",pal);
             ui::button(renderer_,*typography_,{w<900?336:w-344,8,w<900?112:136,56},"Yer imleri",pal);
             ui::button(renderer_,*typography_,{w<900?464:w-192,8,w<900?80:96,56},"Aa",pal);
+            }
 
             renderReaderNavigation(w,h,pal);
         }
+        if(doc_ && !comic())drawBookCaption(std::to_string(bookPageNumber(w,h)),{96,h-58,std::max(1,w-192),44},pal);
     }
 
     void renderFileBrowserScreen(int w,int h,const ThemePalette &pal) {

@@ -1,3 +1,7 @@
+# Fork update: v0.12.0-reader.2
+
+Book-only captions occupy the existing empty top/bottom strips: chapter pages remaining while the toolbar is visible, current-page numeral always. Hebrew bold/italic and author emphasis survive reader typography settings, with styled fallback fonts isolated from regular text. Comics keep their existing behavior. See [controls](PAGE_NAVIGATION.md), [Hebrew rendering](HEBREW.md) and [verification](TEST_RESULTS.md). Physical Switch acceptance remains unverified.
+
 # Fork update: v0.12.0-reader.1
 
 Adds transactional progress-bar scrubbing with asynchronous page previews, a virtualized page/chapter/bookmark browser, Hebrew and nested chapter labels, exact continuous EPUB fragment links, RTL page order and controller navigation. Previews do not change the saved position until confirmation; comic zoom and top-of-page resets remain. Developer: Refael Bar. See [PAGE_NAVIGATION.md](PAGE_NAVIGATION.md) and [TEST_RESULTS.md](TEST_RESULTS.md).

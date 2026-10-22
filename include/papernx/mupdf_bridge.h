@@ -55,6 +55,7 @@ int64_t px_document_make_position_bookmark(PxDocument *doc, int page, float y);
 int px_document_lookup_position_bookmark(PxDocument *doc, int64_t bookmark, int *page, float *y);
 int px_document_get_location(PxDocument *doc, int page, int *chapter, int *p);
 int px_document_from_location(PxDocument *doc, int chapter, int p);
+int px_document_chapter_page_count(PxDocument *doc, int chapter);
 
 // Table of Contents (Outline)
 int px_document_toc(PxDocument *doc, PxTocEntry *entries, int max_entries);

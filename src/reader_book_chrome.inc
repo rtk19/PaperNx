@@ -1,0 +1,91 @@
+// Book-only captions occupy the existing 72px chrome strips. They never
+// change document layout, page textures, curl geometry or comic controls.
+std::string bookPageKey_;
+std::vector<int> bookPagePrefix_;
+
+SDL_Rect readerHeaderButton(int index,int w) const {
+    if(!comic()) {
+        const int x[]={16,80,w-216,w-152};
+        return {x[index],8,56,56};
+    }
+    if(index==0)return {16,8,152,56};
+    if(index==1)return {w<900?184:w-520,8,w<900?136:160,56};
+    if(index==2)return {w<900?336:w-344,8,w<900?112:136,56};
+    return {w<900?464:w-192,8,w<900?80:96,56};
+}
+
+void drawBookHeaderButton(int index,int w,const ThemePalette &pal) {
+    const auto r=readerHeaderButton(index,w);
+    ui::button(renderer_,*typography_,r,index==0?"<":index==3?"Aa":"",pal);
+    SDL_SetRenderDrawColor(renderer_,pal.fg.r,pal.fg.g,pal.fg.b,255);
+    const int x=r.x+r.w/2,y=r.y+r.h/2;
+    if(index==1)for(int row=-1;row<=1;++row) {
+        SDL_RenderDrawLine(renderer_,x-10,y+row*7,x+10,y+row*7);
+        SDL_RenderDrawLine(renderer_,x-10,y+row*7+1,x+10,y+row*7+1);
+    }
+    if(index==2) {
+        const SDL_Point points[]={{x-8,y+12},{x-8,y-12},{x+8,y-12},{x+8,y+12},{x,y+5},{x-8,y+12}};
+        SDL_RenderDrawLines(renderer_,points,6);
+    }
+}
+
+int bookPageNumber(int w,int h) {
+    if(!continuous() || !px_document_is_epub(doc_))return currentPage_+1;
+    // A continuous EPUB uses one MuPDF page per spine item. Count screen-sized
+    // reading pages instead of incorrectly displaying the chapter number.
+    const auto key=currentBookId_+":"+std::to_string(w)+":"+std::to_string(h)+":"+
+        std::to_string(layoutGeneration_)+":"+buildEpubCss();
+    if(key!=bookPageKey_){bookPageKey_=key;bookPagePrefix_={0};}
+    const int height=std::max(1,h-144);
+    while(int(bookPagePrefix_.size())<=currentPage_+1) {
+        const int page=int(bookPagePrefix_.size())-1;
+        const int count=std::max(1,int(std::ceil(segmentHeight(page)/height)));
+        bookPagePrefix_.push_back(bookPagePrefix_.back()+count);
+    }
+    const int within=std::clamp(int(std::max(0.f,scrollY_)/height),0,
+        bookPagePrefix_[currentPage_+1]-bookPagePrefix_[currentPage_]-1);
+    return bookPagePrefix_[currentPage_]+within+1;
+}
+
+int bookChapterPagesLeft(int h) {
+    if(!doc_ || comic())return -1;
+    const int current=currentContentsChapter();
+    int end=pageCount_;float endY=0;
+    bool found=false;
+    if(current>=0) {
+        const auto &chapter=tocEntries_[current];
+        for(const auto &next:tocEntries_) {
+            if(next.page<0 || next.level>chapter.level)continue;
+            const bool after=next.page>chapter.page || (continuous() && next.page==chapter.page && next.y>chapter.y+1);
+            if(!after)continue;
+            if(!found || next.page<end || (next.page==end && next.y<endY)) {end=next.page;endY=next.y;found=true;}
+        }
+    } else if(px_document_is_epub(doc_)) {
+        int chapter=0,page=0;
+        if(!px_document_get_location(doc_,currentPage_,&chapter,&page))return -1;
+        end=currentPage_+px_document_chapter_page_count(doc_,chapter)-page;
+        // In continuous EPUB a spine item is an unpaginated chapter strip.
+        if(continuous())end=currentPage_+1;
+    } else return -1; // A PDF without an outline has no known chapter boundary.
+    if(!continuous())return std::max(0,end-currentPage_-1);
+    float remaining=-scrollY_;
+    for(int page=currentPage_;page<std::min(end,pageCount_);++page)remaining+=segmentHeight(page);
+    if(end<pageCount_)remaining+=screenScrollY(end,endY);
+    return std::max(0,int(std::ceil(remaining/std::max(1,h-144)))-1);
+}
+
+void drawBookCaption(const std::string &text,SDL_Rect area,const ThemePalette &pal) {
+    int width=0,height=0;
+    typography_->measureText(typography_->smallFont(),text,&width,&height,area.w);
+    SDL_RenderSetClipRect(renderer_,&area);
+    typography_->renderText(renderer_,typography_->smallFont(),text,
+        area.x+(area.w-width)/2,area.y+(area.h-height)/2,pal.muted,area.w);
+    SDL_RenderSetClipRect(renderer_,nullptr);
+}
+
+std::string bookChapterCaption(int h) {
+    const int left=bookChapterPagesLeft(h);
+    if(left<0)return {};
+    if(left==0)return ui::label("Last page in chapter");
+    return std::to_string(left)+ui::label(left==1?" page left in chapter":" pages left in chapter");
+}

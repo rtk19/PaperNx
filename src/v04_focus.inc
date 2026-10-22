@@ -54,10 +54,10 @@
             }
             add("bookmark.add",{48,h-112,w-96,56});add("close",{w-184,88,112,56});
         } else if(screen_==ScreenState::Reader && (toolbarVisible_ || appSettings_.get().toolbar)) {
-            add("reader.library",{16,8,152,56});
-            add("reader.toc",{w<900?184:w-520,8,w<900?136:160,56});
-            add("reader.bookmarks",{w<900?336:w-344,8,w<900?112:136,56});
-            add("reader.settings",{w<900?464:w-192,8,w<900?80:96,56});
+            add("reader.library",readerHeaderButton(0,w));
+            add("reader.toc",readerHeaderButton(1,w));
+            add("reader.bookmarks",readerHeaderButton(2,w));
+            add("reader.settings",readerHeaderButton(3,w));
             add("reader.previous",readerPrev(w,h));add("reader.seek",readerSeekHit(w,h));add("reader.next",readerNext(w,h));add("reader.pages",readerPages(w,h));
             if(showZoomReset())add("reader.zoom-reset",zoomResetRect(w,h));
         }

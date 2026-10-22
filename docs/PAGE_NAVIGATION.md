@@ -29,3 +29,11 @@ In the browser, arrows/D-pad or either stick move focus, A/Enter opens a positio
 Thumbnails are lazy and use a separate MuPDF context on a worker thread. SDL uploads stay on the UI thread. Visible rows are virtualized; preview textures are capped at 16 MiB, decoder memory at 96 MiB, and queued/completed jobs at 24 each. Rapid dragging or scrolling drops queued work for old destinations. Closing the browser stops pending work; changing books/layout invalidates old results. No whole-book bitmap atlas or additional preview files are written to the SD card.
 
 Chapter outlines use the existing metadata capacity (256 entries); the page grid covers the document's complete page count. These are new navigation controls over the existing library, progress, bookmark and history records; no data reset or migration is required. Physical Switch appearance, touch latency and FPS require device testing.
+
+## Books: chapter and page captions
+
+In EPUB/PDF books, tap the middle to show the toolbar. The top center shows pages left in the current chapter; it disappears when the toolbar is hidden (or remains with the existing always-visible-toolbar preference). The last page says “Last page in chapter”. Nested outline entries use the next sibling/ancestor boundary. Without an outline, EPUB uses its current spine item; PDF has no invented chapter caption.
+
+The bottom center always shows only the current page numeral, in the same small muted type. Both captions stay within the existing 72-pixel top/bottom strips and do not move or cover book text. Book header icons open the library, contents, bookmarks and Aa settings. The existing seek bar stays in the bottom strip above the numeral. Comic controls retain their labels, total count and original positions.
+
+Paginated EPUB and PDF use the current document page. Continuous EPUB counts viewport-sized reading pages across spine items, recalculating after font/layout/orientation changes. Reflowable page numbers can change with reading settings.

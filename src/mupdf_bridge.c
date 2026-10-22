@@ -575,6 +575,14 @@ int px_document_from_location(PxDocument *d, int chapter, int p) {
     return page_idx;
 }
 
+int px_document_chapter_page_count(PxDocument *d, int chapter) {
+    if (!d || chapter < 0) return 0;
+    int count = 0; fz_var(count);
+    fz_try(d->ctx) { count = fz_count_chapter_pages(d->ctx, d->doc, chapter); }
+    fz_catch(d->ctx) { count = 0; }
+    return count;
+}
+
 static int resolve_outline_page(fz_context *ctx, fz_document *doc, fz_outline *node, float *out_y) {
     int result = -1;
     fz_var(result);

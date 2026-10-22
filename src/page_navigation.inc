@@ -18,8 +18,8 @@ struct ScrubState {
 } scrub_;
 bool scrubTouchOwned_{false};SDL_FingerID scrubFinger_{0};
 
-SDL_Rect readerTrack(int w,int h) const {return {96,h-28,std::max(1,w-280),8};}
-SDL_Rect readerSeekHit(int w,int h) const {auto r=readerTrack(w,h);return {r.x-8,h-52,r.w+16,44};}
+SDL_Rect readerTrack(int w,int h) const {return {96,h-(comic()?28:62),std::max(1,w-280),8};}
+SDL_Rect readerSeekHit(int w,int h) const {auto r=readerTrack(w,h);return {r.x-8,h-(comic()?52:72),r.w+16,comic()?44:56};}
 SDL_Rect readerPrev(int,int h) const {return {24,h-64,56,56};}
 SDL_Rect readerNext(int w,int h) const {return {w-152,h-64,56,56};}
 SDL_Rect readerPages(int w,int h) const {return {w-88,h-64,64,56};}
@@ -283,16 +283,18 @@ void renderContents(int w,int h,const ThemePalette &pal) {
     SDL_RenderSetClipRect(renderer_,nullptr);
 }
 void renderReaderNavigation(int w,int h,const ThemePalette &pal) {
-    ui::surface(renderer_,{0,h-72,w,72},pal.header,0);
+    ui::surface(renderer_,{0,h-72,w,72},comic()?pal.header:pal.bg,0);
     ui::button(renderer_,*typography_,readerPrev(w,h),"<",pal);
     ui::button(renderer_,*typography_,readerNext(w,h),">",pal);
     const auto pages=readerPages(w,h);ui::button(renderer_,*typography_,pages,"",pal);
     SDL_SetRenderDrawColor(renderer_,pal.fg.r,pal.fg.g,pal.fg.b,255);
     for(int row=0;row<2;++row)for(int col=0;col<2;++col){SDL_Rect box{pages.x+19+col*15,pages.y+15+row*15,10,10};SDL_RenderDrawRect(renderer_,&box);}
     const auto track=readerTrack(w,h);const float fraction=scrub_.active?scrub_.fraction:float(readingFraction());
+    if(comic()) {
     typography_->renderText(renderer_,typography_->smallFont(),navigationPageLabel(scrub_.active?scrub_.page:currentPage_),track.x,h-65,pal.fg,std::max(1,track.w-72));
     const auto percent=std::to_string(int(fraction*100))+"%";
     typography_->renderText(renderer_,typography_->smallFont(),percent,track.x+track.w-64,h-65,pal.muted,64);
+    }
     ui::surface(renderer_,track,pal.cardBorder,4);const int fill=int(track.w*std::clamp(fraction,0.f,1.f));
     SDL_Rect completed{readingDirection()<0?track.x+track.w-fill:track.x,track.y,fill,track.h};ui::surface(renderer_,completed,pal.accent,4);
     const float x=track.x+track.w*(readingDirection()<0?1.f-fraction:fraction);

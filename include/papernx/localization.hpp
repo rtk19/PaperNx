@@ -10,6 +10,7 @@ inline std::string localizeUiText(const std::string &text, int language) {
     if (language != 1) {
         if (language == 0) {
             static constexpr Label enToTr[] = {
+                {"Last page in chapter", "Bölümün son sayfası"},
                 {"Settings could not be saved", "Ayarlar kaydedilemedi"},
                 {"Book metadata could not be saved", "Kitap bilgileri kaydedilemedi"},
                 {"Reading goal could not be saved", "Okuma hedefi kaydedilemedi"},
@@ -21,6 +22,8 @@ inline std::string localizeUiText(const std::string &text, int language) {
             };
             for (const auto &l : enToTr) if (text == l.first) return l.second;
             static constexpr Label enToTrPrefixes[] = {
+                {" page left in chapter", " sayfa kaldı"},
+                {" pages left in chapter", " sayfa kaldı"},
                 {"Reading journal not saved: ", "Okuma günlüğü kaydedilemedi: "},
                 {"Catalog could not be saved: ", "Katalog kaydedilemedi: "}
             };

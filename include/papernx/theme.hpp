@@ -136,17 +136,18 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
         "html, body { background-color: #%02x%02x%02x !important; color: #%02x%02x%02x !important; } ",
         bg.r, bg.g, bg.b, fg.r, fg.g, fg.b);
     std::string result = css;
+    result += "u, ins { text-decoration: underline; } s, strike, del { text-decoration: line-through; } ";
     // Selected paper colors override embedded white publisher backgrounds.
     // MuPDF would otherwise repaint the interior after the reader chrome changes.
     const bool explicitPaper=style.backgroundColor>=0 || style.textColor>=0 || style.theme!=0;
     if(style.publisherStyles && !explicitPaper) return result;
     if(style.publisherStyles && explicitPaper) {
-        result += " /*papernx-reader-controlled*/ ";
+        result += " /*papernx-reader-controlled*/ /*papernx-preserve-emphasis*/ ";
         return result;
     }
     // MuPDF 1.23 gives inline styles higher specificity than user !important.
-    // Tell the bridge to use semantic HTML and reader CSS for controlled typography.
-    result += "/*papernx-reader-controlled*/ ";
+    // Keep semantic/class/inline emphasis while reader CSS controls layout/colors.
+    result += "/*papernx-reader-controlled*/ /*papernx-preserve-emphasis*/ ";
     std::snprintf(css, sizeof css,
         "body { font-size: %dpx !important; line-height: %.2f !important; margin: 0 !important; padding: 0; } "
         "p, li, blockquote, div, span, em, strong, td, th, a { color: #%02x%02x%02x !important; line-height: %.2f !important; text-align: %s !important; } "

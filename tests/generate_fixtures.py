@@ -254,6 +254,35 @@ def create_hebrew_variants(base):
             for entry, data in entries.items():
                 write_entry(archive, entry, data)
 
+def create_emphasis_fixture(base):
+    """Same original Hebrew text in semantic, class and inline emphasis styles."""
+    with zipfile.ZipFile(base) as archive:
+        entries = {name: archive.read(name) for name in archive.namelist()}
+    text = "שָׁלוֹם עולם ספר חדש"
+    variants = [text, f"<strong>{text}</strong>", f"<em>{text}</em>",
+                f"<strong><em>{text}</em></strong>", f'<span class="bold">{text}</span>',
+                f'<span class="italic">{text}</span>', f'<span style="font-weight:bold">{text}</span>',
+                f'<span style="font-style:italic">{text}</span>', text,
+                f'<u>{text}</u>', f'<s>{text}</s>', f'<sup>{text}</sup>']
+    items, spine = [], []
+    for index, content in enumerate(variants):
+        name = f"emphasis{index}.xhtml"
+        items.append(f'<item id="e{index}" href="{name}" media-type="application/xhtml+xml"/>')
+        spine.append(f'<itemref idref="e{index}"/>')
+        entries["OEBPS/" + name] = (f'<html xmlns="http://www.w3.org/1999/xhtml" lang="he"><head>'
+            '<title>Emphasis</title><link rel="stylesheet" href="emphasis.css"/>'
+            '<style>.italic {font-style:italic} p {font-size:1px; color:white; text-align:left}</style>'
+            '</head><body><p style="font-size:1px;color:white;text-align:left">'
+            + content + '</p></body></html>').encode()
+    entries["OEBPS/emphasis.css"] = b'.bold {font-weight:bold} body {margin:300px}'
+    opf = entries["OEBPS/content.opf"].decode()
+    opf = opf.replace('</manifest>', ''.join(items) + '<item id="emcss" href="emphasis.css" media-type="text/css"/></manifest>')
+    start, end = opf.index('<spine>'), opf.index('</spine>') + len('</spine>')
+    entries["OEBPS/content.opf"] = (opf[:start] + '<spine>' + ''.join(spine) + '</spine>' + opf[end:]).encode()
+    with zipfile.ZipFile(FIXTURES_DIR / "hebrew_emphasis.epub", "w") as archive:
+        for entry, data in entries.items():
+            write_entry(archive, entry, data)
+
 def main():
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
     
@@ -261,6 +290,7 @@ def main():
     create_valid_epub(epub_path)
     create_metadata_variants(epub_path)
     create_hebrew_variants(epub_path)
+    create_emphasis_fixture(epub_path)
     print(f"Generated EPUB fixture: {epub_path} ({epub_path.stat().st_size} bytes)")
 
     pdf_path = FIXTURES_DIR / "sample_doc.pdf"

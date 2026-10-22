@@ -310,7 +310,8 @@ struct AppTest {
             app.storeDefaults();
             closeSettings(app); assert(app.screen_ == ScreenState::Reader);
             savedPage = app.currentPage_;
-            tap(app, .78f, .04f); assert(app.screen_ == ScreenState::BookmarksModal);
+            int headerW,headerH;app.getWindowSize(headerW,headerH);const auto bookmarkButton=app.readerHeaderButton(2,headerW);
+            tap(app,float(bookmarkButton.x+bookmarkButton.w/2)/headerW,float(bookmarkButton.y+bookmarkButton.h/2)/headerH); assert(app.screen_ == ScreenState::BookmarksModal);
             tap(app,.5f,636.f/720); assert(app.progressStore_.get(epubId).bookmarks.size() == 1);
             closeNavigation(app); assert(app.screen_ == ScreenState::Reader);
             tap(app, .04f, .04f); assert(app.screen_ == ScreenState::Library && !app.progressDirty_);
