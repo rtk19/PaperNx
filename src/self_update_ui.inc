@@ -128,7 +128,7 @@ void renderUpdateDialog(int w,int h,const ThemePalette &pal) {
         else if(s.state==UpdateState::Error)text=ui::label("Could not update PaperNX")+"\n\n"+ui::label(s.error);
         else if(s.state==UpdateState::Ready)text=ui::label("Update downloaded. Restart to finish installation.");
         else if(s.state==UpdateState::Available){
-            text=ui::label("New version available")+"\n\nv"+s.release.version+"\n"+s.release.title;
+            text=ui::label("New version available")+"\n\n"+s.release.version+"\n"+s.release.title;
             if(s.release.bytes)text+="\n"+std::to_string((s.release.bytes+1048575)/1048576)+" MB";
             if(!s.release.installable())text+="\n\n"+ui::label("This release has no installable NRO and checksum");
         }

@@ -14,27 +14,31 @@ static UpdateStatus wait(SelfUpdater &updater){
     assert(false && "Updater timed out");return {};
 }
 static void unit(){
+    assert(updateVersionNewer("0.13.0","0.12.0-reader.4"));
+    assert(updateVersionNewer("0.13.1","0.13.0"));
+    assert(updateVersionNewer("0.14.0","0.13.99"));
+    assert(!updateVersionNewer("0.12.1","0.13.0"));
     for(auto p:{std::pair<const char*,const char*>{"v0.12.0-reader.10","0.12.0-reader.9"},{"0.12.0","0.12.0-reader.10"},{"0.13.0-reader.1","0.12.0"},{"1.0.0-beta","1.0.0-alpha"},{"1.0.0-alpha.1","1.0.0-alpha"}})assert(updateVersionNewer(p.first,p.second));
     for(const auto &bad:{"","vnope","1.2","01.2.3","1.2.3-reader.01","1.2.3-","1.2.3+","1.2.3-../bad"})assert(!updateVersionNewer(bad,"0.0.0"));
-    assert(!updateVersionNewer("v0.12.0-reader.3","0.12.0-reader.3"));assert(!updateVersionNewer("1.0.0+new","1.0.0+old"));assert(!updateVersionNewer("1.0.0-beta","1.0.0"));
+    assert(!updateVersionNewer("v0.12.0-reader.4","0.12.0-reader.4"));assert(!updateVersionNewer("1.0.0+new","1.0.0+old"));assert(!updateVersionNewer("1.0.0-beta","1.0.0"));
     UpdateRelease r;std::string error;UpdateSource source;
     const auto asset="https://github.com/rtk19/PaperNx/releases/download/v0.12.0-reader.10/";
     const auto json=std::string("[{\"tag_name\":\"v0.12.0-reader.10\",\"body\":\"\\u05e9\\u05dc\\u05d5\\u05dd \\\"notes\\\" \\ud83d\\ude00\",\"assets\":[{\"name\":\"PaperNX.nro\",\"size\":20000,\"browser_download_url\":\"")+asset+"PaperNX.nro\"},{\"name\":\"PaperNX.nro.sha256\",\"browser_download_url\":\""+asset+"PaperNX.nro.sha256\"}]}]";
-    assert(selectUpdateRelease(json,"0.12.0-reader.3",source,r,error)&&r.installable());assert(r.notes==u8"שלום \"notes\" 😀");
-    for(const auto &bad:{"{}","[{}]","[{\"tag_name\":\"1.0.0\",}]","[{\"tag_name\":\"1.0.0\",\"tag_name\":\"9.0.0\"}]","[", "[{\"body\":\"\\ud800\"}]"})assert(!selectUpdateRelease(bad,"0.12.0-reader.3",source,r,error));
-    assert(selectUpdateRelease("[{\"tag_name\":\"0.12.0-reader.3\"},{\"tag_name\":\"9.0.0\",\"draft\":true}]","0.12.0-reader.3",source,r,error)&&r.version.empty());
-    auto wrong=json;const auto where=wrong.find("https://github.com/rtk19/PaperNx/releases/download/");wrong.replace(where,47,"https://evil.invalid/");assert(selectUpdateRelease(wrong,"0.12.0-reader.3",source,r,error)&&!r.installable());
+    assert(selectUpdateRelease(json,"0.12.0-reader.4",source,r,error)&&r.installable());assert(r.notes==u8"שלום \"notes\" 😀");
+    for(const auto &bad:{"{}","[{}]","[{\"tag_name\":\"1.0.0\",}]","[{\"tag_name\":\"1.0.0\",\"tag_name\":\"9.0.0\"}]","[", "[{\"body\":\"\\ud800\"}]"})assert(!selectUpdateRelease(bad,"0.12.0-reader.4",source,r,error));
+    assert(selectUpdateRelease("[{\"tag_name\":\"0.12.0-reader.4\"},{\"tag_name\":\"9.0.0\",\"draft\":true}]","0.12.0-reader.4",source,r,error)&&r.version.empty());
+    auto wrong=json;const auto where=wrong.find("https://github.com/rtk19/PaperNx/releases/download/");wrong.replace(where,47,"https://evil.invalid/");assert(selectUpdateRelease(wrong,"0.12.0-reader.4",source,r,error)&&!r.installable());
     std::cout<<"PASS: prerelease/stable version ordering, scoped bounded JSON, Unicode notes, malformed responses, draft filtering and asset origin\n";
 }
 static void network(int argc,char **argv){
     assert(argc>=5);const fs::path root=argv[2],path=root/u8"custom folder"/u8"קורא.nro";const std::string base=argv[3],scenario=argv[4],ca=argc>5?argv[5]:"";
     fs::create_directories(path.parent_path());{std::ofstream f(path);f<<"original application";}
     const auto original=read(path);UpdateSource source{base+"api",base+"download/"};
-    SelfUpdater updater;updater.configure(path,"0.12.0-reader.3",ca,source);assert(updater.check());assert(!updater.check());
+    SelfUpdater updater;updater.configure(path,"0.12.0-reader.4",ca,source);assert(updater.check());assert(!updater.check());
     auto state=wait(updater);
     if(scenario=="http"||scenario=="malformed"||scenario=="tls-reject"){assert(state.state==UpdateState::Error);assert(read(path)==original);return;}
     if(scenario=="current"){assert(state.state==UpdateState::Current);return;}
-    assert(state.state==UpdateState::Available&&state.release.version=="0.12.0-reader.10");
+    assert(state.state==UpdateState::Available&&state.release.version=="0.13.0");
     if(scenario=="missing"){assert(!state.release.installable()&&!updater.download());return;}
     if(scenario=="write-error")fs::create_directory(path.string()+".part");
     assert(updater.download());assert(!updater.download());
@@ -50,7 +54,7 @@ static void network(int argc,char **argv){
     if(scenario=="replace-failure"){fs::create_directory(path.string()+".old");std::ofstream(path.string()+".old/sentinel")<<"keep";assert(!updater.applyPending(error)&&!error.empty()&&read(path)==original);return;}
     if(scenario=="missing-marker"){fs::remove(path.string()+".ready");assert(!updater.applyPending(error)&&read(path)==original);return;}
     if(scenario=="recovery"){
-        updater.stop();SelfUpdater recovered;recovered.configure(path,"0.12.0-reader.3",ca,{base+"unavailable-api",base+"download/"});assert(recovered.check());assert(wait(recovered).state==UpdateState::Ready);assert(recovered.applyPending(error));
+        updater.stop();SelfUpdater recovered;recovered.configure(path,"0.12.0-reader.4",ca,{base+"unavailable-api",base+"download/"});assert(recovered.check());assert(wait(recovered).state==UpdateState::Ready);assert(recovered.applyPending(error));
     }else assert(updater.applyPending(error));
     assert(error.empty()&&read(path)==downloaded&&!fs::exists(path.string()+".new")&&!fs::exists(path.string()+".ready")&&!fs::exists(path.string()+".old"));
     std::cout<<"PASS: streamed/verified download, unchanged running file, deferred installation and recovery ("<<scenario<<")\n";

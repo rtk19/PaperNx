@@ -12,14 +12,14 @@ order; display ordering never rewrites catalog or journal data.
 
 Back up `sdmc:/switch/PaperNX/books/` and `data/`, then replace
 `sdmc:/switch/PaperNX/PaperNX.nro` with the NRO from
-[v0.12.0-reader.2](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.2).
+[v0.13.0](https://github.com/rtk19/PaperNx/releases/tag/v0.13.0).
 Alternatively extract the installation ZIP at the SD root, allowing files to be
 replaced. Keep existing books and data. All six Latin/Hebrew fonts and their
 notices are also embedded in the NRO, so an NRO-only upgrade works even with an
 older `fonts/` folder. Restart PaperNX and reopen the book after updating.
 
 No language switch, library reset, cover-cache deletion or data migration is
-needed. Confirm version **v0.12.0-reader.2** in the app's information screen; duplicate
+needed. Confirm version **v0.13.0** in the app's information screen; duplicate
 old NRO files can launch an older build by mistake.
 
 ## EPUB layout

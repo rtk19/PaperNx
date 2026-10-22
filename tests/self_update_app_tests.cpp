@@ -27,10 +27,10 @@ struct AppTest {
     }
     static void run(const fs::path &root,const std::string &base){
         auto u=std::make_shared<SelfUpdater>();const auto path=root/"Renamed PaperNX.nro";std::ofstream(path)<<"original application";
-        u->configure(path,"0.12.0-reader.3",{},UpdateSource{base+"unavailable-api",base+"download/"});
+        u->configure(path,"0.12.0-reader.4",{},UpdateSource{base+"unavailable-api",base+"download/"});
         PaperNxApp app(root,u);assert(app.init());ui::language=1;u->check();wait(app);assert(u->status().state==UpdateState::Error&&!app.updateDialog_);
         manual(app);assert(app.updateDialog_&&u->status().state==UpdateState::Error);snapshot(app,"manual-error");pad(app,SDL_CONTROLLER_BUTTON_B);assert(!app.updateDialog_);
-        u->configure(path,"0.12.0-reader.3",{},UpdateSource{base+"api",base+"download/"});u->check();wait(app);assert(app.updateDialog_&&u->status().state==UpdateState::Available&&app.updateFocus_==2);
+        u->configure(path,"0.12.0-reader.4",{},UpdateSource{base+"api",base+"download/"});u->check();wait(app);assert(app.updateDialog_&&u->status().state==UpdateState::Available&&app.updateFocus_==2);
         for(int orientation:{0,1,2}){
             auto settings=app.appSettings_.get();settings.displayOrientation=orientation;app.appSettings_.put(settings);app.render();int w,h;app.getWindowSize(w,h);
             for(int stick:{0,2}){

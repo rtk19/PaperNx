@@ -13,9 +13,9 @@ import tempfile
 import threading
 import time
 
-TARGET = 'v0.12.0-reader.10'
+TARGET = 'v0.13.0'
 
-def nro(title='PaperNX', version='0.12.0-reader.10'):
+def nro(title='PaperNX', version='0.13.0'):
     data = bytearray(0x7000)
     data[0x10:0x14] = b'NRO0'
     struct.pack_into('<I', data, 0x18, 0x2000)
@@ -40,7 +40,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         mode, base = self.server.scenario, self.server.base
-        payload = nro('OtherApp' if mode == 'badapp' else 'PaperNX', '0.12.0-reader.9' if mode == 'badversion' else '0.12.0-reader.10')
+        payload = nro('OtherApp' if mode == 'badapp' else 'PaperNX', '0.12.9' if mode == 'badversion' else '0.13.0')
         digest = hashlib.sha256(payload).hexdigest()
         if self.path == '/api':
             time.sleep(.02)
@@ -49,7 +49,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return
             assets = [{'name': 'PaperNX.nro', 'size': len(payload), 'browser_download_url': base + f'download/{TARGET}/PaperNX.nro'},
                       {'name': 'PaperNX.nro.sha256', 'browser_download_url': base + f'download/{TARGET}/PaperNX.nro.sha256'}]
-            release = {'tag_name': TARGET if mode != 'current' else 'v0.12.0-reader.3', 'draft': False, 'prerelease': True,
+            release = {'tag_name': TARGET if mode != 'current' else 'v0.12.0-reader.4', 'draft': False, 'prerelease': False,
                        'name': 'PaperNX — new reader', 'body': ('שלום עולם. Release notes with mixed Hebrew and English.\n' * 100),
                        'assets': [] if mode == 'missing' else assets}
             body = b'{bad response' if mode == 'malformed' else json.dumps([{'tag_name': 'v9.0.0', 'draft': True}, release]).encode()

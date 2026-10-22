@@ -1,3 +1,9 @@
+# Fork verification: 0.13.0
+
+Fresh verification: 23/23 native CTests, 23/23 ASan/UBSan CTests with leak detection, 7/7 portable tests and packaging validation. The expanded reader-caption suite also runs with offscreen OpenGL. Switch checks verify AArch64, numeric NACP/application version, embedded fonts/CA store, exact source receipts and installation ZIP integrity.
+
+Actual CBZ/CBR frames now exercise hidden/simple and visible/detailed footer transitions in paginated/continuous modes, landscape/both portrait rotations and light/dark themes. The hidden frame must contain the numeral, the detail caption must replace it, and the document rectangle must remain pixel-identical. Coverage includes middle taps, first/last pages, manga, single-page comics, EPUB/PDF and continuous EPUB totals. Update integration scenarios now offer a normal 0.13.0 release to an old suffixed build; ordering checks cover 0.13.1 patches, 0.14.0 features and downgrade rejection. Physical Switch acceptance remains unverified; older release evidence follows.
+
 # Fork verification: v0.12.0-reader.4
 
 Fresh verification: 23/23 native CTests, 23/23 ASan/UBSan CTests with leak detection, 7/7 portable tests and packaging validation. The book-caption suite also runs with offscreen OpenGL. Switch checks verify AArch64, NRO/NACP developer/version, embedded fonts/CA store, exact source receipts and the installation ZIP.

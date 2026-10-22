@@ -1,4 +1,4 @@
-# CBZ and CBR comics — v0.12.0-reader.1
+# CBZ and CBR comics
 
 Copy `.cbz` or `.cbr` files into `sdmc:/switch/PaperNX/books/`, including
 subfolders, or open them directly through the SD browser. Extensions are case
@@ -7,6 +7,8 @@ history, journal, progress, bookmarks, cover caching and guarded deletion work a
 they do for existing books. Existing EPUB/PDF records and files remain compatible.
 
 ## Reading
+
+The bottom margin always shows the current comic page while tools are hidden. Tap the center to show `current of total • x%` in the same place. EPUB, PDF, CBZ and CBR share this footer; the seek bar appears above it with the toolbar.
 
 The bottom progress bar supports drag previews and one jump on release. The grid button opens All pages, Chapters and Bookmarks; comics default to the page grid. Full artwork previews ignore reading zoom and pan. Current pages and bookmarked pages are marked. ComicInfo Bookmark labels appear as chapter rows with thumbnails; plain archives can still be browsed page by page. See [page navigation](PAGE_NAVIGATION.md) for touch/controller controls, cancellation, Hebrew and rotation behavior.
 

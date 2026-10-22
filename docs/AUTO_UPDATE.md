@@ -1,7 +1,8 @@
 # Automatic updates — rtk19/PaperNx
 
-Install v0.12.0-reader.3 manually once. After that, PaperNX checks the fork in
-the background every time it starts. New versions show **Later**, **What's new**
+If your installed build already has **+ → Check for update**, use it to install
+0.13.0. Otherwise install the current NRO manually once. PaperNX checks the fork
+in the background every time it starts. New versions show **Later**, **What's new**
 and **Update**. No update or an offline startup leaves the reader available
 without a popup. Use **+ → Check for update** for an explicit result at any time;
 the action is at the end of the scrollable + menu.
@@ -17,16 +18,19 @@ manual upgrade to obtain the updater itself.
 
 The fixed source is
 `https://api.github.com/repos/rtk19/PaperNx/releases?per_page=30`.
-Published fork prereleases are included because this fork uses reader tags.
-Drafts and invalid tags are ignored. Complete semantic version precedence
-prevents downgrades and correctly orders `reader.10` after `reader.9`.
+New releases use plain semantic versions and normal GitHub releases: `0.13.0`,
+then `0.13.1` for a fix or `0.14.0` for a feature release. Git tags use the
+conventional `v` prefix, for example `v0.13.0`; application versions contain no
+suffix. Legacy prereleases remain readable for migration. Drafts and invalid
+tags are ignored. Complete semantic version precedence prevents downgrades and
+lets old `0.12.0-reader.*` builds recognize `0.13.0` as newer.
 
 Releases need a `PaperNX.nro` asset, its byte size, and either GitHub's SHA256
 asset digest or `PaperNX.nro.sha256`. The existing packaging/publication scripts
 produce these files. Only this repository's HTTPS release download URLs are
 accepted. Publish future releases after all assets have been uploaded; keep
 `APP_VERSION`, NACP and tag versions in sync. `/releases/latest` intentionally
-is not used because GitHub excludes prereleases there.
+is not used so older prerelease builds can continue to upgrade through the same endpoint.
 
 ## Installation
 

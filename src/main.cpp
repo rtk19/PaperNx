@@ -3201,7 +3201,6 @@ private:
         if (!currentErrorMessage_.empty() || !pageRenderError_.empty()) {
             settingsButton({36, h - 120, w - 72, 48},pageRenderError_.empty()?currentErrorMessage_:pageRenderError_,pal);
         }
-        if (comic() && !toolbarVisible_ && hintUntil_) settingsButton({w / 2 - 240, h - 62, 480, 48}, "Ortaya dokun: Araçlar ve Aa ayarları", pal);
         if (debugTouch_) settingsButton({36, 72, w - 72, 48}, lastTouchDebug_, pal);
         // Toolbar Overlays
         if (toolbarVisible_ || appSettings_.get().toolbar) {
@@ -3209,7 +3208,7 @@ private:
             ui::surface(renderer_, {0, 0, w, 72}, comic()?pal.card:pal.bg,0);
             if(!comic()) {
                 for(int i=0;i<4;++i)drawBookHeaderButton(i,w,pal);
-                drawBookCaption(bookChapterCaption(h),{232,0,std::max(1,w-464),72},pal);
+                drawReaderCaption(bookChapterCaption(h),{232,0,std::max(1,w-464),72},pal);
             } else {
             ui::button(renderer_,*typography_,{16,8,152,56},"Kitaplık",pal);
 
@@ -3225,7 +3224,7 @@ private:
 
             renderReaderNavigation(w,h,pal);
         }
-        if(doc_ && !comic())drawBookCaption(bookFooterCaption(w,h),{96,h-58,std::max(1,w-192),44},pal);
+        if(doc_)drawReaderCaption(readerFooterCaption(w,h),{96,h-58,std::max(1,w-192),44},pal);
     }
 
     void renderFileBrowserScreen(int w,int h,const ThemePalette &pal) {

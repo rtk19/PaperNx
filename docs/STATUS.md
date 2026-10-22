@@ -1,3 +1,7 @@
+# Fork update: 0.13.0
+
+The page footer is now shared by books and comics in every reading mode: a numeral with tools hidden; `current of total • x%` with tools shown. Both occupy the same empty bottom strip. Releases now use ordinary numeric versions without reader/comics suffixes: 0.13.0 for this addition, 0.13.1 for a later fix, 0.14.0 for a later feature. Automatic upgrades from the old versions remain supported. See [reader controls](PAGE_NAVIGATION.md) and [verification](TEST_RESULTS.md).
+
 # Fork update: v0.12.0-reader.4
 
 Book footer visibility now follows the requested interaction: current-page numeral with tools hidden; `current of total • x%` with tools visible. Both occupy the same existing bottom strip. Includes complete continuous-reading totals and final partial-screen completion. Automatic fork updates remain available. See [book controls](PAGE_NAVIGATION.md) and [verification](TEST_RESULTS.md).

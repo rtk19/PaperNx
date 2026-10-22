@@ -1,5 +1,5 @@
-// Book-only captions occupy the existing 72px chrome strips. They never
-// change document layout, page textures, curl geometry or comic controls.
+// Reader captions occupy the existing 72px chrome strips for every format.
+// Chapter progress and the compact header remain book-specific.
 std::string bookPageKey_;
 std::vector<int> bookPagePrefix_;
 
@@ -44,7 +44,7 @@ void cacheBookPageCounts(int w,int h,int through) {
     }
 }
 
-int bookPageNumber(int w,int h) {
+int readerPageNumber(int w,int h) {
     if(!continuous() || !px_document_is_epub(doc_))return currentPage_+1;
     cacheBookPageCounts(w,h,currentPage_+1);
     const int height=std::max(1,h-144);
@@ -55,16 +55,16 @@ int bookPageNumber(int w,int h) {
     return bookPagePrefix_[currentPage_]+within+1;
 }
 
-int bookPageCount(int w,int h) {
+int readerPageCount(int w,int h) {
     if(!continuous() || !px_document_is_epub(doc_))return std::max(1,pageCount_);
     cacheBookPageCounts(w,h,pageCount_);
     return std::max(1,bookPagePrefix_.back());
 }
 
-std::string bookFooterCaption(int w,int h) {
-    const int page=bookPageNumber(w,h);
+std::string readerFooterCaption(int w,int h) {
+    const int page=readerPageNumber(w,h);
     if(!toolbarVisible_ && !appSettings_.get().toolbar)return std::to_string(page);
-    const int total=bookPageCount(w,h);
+    const int total=readerPageCount(w,h);
     const int percent=std::clamp(int(std::lround(100.0*page/total)),0,100);
     return std::to_string(page)+ui::label(" of ")+std::to_string(total)+" • "+std::to_string(percent)+"%";
 }
@@ -96,7 +96,7 @@ int bookChapterPagesLeft(int h) {
     return std::max(0,int(std::ceil(remaining/std::max(1,h-144)))-1);
 }
 
-void drawBookCaption(const std::string &text,SDL_Rect area,const ThemePalette &pal) {
+void drawReaderCaption(const std::string &text,SDL_Rect area,const ThemePalette &pal) {
     int width=0,height=0;
     typography_->measureText(typography_->smallFont(),text,&width,&height,area.w);
     SDL_RenderSetClipRect(renderer_,&area);

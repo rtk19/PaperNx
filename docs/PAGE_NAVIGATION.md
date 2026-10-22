@@ -30,10 +30,10 @@ Thumbnails are lazy and use a separate MuPDF context on a worker thread. SDL upl
 
 Chapter outlines use the existing metadata capacity (256 entries); the page grid covers the document's complete page count. These are new navigation controls over the existing library, progress, bookmark and history records; no data reset or migration is required. Physical Switch appearance, touch latency and FPS require device testing.
 
-## Books: chapter and page captions
+## Chapter and page captions
 
 In EPUB/PDF books, tap the middle to show the toolbar. The top center shows pages left in the current chapter; it disappears when the toolbar is hidden (or remains with the existing always-visible-toolbar preference). The last page says “Last page in chapter”. Nested outline entries use the next sibling/ancestor boundary. Without an outline, EPUB uses its current spine item; PDF has no invented chapter caption.
 
-With the toolbar hidden, the bottom center shows only the current page numeral. With the toolbar visible, that same caption becomes `current of total • x%`, with percentage rounded from current / total. Both forms use the same small muted type. Both captions stay within the existing 72-pixel top/bottom strips and do not move or cover book text. Book header icons open the library, contents, bookmarks and Aa settings. The existing seek bar stays in the bottom strip above the numeral. Comic controls retain their labels, total count and original positions.
+In every format (EPUB, PDF, CBZ and CBR), the bottom center shows only the current page numeral while the toolbar is hidden. With the toolbar visible, that same caption becomes `current of total • x%`, with percentage rounded from current / total. Both forms use the same small muted type. Both captions stay within the existing 72-pixel top/bottom strips and do not move or cover book text. Book header icons open the library, contents, bookmarks and Aa settings. The existing seek bar stays in the bottom strip above the numeral. Comics share this same centered footer and the seek bar above it. Their original artwork, zoom, panning and page-order behavior remain.
 
 Paginated EPUB and PDF use the current document page. Continuous EPUB counts viewport-sized reading pages across spine items, recalculating after font/layout/orientation changes. Reflowable page numbers can change with reading settings.

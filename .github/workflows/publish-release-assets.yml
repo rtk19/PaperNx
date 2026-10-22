@@ -6,7 +6,7 @@ on:
       tag:
         description: Existing release tag with a matching builds/<tag> branch
         required: true
-        default: v0.12.0-reader.4
+        default: v0.13.0
         type: string
 
 permissions:
@@ -26,8 +26,8 @@ jobs:
     steps:
       - name: Check release tag
         run: |
-          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[a-z0-9.]+$ ]]; then
-            echo 'Expected a versioned fork prerelease tag' >&2
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Expected a semantic version tag such as v0.13.0' >&2
             exit 1
           fi
           gh release view "$RELEASE_TAG" --json tagName
