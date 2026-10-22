@@ -3225,7 +3225,7 @@ private:
 
             renderReaderNavigation(w,h,pal);
         }
-        if(doc_ && !comic())drawBookCaption(std::to_string(bookPageNumber(w,h)),{96,h-58,std::max(1,w-192),44},pal);
+        if(doc_ && !comic())drawBookCaption(bookFooterCaption(w,h),{96,h-58,std::max(1,w-192),44},pal);
     }
 
     void renderFileBrowserScreen(int w,int h,const ThemePalette &pal) {

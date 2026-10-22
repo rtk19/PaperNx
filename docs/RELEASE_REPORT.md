@@ -1,3 +1,9 @@
+# Fork release: v0.12.0-reader.4
+
+Corrects the book footer: only the current page is shown while the toolbar is hidden. Opening the toolbar replaces that caption with `current of total • x%` in the same position and type. The percentage is rounded from current / total. Continuous EPUB totals count reading screens, and the final partial screen reaches the final page and 100%. Content layout, chapter captions and comics keep their existing behavior.
+
+Available through the reader.3 automatic updater or [Release Assets](https://github.com/rtk19/PaperNx/releases/tag/v0.12.0-reader.4). NRO, installation ZIP, source, licenses, checksums and verification evidence are included. Developer: Refael Bar. Physical Switch acceptance remains unverified.
+
 # Fork release: v0.12.0-reader.3
 
 Adds automatic startup checks and **+ → Check for update** against rtk19/PaperNx. The updater includes fork prereleases, compares complete versions, shows release notes and streams the NRO with progress. HTTPS certificate, SHA256, size, NRO resources, application identity and version checks precede staging. Only the executable reported by the loader is eligible; books, settings and reading progress are untouched.

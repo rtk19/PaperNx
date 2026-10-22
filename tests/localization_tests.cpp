@@ -3,6 +3,8 @@
 #include <iostream>
 using papernx::localizeUiText;
 int main() {
+    assert(localizeUiText(" of ",0)==" / ");
+    assert(localizeUiText(" of ",1)==" of ");
     assert(localizeUiText("Check for update",0)=="Güncellemeleri denetle");
     assert(localizeUiText("Check for update",1)=="Check for update");
     assert(localizeUiText("Software update",0)=="Yazılım güncellemesi");

@@ -29,22 +29,44 @@ void drawBookHeaderButton(int index,int w,const ThemePalette &pal) {
     }
 }
 
-int bookPageNumber(int w,int h) {
-    if(!continuous() || !px_document_is_epub(doc_))return currentPage_+1;
+void cacheBookPageCounts(int w,int h,int through) {
     // A continuous EPUB uses one MuPDF page per spine item. Count screen-sized
     // reading pages instead of incorrectly displaying the chapter number.
     const auto key=currentBookId_+":"+std::to_string(w)+":"+std::to_string(h)+":"+
         std::to_string(layoutGeneration_)+":"+buildEpubCss();
     if(key!=bookPageKey_){bookPageKey_=key;bookPagePrefix_={0};}
     const int height=std::max(1,h-144);
-    while(int(bookPagePrefix_.size())<=currentPage_+1) {
+    through=std::clamp(through,0,pageCount_);
+    while(int(bookPagePrefix_.size())<=through) {
         const int page=int(bookPagePrefix_.size())-1;
         const int count=std::max(1,int(std::ceil(segmentHeight(page)/height)));
         bookPagePrefix_.push_back(bookPagePrefix_.back()+count);
     }
-    const int within=std::clamp(int(std::max(0.f,scrollY_)/height),0,
-        bookPagePrefix_[currentPage_+1]-bookPagePrefix_[currentPage_]-1);
+}
+
+int bookPageNumber(int w,int h) {
+    if(!continuous() || !px_document_is_epub(doc_))return currentPage_+1;
+    cacheBookPageCounts(w,h,currentPage_+1);
+    const int height=std::max(1,h-144);
+    const int lastWithin=bookPagePrefix_[currentPage_+1]-bookPagePrefix_[currentPage_]-1;
+    // The last partial screen cannot scroll to a full viewport boundary.
+    const bool atEnd=currentPage_+1==pageCount_ && scrollY_>=std::max(0.f,segmentHeight(currentPage_)-height)-.5f;
+    const int within=atEnd?lastWithin:std::clamp(int(std::max(0.f,scrollY_)/height),0,lastWithin);
     return bookPagePrefix_[currentPage_]+within+1;
+}
+
+int bookPageCount(int w,int h) {
+    if(!continuous() || !px_document_is_epub(doc_))return std::max(1,pageCount_);
+    cacheBookPageCounts(w,h,pageCount_);
+    return std::max(1,bookPagePrefix_.back());
+}
+
+std::string bookFooterCaption(int w,int h) {
+    const int page=bookPageNumber(w,h);
+    if(!toolbarVisible_ && !appSettings_.get().toolbar)return std::to_string(page);
+    const int total=bookPageCount(w,h);
+    const int percent=std::clamp(int(std::lround(100.0*page/total)),0,100);
+    return std::to_string(page)+ui::label(" of ")+std::to_string(total)+" • "+std::to_string(percent)+"%";
 }
 
 int bookChapterPagesLeft(int h) {

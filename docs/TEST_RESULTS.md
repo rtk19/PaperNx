@@ -1,3 +1,9 @@
+# Fork verification: v0.12.0-reader.4
+
+Fresh verification: 23/23 native CTests, 23/23 ASan/UBSan CTests with leak detection, 7/7 portable tests and packaging validation. The book-caption suite also runs with offscreen OpenGL. Switch checks verify AArch64, NRO/NACP developer/version, embedded fonts/CA store, exact source receipts and the installation ZIP.
+
+Book tests now check `current` while the toolbar is hidden and `current of total • x%` while visible, including the persistent-toolbar preference. They compare actual content pixels across middle taps, both portrait rotations, landscape and light/dark paper. Paginated/continuous EPUB, PDF, total screen-page counts, final-page 100% and comic isolation are covered. Captions stay in the existing empty strips. Physical Switch acceptance remains unverified; previous release evidence follows.
+
 # Fork verification: v0.12.0-reader.3
 
 Fresh verification: 23/23 native CTests, 23/23 ASan/UBSan CTests with leak detection, 7/7 portable tests, packaging tests and the updater UI with offscreen OpenGL. The final updater suites were repeated after adding rotated LS/RS modal controls. A live verified-TLS request against rtk19/PaperNx selected the real reader.2 prerelease from a reader.1 baseline.

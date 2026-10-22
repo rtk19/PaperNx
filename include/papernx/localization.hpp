@@ -10,6 +10,7 @@ inline std::string localizeUiText(const std::string &text, int language) {
     if (language != 1) {
         if (language == 0) {
             static constexpr Label enToTr[] = {
+                {" of ", " / "},
                 {"Check for update", "Güncellemeleri denetle"},
                 {"Software update", "Yazılım güncellemesi"},
                 {"What's new", "Yenilikler"},

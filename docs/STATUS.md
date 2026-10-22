@@ -1,3 +1,7 @@
+# Fork update: v0.12.0-reader.4
+
+Book footer visibility now follows the requested interaction: current-page numeral with tools hidden; `current of total • x%` with tools visible. Both occupy the same existing bottom strip. Includes complete continuous-reading totals and final partial-screen completion. Automatic fork updates remain available. See [book controls](PAGE_NAVIGATION.md) and [verification](TEST_RESULTS.md).
+
 # Fork update: v0.12.0-reader.3
 
 PaperNX now checks this fork on launch and through **+ → Check for update**. Version prompts, notes, verified streamed NRO downloads, deferred replacement and restart follow the NX-torrent-player interaction. Fork prereleases and numeric reader suffixes are supported. Existing reader/comic features remain. See [automatic updates](AUTO_UPDATE.md) and [verification](TEST_RESULTS.md). Physical Switch acceptance remains unverified.
