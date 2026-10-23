@@ -6,3 +6,5 @@ int px_comic_cover_page(fz_document *document);
 int px_comic_page_is_spread(fz_document *document,int page);
 int px_comic_toc(fz_context *ctx, fz_document *document, PxTocEntry *entries, int capacity);
 int px_comic_page_size(fz_context *ctx, fz_document *document, int page, float *width, float *height);
+
+int px_comic_remember_size(fz_document *document,int page,float width,float height);

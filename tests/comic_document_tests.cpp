@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <filesystem>
 
 static const std::string root="tests/fixtures/comics/";
 static void expectColor(const PxImage &image,int r,int g,int b) {
@@ -39,7 +40,24 @@ static void standard(const char *name) {
     doc=px_document_open((root+name).c_str(),600,720,22,"",error,sizeof error);
     assert(doc && px_document_lookup_bookmark(doc,mark)==2);px_document_close(doc);
 }
+// A physical forward pass must retain its archive stream/dictionary, rather
+// than reopening and replaying a solid prefix for every page. A missing path
+// makes any accidental reopen observable; backward failure must recover cleanly.
+static void streaming(const char *name,std::initializer_list<int> pages) {
+    namespace fs=std::filesystem;auto file=fs::temp_directory_path()/(std::string("papernx-stream-")+name);
+    auto held=file.string()+".held";fs::copy_file(root+name,file,fs::copy_options::overwrite_existing);
+    char error[512]{};auto *doc=px_document_open(file.c_str(),600,720,22,"",error,sizeof error);assert(doc);
+    PxImage image{};auto page=pages.begin();assert(px_document_render(doc,*page++,120,180,&image,error,sizeof error));px_image_free(&image);
+    fs::rename(file,held);
+    for(;page!=pages.end();++page){const int ok=px_document_render(doc,*page,120,180,&image,error,sizeof error);if(!ok)std::cerr<<"Streaming "<<name<<" page "<<*page<<": "<<error<<"\n";assert(ok);px_image_free(&image);}
+    assert(!px_document_render(doc,*pages.begin(),120,180,&image,error,sizeof error));assert(!image.rgb);
+    fs::rename(held,file);assert(px_document_render(doc,*pages.begin(),120,180,&image,error,sizeof error));px_image_free(&image);
+    px_document_close(doc);fs::remove(file);
+}
 int main() {
+    streaming("navigation.cbz",{0,1,2});
+    streaming("sample-rar5.cbr",{1,2,0});
+    streaming("sample-rar5-solid.cbr",{0,2,1});
     for(const char *name:{"sample.cbz","UPPER.CBZ","sample-rar4.cbr","sample-rar4-solid.cbr","sample-rar5.cbr","sample-rar5-solid.cbr","unsafe.cbz","zip-renamed.cbr","rar-renamed.cbz"})standard(name);
     char error[512]{};
     for(const char *name:{"empty.cbz","corrupt.cbz","corrupt.cbr","password.cbr","password.cbz","split-rar4.cbr","split-rar5.cbr"}) {

@@ -115,8 +115,10 @@ struct AppTest {
         rotatedControls(app);
         auto portrait=app.appSettings_.get();portrait.displayOrientation=1;app.appSettings_.put(portrait);
         app.setPdfView(0);app.zoomPdf(5);app.panVelocityX_=app.panVelocityY_=0;app.render();
-        app.idlePrefetch();app.comicDetailDue_=SDL_GetTicks()-1;app.idlePrefetch();
-        assert(app.comicDetailTexture_ && !app.comicDetailKey_.empty());
+        app.configureComicPages();app.comicDetailDue_=SDL_GetTicks()-1;app.refineComicZoom();
+        const auto detailDeadline=SDL_GetTicks()+10000;
+        while(!app.comicDetails_.count(app.currentPage_) && SDL_GetTicks()<detailDeadline){app.processComicPages();SDL_Delay(2);}
+        assert(app.comicDetails_.count(app.currentPage_));
         portrait.displayOrientation=0;app.appSettings_.put(portrait);app.setPdfView(0);app.zoomPdf(5);
         snapshot(app,"zoom-reset");
         int width,height;app.getWindowSize(width,height);const auto reset=app.zoomResetRect(width,height);

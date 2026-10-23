@@ -25,3 +25,6 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# Generated 43 MB performance archive (recreated with the bundled Python script).
+tests/fixtures/comics/performance-37.cbr

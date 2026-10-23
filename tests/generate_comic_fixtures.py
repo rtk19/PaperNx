@@ -36,6 +36,7 @@ def main():
     archive(ROOT/'smart-spreads.cbz',smart_pages+[('ComicInfo.xml',smart_info)])
     # Below the automatic wide-scan threshold, with visible empty space above
     # and below a facing pair. Exercises paper-only folds and bounded spines.
+    archive(ROOT/'high-resolution.cbz',[(f'p{i:02}.png',png(2048,3072,(45+i*12,110,180))) for i in range(8)])
     archive(ROOT/'paper-bounds.cbz',[(f'p{i}.png',png(360,320,(40+i*25,120,185))) for i in range(6)])
     archive(ROOT/'UPPER.CBZ',entries)
     archive(ROOT/'manga.cbz',pages+[('ComicInfo.xml',INFO.replace('<Manga>No</Manga>','<Manga>YesAndRightToLeft</Manga>').encode())])

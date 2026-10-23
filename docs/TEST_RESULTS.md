@@ -1,3 +1,9 @@
+# Fork verification: 0.17.2
+
+30 native tests and the same 30 under ASan/UBSan/leak detection now include a comic performance suite and a generated 37-page ~43.5 MB RAR5 fixture. Regression assertions cover zero UI-thread rasterizations during warmed toolbar/turn/pan/pinch operations, bounded base/detail textures, protected visible images, asynchronous refinement of both enlarged pages, stale-result cancellation and stopping a producer under back pressure. Warm rendering is exercised while the fixture's backing pathname is unavailable. Document tests verify persistent forward ZIP/RAR5 streams, solid dictionaries and backward/error recovery. Existing compressed/solid RAR4/RAR5, Hebrew, spreads, gestures, captions, settings, library, journal, updater and archive rejection checks remain active.
+
+Portable coverage remains 8 tests, with packaging validation. Extra offscreen OpenGL performance runs use generated 37-page compressed solid RAR4/RAR5 archives of approximately 43 MB, plus reader-input, spread and caption suites. [Performance details and measured reproduction](COMIC_PERFORMANCE.md) distinguish desktop results from unverified physical Switch timings. No real-device performance claim is made.
+
 # Fork verification: 0.17.1
 
 The 27-test native suite and the same 27 tests with ASan/UBSan/leak detection cover the restored menu flows and reader regressions. The remake-only experience suite is replaced by a reader-input suite sending real SDL events for English/Hebrew books at five heights in portrait and landscape. It verifies live/held/committed drags, visible button ownership including plus-button corners, comic margin contact, no release-only turn outside artwork, zoomed facing-page turns, actual paper bounds and no new image rasterizations after warming the next group. Original near-square comic fixtures expose gaps above/below the paper; pixel assertions reject a spine in those gaps and background-strip deformation around folios.

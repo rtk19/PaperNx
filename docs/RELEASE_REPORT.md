@@ -1,3 +1,9 @@
+# Fork release: 0.17.2
+
+Corrects comic stalls by separating bounded base/zoom images, protecting visible pages from speculative eviction, preparing directional neighbours and high-quality zoom surfaces on an independent worker, retaining forward ZIP/RAR5 archive streams and avoiding redundant input-event presents. Includes a smaller folio mesh while preserving the full paper curl. The 0.16 menus and all 0.17.1 reading features/data remain. See [comic performance and verification](COMIC_PERFORMANCE.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.17.2) provide the NRO, SD installation ZIP, corresponding source, licenses, hashes and test/build evidence. Developer: Refael Bar. Physical Switch acceptance remains unverified.
+
 # Fork release: 0.17.1
 
 A forward patch that rolls back external application/menu presentation to 0.16.0 and corrects comic paper bounds, centre spines, touch routing and preparation of neighbouring facing pages. The compact reading toolbar, prior reading layouts, Hebrew support, L/R direction, folios, zoom and animations remain. Book top/bottom drags now stay interactive outside visible controls. No stored-data migration or reset is introduced. See [implementation and verification details](READER_INPUT_FIXES.md).

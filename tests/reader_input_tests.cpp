@@ -57,6 +57,9 @@ struct AppTest {
         // Warm both pages in the next group; turning must reuse these textures.
         app.prefetchPage_=0;app.prefetchStep_=0;
         for(int i=0;i<4;++i){app.prefetchDue_=0;app.idlePrefetch();}
+        const auto warmDeadline=SDL_GetTicks()+10000;
+        while(app.comicPages_.pending() && SDL_GetTicks()<warmDeadline){app.processComicPages();SDL_Delay(2);}
+        app.processComicPages();assert(!app.comicPages_.pending());
         const auto decodes=app.comicTextureBuilds_;app.turnPage(1);
         assert(app.pageTurnAnimation_.active && app.pageTurnAnimation_.comicSheet);
         assert(app.comicTextureBuilds_==decodes);finish(app);

@@ -586,6 +586,10 @@ int main() {
         assert(cache.currentBytes() == 1024);
         assert(cache.put("second", texture(), 16, 16));
         assert(cache.count() == 1);
+        cache.clear();assert(cache.put("visible",texture(),16,16));auto *visible=cache.get("visible");
+        assert(!cache.put("prefetch",texture(),16,16,{"visible"}));
+        assert(cache.get("visible")==visible && cache.count()==1 && cache.currentBytes()==1024);
+        assert(cache.put("visible",texture(),16,16,{"visible"}));
         auto serif = PageCache::makeEpubKey("doc", 0, 22, 0, 140, 40, 0, 1280, 720, 0);
         auto sans = PageCache::makeEpubKey("doc", 0, 22, 0, 140, 40, 0, 1280, 720, 1);
         assert(serif != sans);

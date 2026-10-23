@@ -145,7 +145,7 @@ class PageCurlRenderer {
         static thread_local std::vector<Face> faces;
         static thread_local std::vector<SDL_Vertex> batch, highlights, shadows;
         faces.clear(); batch.clear(); highlights.clear(); shadows.clear();
-        constexpr int rows=32, curveColumns=32, tailColumns=8;
+        const int rows=inkOnly?2:32,curveColumns=inkOnly?16:32,tailColumns=inkOnly?2:8;
         faces.reserve(rows*(curveColumns+tailColumns)*3);
         auto addFace = [&](Point a, Point b, Point c, bool underside) {
             auto v0=fold.project(a,page,underside), v1=fold.project(b,page,underside), v2=fold.project(c,page,underside);
@@ -153,7 +153,7 @@ class PageCurlRenderer {
             if(underside && realBack)for(auto *v:{&v0,&v1,&v2})v->vertex.tex_coord.x=1.f-v->vertex.tex_coord.x;
             Face face{{v0.vertex,v1.vertex,v2.vertex},(v0.z+v1.z+v2.z)/3.f,underside,{}};
             const std::array<SurfacePoint,3> points{v0,v1,v2};
-            for(int i=0;i<3;++i) {
+            for(int i=0;!inkOnly && i<3;++i) {
                 const float rim=std::exp(-std::pow((points[i].theta-pi*.52f)*5.f,2.f));
                 face.shine[i]=Uint8(34.f*rim*std::sin(pi*fold.progress));
             }
@@ -216,7 +216,7 @@ class PageCurlRenderer {
             if(face.back!=side) {if(!flush()) return false;side=face.back;}
             for(int i=0;i<3;++i) {
                 auto ink=face.vertices[i];if(inkOnly)ink.color={255,255,255,255};batch.push_back(ink);
-                auto light=face.vertices[i]; light.color={255,250,235,face.shine[i]}; highlights.push_back(light);
+                if(!inkOnly){auto light=face.vertices[i]; light.color={255,250,235,face.shine[i]}; highlights.push_back(light);}
             }
         }
         return flush();

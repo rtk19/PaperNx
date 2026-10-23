@@ -94,7 +94,7 @@ SDL_Rect zoomTopRect(int w,int h) const {return {w-80,h-136,56,56};}
 void returnComicToTop() {
     cancelPageTurn();pdfPanY_=0;panVelocityX_=panVelocityY_=0;panInertiaY_=0;
     zoomFractionY_=0;zoomLastPage_=-1;
-    comicDetailTexture_.reset();comicDetailKey_.clear();gestureTracker_.reset();dirty_=true;
+    gestureTracker_.reset();dirty_=true;
 }
 void drawZoomTop(int w,int h,const ThemePalette &pal) {
     const auto r=zoomTopRect(w,h);ui::button(renderer_,*typography_,r,"",pal);

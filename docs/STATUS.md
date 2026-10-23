@@ -1,3 +1,7 @@
+# Fork update: 0.17.2
+
+Fixes comic texture-cache churn and synchronous neighbour work on the UI thread. Base pages stay within a separate resolution budget; directional preparation and two-page zoom sharpening run on a worker. Visible pages are protected, forward ZIP/RAR5 reads retain their stream, and input does not repeatedly present per queued event. Original 37-page CBR performance fixtures and streaming tests cover the regression. Reading features, data and 0.16 menus remain. See [performance](COMIC_PERFORMANCE.md). Switch timings remain unverified.
+
 # Fork update: 0.17.1
 
 Restores external application menus and screens to 0.16.0 while keeping the compact reading controls and reader features. Comic animations use actual paper bounds, margins establish contact before folding, zoomed pairs can turn, spines stop at artwork edges and both next-group images warm in the correct cache. Book drags from top/bottom margins remain interactive. Existing library, preferences and reading records are retained. See [interaction corrections](READER_INPUT_FIXES.md). Physical Switch acceptance remains unverified.
