@@ -1,3 +1,7 @@
+# Fork update: 0.16.0
+
+Modern menus, cards, settings, dialogs and journal use dark/light/follow-paper appearance with seven companion-player accents. Reading paper keeps its own style. Whole-folder import supports up to 32 additional scan roots, launch/manual asynchronous scans and an atomic disposable inventory. Hash-based merging and metadata-only EPUB opening reduce repeated work. In landscape, shoulder buttons follow the opened EPUB's reading direction: English R forward/L back, Hebrew L forward/R back. Portrait retains its existing shortcuts. See [menus and library](MODERN_LIBRARY.md).
+
 # Fork update: 0.15.0
 
 Reading-area expansion and landscape spreads are independent default-on settings with original-mode rollback. Comics gain a tight centre gutter, whole wide/ComicInfo double pages, cached local pairing, stable two-page zoom, pinch-centroid anchoring and up-arrow/Y return-to-top. Spread drag follows full-screen travel. See [reading layout](READER_SPREADS.md).

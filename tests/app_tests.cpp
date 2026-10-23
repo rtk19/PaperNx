@@ -12,6 +12,7 @@
 
 namespace {
 struct AppTest {
+#include "library_fixture_helpers.inc"
     // Workflow assertions describe settled pages. Dedicated curl tests exercise
     // intermediate frames and queued input with the animation still running.
     static void settlePageTurn(PaperNxApp &app) {
@@ -76,7 +77,7 @@ struct AppTest {
         SDL_FreeSurface(surface);
     }
     static void captureV03Screens(const fs::path &root) {
-        PaperNxApp app(root); assert(app.init());
+        PaperNxApp app(root); assert(initReady(app));
         snapshot(app,"v03-library-final");
         v03Plus(app); snapshot(app,"v03-plus-menu"); tap(app,.1f,.5f);
         v03Plus(app); v03MenuItem(app,0); snapshot(app,"v03-settings-final");
@@ -91,7 +92,7 @@ struct AppTest {
     }
     static void captureJournalScreens(const fs::path &root) {
         // Deterministic test fixture, never bundled as a user journal.
-        PaperNxApp app(root); assert(app.init());
+        PaperNxApp app(root); assert(initReady(app));
         assert(!app.books_.empty());
         const auto book = app.books_.front();
         app.journal_.registerBookAlias(book.id, "", book.title, book.author);
@@ -175,7 +176,7 @@ struct AppTest {
         app.appSettings_.put(resetPrefs);
     }
     static void continuousReading(const fs::path &root) {
-        PaperNxApp app(root); assert(app.init());
+        PaperNxApp app(root); assert(initReady(app));
         v03Plus(app); v03MenuItem(app,0); assert(app.globalSettings_ && app.screen_==ScreenState::AaModal);
         settingsTab(app,3); settingsControl(app,1); assert(app.extraStyle_.readingMode==1);
         closeSettings(app); assert(app.screen_==ScreenState::Library);
@@ -247,7 +248,7 @@ struct AppTest {
         y=app.scrollY_; page=app.currentPage_;
         app.closeBook();
         {
-            PaperNxApp reopened(root); assert(reopened.init()); reopened.openBook(epub);
+            PaperNxApp reopened(root); assert(initReady(reopened)); reopened.openBook(epub);
             assert(reopened.continuous() && reopened.extraStyle_.modeOverride==1);
             assert(reopened.currentPage_==page && std::abs(reopened.scrollY_-y)<1);
         }
@@ -258,7 +259,7 @@ struct AppTest {
         std::string epubId, pdfId;
         int savedPage;
         {
-            PaperNxApp app(root); assert(app.init()); assert(!app.controller_);
+            PaperNxApp app(root); assert(initReady(app)); assert(!app.controller_);
             auto epub = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });
             // Open first library card using only finger events.
             tap(app, .06f, .30f); assert(app.doc_ && app.screen_ == ScreenState::Reader);
@@ -356,7 +357,7 @@ struct AppTest {
             app.closeBook();
         }
         {
-            PaperNxApp restart(root); assert(restart.init());
+            PaperNxApp restart(root); assert(initReady(restart));
             auto epub = *std::find_if(restart.books_.begin(), restart.books_.end(), [&](const Book &b) { return b.id == epubId; });
             restart.openBook(epub); assert(restart.currentPage_ == savedPage);
             assert(restart.extraStyle_.textColor == 0x123456 && restart.extraStyle_.backgroundColor == 0xeeddbb);
@@ -371,7 +372,7 @@ struct AppTest {
         std::cout << "[PASS] Touch-only workflow elapsed_ms=" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() << "\n";
     }
     static void checkRestart(const fs::path &root) {
-        PaperNxApp app(root); assert(app.init());
+        PaperNxApp app(root); assert(initReady(app));
         assert(app.books_.size() == 3);
         auto epub = std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });
         assert(epub != app.books_.end() && epub->title.find("İstanbul") != std::string::npos);
@@ -381,7 +382,7 @@ struct AppTest {
     }
     static void run(const fs::path &root) {
         PaperNxApp app(root);
-        assert(app.init());
+        assert(initReady(app));
         assert(app.books_.size() == 2);
         int first = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 6, 21, 0);
         int second = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 6, 21, 0);

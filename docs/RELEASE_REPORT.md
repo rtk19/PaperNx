@@ -1,3 +1,9 @@
+# Fork release: 0.16.0
+
+The second requested release modernizes all menus through shared rounded controls, cards, elevated dialogs, switch rows, focus outlines and a cached accent background. Dark, light and follow-reading appearances and seven accents are independent of reading paper. New library-folder management adds whole folders, scans on launch or manually in a background worker, and loads an atomic inventory on subsequent launches. Deduplicated roots, hash-based batch merges and metadata-only EPUB indexing avoid repeated traversal and full pagination during indexing. Landscape R/L now follows the language/direction of each opened book, including Hebrew.
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.16.0) include the NRO, installation ZIP, exact tagged source, licenses, checksums and verification evidence. The first requested layout/comic release remains separately available as [0.15.0](https://github.com/rtk19/PaperNx/releases/tag/v0.15.0). Developer: Refael Bar. See [menus and library](MODERN_LIBRARY.md). Physical Switch acceptance remains unverified.
+
 # Fork release: 0.15.0
 
 Adds default-on controls for expanded reading area and landscape spreads, with independent return to the original modes. Comic artwork meets at a centre gutter; wide scans and ComicInfo double pages remain whole. Comic spread zoom keeps both pages, reuses fitted textures at the first pinch and anchors to the gesture centroid. The up-arrow or Y returns to the top without resetting zoom or horizontal position. Spread curls now use full-screen finger travel. See [layout details](READER_SPREADS.md).

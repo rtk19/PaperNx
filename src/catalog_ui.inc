@@ -287,7 +287,7 @@ bool handleCatalogEvent(const SDL_Event &e){
 void renderCatalogPanel(int w,int h,const ThemePalette &pal){
     if(catalogPanel_==CatalogPanel::None)return;
     SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer_,0,0,0,150);SDL_Rect full{0,0,w,h};SDL_RenderFillRect(renderer_,&full);
-    const auto r=catalogPanelRect(w,h);ui::surface(renderer_,r,pal.card,16);
+    const auto r=catalogPanelRect(w,h);ui::elevated(renderer_,r,pal);
     typography_->renderText(renderer_,typography_->titleFont(),catalogHeading(),r.x+20,r.y+18,pal.fg,r.w-160);
     ui::button(renderer_,*typography_,{r.x+r.w-124,r.y+12,108,56},catLabel("Geri","Back"),pal,false,false,true,false);
     // Persisted catalog errors must remain visible above the modal, not hidden under it.

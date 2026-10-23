@@ -250,7 +250,7 @@ void contentsTap(int x,int y,int w,int h) {
     for(int i=first;i<last;++i)if(ui::contains(tocCell(i,w,h),x,y)){activateContentsItem(i);return;}
 }
 void renderContents(int w,int h,const ThemePalette &pal) {
-    preparePagePreviews();ui::surface(renderer_,navigationPanel(w,h),pal.card,18);
+    preparePagePreviews();ui::elevated(renderer_,navigationPanel(w,h),pal);
     typography_->renderText(renderer_,typography_->titleFont(),ui::label("İçindekiler"),56,96,pal.fg,w-280);
     ui::button(renderer_,*typography_,{w-184,88,112,56},"Kapat",pal);
     const std::string tabs[]{catLabel("Bölümler","Chapters"),catLabel("Tüm sayfalar","All pages"),ui::label("Yer imleri")};

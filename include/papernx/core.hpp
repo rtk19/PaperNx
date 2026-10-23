@@ -11,8 +11,8 @@ namespace fs = std::filesystem;
 
 constexpr const char *APP_TITLE = "PaperNX";
 constexpr const char *APP_AUTHOR = "Refael Bar";
-constexpr const char *APP_VERSION = "0.15.0";
-constexpr const char *APP_VERSION_FULL = "0.15.0";
+constexpr const char *APP_VERSION = "0.16.0";
+constexpr const char *APP_VERSION_FULL = "0.16.0";
 
 enum class Format { Epub, Pdf, Cbz, Cbr, Unsupported };
 const char *formatName(Format format);
@@ -83,7 +83,8 @@ struct Progress : ReaderPreferences {
 Format detectFormat(const fs::path &path);
 std::string documentId(const std::string &path, std::uintmax_t size);
 std::string defaultTitle(const fs::path &path);
-std::vector<Book> scan(const fs::path &root, std::size_t maxBooks = 10000);
+std::vector<Book> scan(const fs::path &root, std::size_t maxBooks = 10000,
+                       const std::function<bool()> &cancel = {});
 
 // Unicode & Turkish Support
 std::string turkishCaseFold(const std::string &s);

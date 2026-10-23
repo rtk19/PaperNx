@@ -2,6 +2,7 @@
     float choiceScroll_{0.f};
     bool choiceDragging_{false},choiceTouchActive_{false};
     float choiceDragStartY_{0.f},choiceDragStartScroll_{0.f};
+    int selectedLibraryFolder_{-1};
 
     std::vector<std::string> choiceOptions() const {
         switch(choiceKind_) {
@@ -9,6 +10,10 @@
         case 1:return ui::language?std::vector<std::string>{"Landscape","Portrait clockwise","Portrait counterclockwise"}:std::vector<std::string>{"Yatay","Dikey: saat y\u00f6n\u00fc","Dikey: saat y\u00f6n\u00fcn\u00fcn tersi"};
         case 7:{std::vector<std::string> out;for(const auto &p:g_paperPresets)out.push_back(p.name);return out;}
         case 6:return ui::language?std::vector<std::string>{"Off","Soft paper","Natural paper"}:std::vector<std::string>{"Kapal\u0131","Yumu\u015fak ka\u011f\u0131t","Do\u011fal ka\u011f\u0131t"};
+        case 8:return {ui::label("Dark"),ui::label("Light"),ui::label("Follow reading theme")};
+        case 9:return {ui::label("Purple"),ui::label("Blue"),ui::label("Teal"),ui::label("Green"),ui::label("Orange"),ui::label("Red"),ui::label("Pink")};
+        case 10:{std::vector<std::string> out{ui::label("Add books folder"),ui::label("Scan all folders")};for(const auto &path:appSettings_.get().libraryFolders)out.push_back(path);return out;}
+        case 11:return {ui::label("Browse folder"),ui::label("Stop scanning this folder")};
         default:return {};
         }
     }
@@ -47,6 +52,21 @@
     }
     void commitChoice() {
         auto a=appSettings_.get();
+        if(choiceKind_==10) {
+            if(choiceIndex_>=2){selectedLibraryFolder_=choiceIndex_-2;openChoice(11,0);return;}
+            if(choiceIndex_==0){choiceKind_=-1;openBrowser();return;}
+            if(choiceIndex_==1)startLibraryScan();
+        }
+        if(choiceKind_==11 && selectedLibraryFolder_>=0 && selectedLibraryFolder_<int(a.libraryFolders.size())) {
+            if(choiceIndex_==0) {
+                const auto path=a.libraryFolders[selectedLibraryFolder_];choiceKind_=-1;openBrowser();browserPath_=fs::u8path(path);scanBrowserDirectory();return;
+            }
+            a.libraryFolders.erase(a.libraryFolders.begin()+selectedLibraryFolder_);appSettings_.put(a);persistAppSettings();
+        }
+        if(choiceKind_==8 || choiceKind_==9) {
+            if(choiceKind_==8)a.interfaceStyle=choiceIndex_;else a.interfaceAccent=choiceIndex_;
+            appSettings_.put(a);persistAppSettings();
+        }
         if(choiceKind_==0){currentFontFamily_=choiceIndex_;queueStyleChange();}
         if(choiceKind_==1){a.displayOrientation=choiceIndex_;appSettings_.put(a);pageCache_.clear();if(doc_ && px_document_is_epub(doc_)){++layoutGeneration_;layoutPending_=true;layoutDue_=SDL_GetTicks()+100;}else if(doc_)setPdfView(extraStyle_.pdfViewMode);}
         if(choiceKind_==7)applyGlobalPaperPreset(choiceIndex_);
@@ -124,7 +144,7 @@
             if(ui::contains(cr,x,y)){
                 int localY=y-cr.y+int(choiceScroll_);
                 int index=localY/56;
-                if(index>=0 && index<int(options.size()) && (localY%56)<52){
+                if(index>=0 && index<int(options.size()) && (localY%56)<56){
                     choiceIndex_=index;
                     choiceFocusedIndex_=index;
                     commitChoice();
@@ -154,8 +174,10 @@
     void renderChoices(int w,int h,const ThemePalette &pal) {
         if(choiceKind_<0)return;
         SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer_,0,0,0,150);SDL_Rect full{0,0,w,h};SDL_RenderFillRect(renderer_,&full);
-        auto box=choiceSheet(w,h);ui::surface(renderer_,box,pal.card,18);
-        typography_->renderText(renderer_,typography_->sectionFont(),ui::language?"Choose an option":"Bir se\u00e7enek se\u00e7in",box.x+24,box.y+16,pal.fg,box.w-48);
+        auto box=choiceSheet(w,h);ui::elevated(renderer_,box,pal);
+        const char *titles[]={"Yazı tipi","Ekran yönü","","","","","Paper texture","General theme","Interface appearance","Accent color","Book folders","Book folders"};
+        const std::string heading=choiceKind_>=0 && choiceKind_<12?ui::label(titles[choiceKind_]):ui::label("Choose an option");
+        typography_->renderText(renderer_,typography_->sectionFont(),heading,box.x+24,box.y+16,pal.fg,box.w-48);
         auto cr=choiceContentRect(w,h);
         SDL_RenderSetClipRect(renderer_,&cr);
         auto options=choiceOptions();
@@ -164,7 +186,7 @@
             if(itemY+56>=cr.y && itemY<=cr.y+cr.h){
                 bool isSelected=(i==choiceIndex_);
                 bool isFocused=(i==choiceFocusedIndex_);
-                ui::button(renderer_,*typography_,{cr.x,itemY,cr.w,52},options[i],pal,isSelected,false,false,isFocused);
+                ui::button(renderer_,*typography_,{cr.x,itemY,cr.w,56},options[i],pal,isSelected,false,false,isFocused);
             }
         }
         SDL_RenderSetClipRect(renderer_,nullptr);

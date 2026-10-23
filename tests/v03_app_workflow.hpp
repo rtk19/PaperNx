@@ -15,8 +15,8 @@ static void v03MenuItem(PaperNxApp &app,int index) {
     assert(app.quickMenu_); int w,h; app.getWindowSize(w,h);
     auto sheet=app.quickSheet(w,h);
     for(int attempt=0;attempt<8;++attempt) {
-        int y=sheet.y+44+index*60+28-int(app.quickScroll_);
-        if(y>=sheet.y+44 && y<sheet.y+sheet.h-4) {
+        int y=sheet.y+64+index*60+28-int(app.quickScroll_);
+        if(y>=sheet.y+64 && y<sheet.y+sheet.h-4) {
             v03RectTap(app,{sheet.x+20,y-20,sheet.w-40,40}); return;
         }
         v03Drag(app,float(sheet.x+sheet.w/2)/w,float(sheet.y+sheet.h-24)/h,float(sheet.y+100)/h);
@@ -93,7 +93,7 @@ static void v03Workflow(const fs::path &parent) {
     std::vector<double> menuMs,tabMs,cachedMs,coldMs;
     auto milliseconds=[](auto start) { return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count(); };
     {
-        PaperNxApp app(root); assert(app.init() && !app.controller_ && SDL_NumJoysticks()==0);
+        PaperNxApp app(root); assert(initReady(app) && !app.controller_ && SDL_NumJoysticks()==0);
         firstId=app.visibleBooks_[0].id; secondId=app.visibleBooks_[1].id;
         // Already-read fixtures deliberately have conflicting legacy appearances.
         for(int i=0;i<2;++i) {
@@ -212,7 +212,7 @@ static void v03Workflow(const fs::path &parent) {
         v03CloseSettings(app); snapshot(app,"v03-professional-library");
     }
     {
-        PaperNxApp app(root); assert(app.init() && !app.controller_);
+        PaperNxApp app(root); assert(initReady(app) && !app.controller_);
         assert(app.appSettings_.get().uiTheme==globalThemeAfterSelection);
         assert(app.appSettings_.get().language==0);
         v03OpenLibraryBook(app,secondId);
@@ -243,7 +243,7 @@ static void v03Workflow(const fs::path &parent) {
     }
     // Empty-library settings never require a MuPDF document.
     {
-        const auto empty=root/"empty"; PaperNxApp app(empty); assert(app.init() && app.books_.empty());
+        const auto empty=root/"empty"; PaperNxApp app(empty); assert(initReady(app) && app.books_.empty());
         v03Plus(app); v03MenuItem(app,0); v03Tab(app,2); v03Control(app,1,false); app.render();
         assert(!app.doc_ && app.currentTheme_==2); v03CloseSettings(app);
     }

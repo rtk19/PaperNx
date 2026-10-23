@@ -109,7 +109,7 @@ void renderUpdateDialog(int w,int h,const ThemePalette &pal) {
     if(!updateDialog_)return;
     const auto s=updater_->status();const auto panel=updatePanel(w,h);
     SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer_,0,0,0,160);SDL_Rect screen{0,0,w,h};SDL_RenderFillRect(renderer_,&screen);
-    ui::surface(renderer_,panel,pal.card,16);
+    ui::elevated(renderer_,panel,pal);
     typography_->renderText(renderer_,typography_->sectionFont(),ui::label(updateNotes_?"What's new":"Software update"),panel.x+24,panel.y+22,pal.fg,panel.w-48);
     const SDL_Rect body{panel.x+24,panel.y+76,panel.w-48,panel.h-176};
     std::string text;

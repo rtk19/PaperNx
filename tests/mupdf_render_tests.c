@@ -25,6 +25,16 @@ static void save_ppm(const char *path, const PxImage *img) {
 }
 
 int main(int argc, char **argv) {
+    {
+        char error[512],title[512],author[512];
+        PxDocument *metadata=px_document_open_metadata("tests/fixtures/sample_book.epub",error,sizeof error,16u*1024u*1024u);
+        assert(metadata && px_document_pages(metadata)==0);
+        assert(px_document_metadata(metadata,"info:Title",title,sizeof title)>0 && title[0]);
+        assert(px_document_metadata(metadata,"info:Author",author,sizeof author)>0 && author[0]);
+        px_document_close(metadata);
+        printf("[PASS] Metadata-only EPUB indexing without layout or pagination\n");
+    }
+
     const char *epub_path = "tests/fixtures/sample_book.epub";
     const char *pdf_path = "tests/fixtures/sample_doc.pdf";
     const char *corrupt_epub = "tests/fixtures/corrupt.epub";

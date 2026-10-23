@@ -1,3 +1,7 @@
+## Language-aware shoulder controls (0.16.0)
+
+In landscape, physical R advances an LTR book and goes back in an RTL Hebrew book; L does the reverse. Direction is resolved from each opened EPUB, rather than the interface language. Manga follows its selected reading direction too. The setting for enabling L/R page shortcuts still applies. Portrait preserves the earlier R-next/L-previous shortcuts. PageDown/PageUp match the shoulder buttons; ordinary directional controls continue to follow reading direction and display orientation.
+
 # Reading layout in 0.15.0
 
 Application settings now have **Expanded reading area** and **Two pages in landscape**. Both default On, including upgrades from older files. They are independently persisted. Turning off Expanded reading area restores the original MuPDF page margins and 72px bottom strip; turning off Two pages restores single-page landscape reading. Text anchors, bookmarks and reading preferences remain intact. Settings reset restores both defaults.

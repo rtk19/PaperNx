@@ -6,6 +6,7 @@
 
 namespace {
 struct AppTest {
+#include "library_fixture_helpers.inc"
     static void snapshot(PaperNxApp &app,const std::string &name) {
         app.render();
         SDL_Texture *target=SDL_GetRenderTarget(app.renderer_);
@@ -130,7 +131,7 @@ struct AppTest {
         app.tickPageTurn();
     }
     static void run(const fs::path &root) {
-        PaperNxApp app(root); assert(app.init());
+        PaperNxApp app(root); assert(initReady(app));
         // Single-leaf gesture regression; landscape spreads have a separate suite.
         SDL_SetWindowSize(app.window_,720,1280);
         SDL_RendererInfo driver{};SDL_GetRendererInfo(app.renderer_,&driver);

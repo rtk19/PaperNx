@@ -17,6 +17,10 @@ struct AppPreferences {
     int paperTexture{0}; // off, soft, natural; EPUB canvas only
     bool expandedViewport{true};
     bool landscapeSpreads{true};
+    int interfaceStyle{0}; // dark, light, follow reading palette
+    int interfaceAccent{0}; // purple, blue, teal, green, orange, red, pink
+    bool scanOnLaunch{true};
+    std::vector<std::string> libraryFolders;
     std::string defaultBrowserPath;
 };
 

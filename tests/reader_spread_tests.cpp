@@ -6,6 +6,7 @@
 
 namespace {
 struct AppTest {
+#include "library_fixture_helpers.inc"
     struct Shot {int w,h;std::vector<Uint32> pixels;};
     static Shot read(PaperNxApp &app,SDL_Texture *texture) {
         auto *target=SDL_GetRenderTarget(app.renderer_);
@@ -36,7 +37,7 @@ struct AppTest {
         return read(app,t.get());
     }
     static void run(const fs::path &root) {
-        PaperNxApp app(root);assert(app.init());ui::language=1;
+        PaperNxApp app(root);assert(initReady(app));ui::language=1;
         auto book=[&](const char *name){auto i=std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==name;});assert(i!=app.books_.end());return *i;};
         for(const char *name:{"english.epub","hebrew.epub","comic.cbz","comic.cbr","manga.cbz","single.cbz","sample.pdf","spread.pdf"}) {
             app.openBook(book(name));app.extraStyle_.readingMode=0;app.documentMode_=0;
@@ -136,6 +137,21 @@ struct AppTest {
         assert(app.buildEpubCss().find("@page")==std::string::npos);
         app.turnPage(1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==1);
         auto prefs=app.appSettings_.get();prefs.landscapeSpreads=prefs.expandedViewport=true;app.appSettings_.put(prefs);app.closeBook();
+        // Actual shoulder and keyboard events follow each newly opened book in landscape.
+        for(const char *name:{"hebrew.epub","english.epub","hebrew.epub"}) {
+            app.openBook(book(name));app.currentPage_=2;app.toolbarVisible_=false;
+            assert(app.pageCount_>4);const int direction=app.readingDirection();
+            for(bool controller:{true,false})for(bool right:{true,false}) {
+                app.currentPage_=2;SDL_Event e{};bool running=true;
+                if(controller){e.type=SDL_CONTROLLERBUTTONDOWN;e.cbutton.button=right?SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:SDL_CONTROLLER_BUTTON_LEFTSHOULDER;}
+                else {e.type=SDL_KEYDOWN;e.key.keysym.sym=right?SDLK_PAGEDOWN:SDLK_PAGEUP;}
+                app.handleEvent(e,running);assert(app.currentPage_==2+(right?2:-2)*direction);finish(app);
+            }
+            SDL_SetWindowSize(app.window_,720,1280);app.reflowEpub(24);app.currentPage_=2;
+            SDL_Event e{};e.type=SDL_CONTROLLERBUTTONDOWN;e.cbutton.button=SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;bool running=true;
+            app.handleEvent(e,running);assert(app.currentPage_==3);finish(app);
+            SDL_SetWindowSize(app.window_,1280,720);app.closeBook();
+        }
         // A live drag commits a spread, while returning the sheet cancels it.
         app.openBook(book("english.epub"));app.currentPage_=0;app.toolbarVisible_=false;
         app.beginPageTurnTouch(.9f,.5f,9);assert(app.movePageTurnTouch(.4f,.55f,9));

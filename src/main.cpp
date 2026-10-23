@@ -2,6 +2,7 @@
 #include "papernx/core.hpp"
 #include "papernx/mupdf_bridge.h"
 #include "papernx/theme.hpp"
+#include "papernx/interface_theme.hpp"
 #include "papernx/typography.hpp"
 #include "papernx/gestures.hpp"
 #include "papernx/page_cache.hpp"
@@ -22,6 +23,7 @@
 #include "papernx/reading_journal_ui.hpp"
 #include "papernx/cover_design.hpp"
 #include "papernx/self_update.hpp"
+#include "papernx/library_index.hpp"
 #include <cstring>
 
 #ifdef __SWITCH__
@@ -47,6 +49,8 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 using namespace papernx;
@@ -122,6 +126,7 @@ public:
           thumbCache_(32 * 1024 * 1024) {}
 
     ~PaperNxApp() {
+        libraryScanner_.stop();
         updater_->stop();
         pagePreviews_.stop();
         exportTimings();
@@ -147,6 +152,7 @@ public:
         pageCache_.clear();
         pagePreviewCache_.clear();
         thumbCache_.clear();
+        interfaceBackground_.reset();
         typography_.reset();
 
         if (controller_) {
@@ -206,23 +212,8 @@ public:
         ui::language=appSettings_.get().language;
         viewMode_=appSettings_.get().libraryLayout ? ViewMode::List : ViewMode::Grid;
         sort_=static_cast<Sort>(appSettings_.get().sort);
-        books_ = scan(root_ / "books");
-        for (const auto &[id, p] : progressStore_.all()) {
-            auto found = std::find_if(books_.begin(), books_.end(), [&](const Book &b) { return b.id == id; });
-            if (found != books_.end()) {
-                if (!p.bookTitle.empty()) found->title = p.bookTitle;
-                found->author = p.bookAuthor;
-            } else if (!p.bookPath.empty() && books_.size() < 10000) {
-                auto bytes = fs::file_size(fs::u8path(p.bookPath), ec);
-                if (!ec && detectFormat(fs::u8path(p.bookPath)) != Format::Unsupported && documentId(p.bookPath, bytes) == id) {
-                    Book b; b.id = id; b.path = p.bookPath; b.bytes = bytes;
-                    b.title = p.bookTitle.empty() ? defaultTitle(fs::u8path(b.path)) : p.bookTitle;
-                    b.author = p.bookAuthor; b.format = detectFormat(fs::u8path(b.path));
-                    books_.push_back(std::move(b));
-                }
-                ec.clear();
-            }
-        }
+        books_ = loadLibraryInventory(root_/"data"/"library-index.txt");
+        restoreLibraryLabels();
 
         SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
         window_ = SDL_CreateWindow("PaperNX", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -264,6 +255,7 @@ public:
         });
 
         updateVisibleBooks();
+        if(appSettings_.get().scanOnLaunch)startLibraryScan();
         dirty_ = true;
         return true;
     }
@@ -312,6 +304,7 @@ public:
             tickLibraryHold();
             tickReadingStats();
             processLayout();
+            processLibraryScan();
             if(exitRequested_) running=false;
             // Process any newly rendered background thumbnails
             processCompletedThumbnails();
@@ -575,7 +568,7 @@ private:
     }
     void collectBookMetadata(const Book &book,PxDocument *document=nullptr) {
         bool owned=document==nullptr;char error[256]{};
-        if(owned)document=px_document_open_limited(book.path.c_str(),160,220,16.f,"",error,sizeof error,isComic(book.format)?96u*1024u*1024u:16u*1024u*1024u);
+        if(owned)document=px_document_open_metadata(book.path.c_str(),error,sizeof error,isComic(book.format)?96u*1024u*1024u:16u*1024u*1024u);
         if(!document)return;
         char title[512]{},author[512]{},series[512]{},index[64]{};
         px_document_metadata(document,"info:Title",title,sizeof title);
@@ -659,15 +652,16 @@ private:
         std::vector<LoadedMetadata> metadata;
         {
             std::lock_guard<std::mutex> lock(completedMutex_);
-            const auto count=std::min<std::size_t>(2,completedMetadata_.size());
+            const auto count=std::min<std::size_t>(32,completedMetadata_.size());
             metadata.insert(metadata.end(),std::make_move_iterator(completedMetadata_.begin()),
                             std::make_move_iterator(completedMetadata_.begin()+count));
             completedMetadata_.erase(completedMetadata_.begin(),completedMetadata_.begin()+count);
         }
         bool metadataChanged=false;
+        if(libraryLookup_.size()!=books_.size())rebuildLibraryLookup();
         for(const auto &md:metadata) {
-            auto book=std::find_if(books_.begin(),books_.end(),[&](const Book &b){return b.id==md.id;});
-            if(book==books_.end())continue;
+            const auto found=libraryLookup_.find(md.id);if(found==libraryLookup_.end())continue;
+            const auto *book=&books_[found->second];
             auto entry=catalog_.get(md.id);
             const std::string fingerprint=std::to_string(book->bytes)+":"+std::to_string(book->modified)+":series-v1";
             if(entry.sourceTitle==md.title && entry.sourceAuthor==md.author &&
@@ -748,6 +742,10 @@ private:
         if(comicSpreadActive())return comicSpreadPages(a).first==comicSpreadPages(b).first;
         return readerLayout().spread && a/2==b/2;
     }
+    int shoulderPageDirection(bool right) {
+        int w,h;getWindowSize(w,h);
+        return (right?1:-1)*(w>h?readingDirection():1);
+    }
     void applyReaderLayoutOptions() {
         cancelPageTurn();pageCache_.clear();invalidatePagePreviews();
         comicDetailTexture_.reset();comicDetailKey_.clear();comicDetailWanted_.clear();
@@ -781,6 +779,24 @@ private:
         if(doc_ && !globalSettings_)
             return readerChromePalette(presentedStyle(),false,0,0);
         return readerChromePalette(progressStore_.get("PAPERNX_DEFAULTS"),false,0,0);
+    }
+    ThemePalette interfacePalette() const {
+        const auto &a=appSettings_.get();return modernInterfacePalette(palette(),a.interfaceStyle,a.interfaceAccent);
+    }
+    PageTurnTexture interfaceBackground_{nullptr,SDL_DestroyTexture};
+    int interfaceBackgroundHeight_{0},interfaceBackgroundStyle_{-1},interfaceBackgroundAccent_{-1};
+    Uint32 interfaceBackgroundColor_{0};
+    void interfaceBackground(int w,int h,const ThemePalette &pal) {
+        const auto &a=appSettings_.get();
+        const Uint32 color=(Uint32(pal.bg.r)<<16)|(Uint32(pal.bg.g)<<8)|pal.bg.b;
+        if(!interfaceBackground_ || interfaceBackgroundHeight_!=h || interfaceBackgroundStyle_!=a.interfaceStyle || interfaceBackgroundAccent_!=a.interfaceAccent || interfaceBackgroundColor_!=color) {
+            std::vector<Uint32> pixels(h);const auto top=blendColor(pal.bg,pal.accent,9);
+            for(int y=0;y<h;++y){auto c=blendColor(top,pal.bg,std::min(100,y*100/360));pixels[y]=0xff000000u|(Uint32(c.r)<<16)|(Uint32(c.g)<<8)|c.b;}
+            interfaceBackground_.reset(SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STATIC,1,h));
+            if(interfaceBackground_)SDL_UpdateTexture(interfaceBackground_.get(),nullptr,pixels.data(),4);
+            interfaceBackgroundColor_=color;interfaceBackgroundHeight_=h;interfaceBackgroundStyle_=a.interfaceStyle;interfaceBackgroundAccent_=a.interfaceAccent;
+        }
+        if(interfaceBackground_){SDL_Rect dst{0,0,w,h};SDL_RenderCopy(renderer_,interfaceBackground_.get(),nullptr,&dst);}
     }
     int globalPaperPresetIndex() const {
         const auto defaults=progressStore_.get("PAPERNX_DEFAULTS");
@@ -982,6 +998,7 @@ private:
     }
     std::vector<std::string> quickActions() const {
         auto actions=baseQuickActions();
+        if(!helpMenu_ && screen_==ScreenState::FileBrowser)actions.push_back(ui::label("Add this folder"));
         if(!helpMenu_)actions.push_back(ui::label("Check for update"));
         return actions;
     }
@@ -1007,7 +1024,7 @@ private:
             "Kitaplığı yenile","Yardım / dokunma rehberi","PaperNX’ten çık",catLabel("Yazarlar, türler ve koleksiyonlar","Authors, genres and collections"),catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait"),catLabel("Günlüğüm","My journal")};
     }
     SDL_Rect quickSheet(int w,int h) const {
-        int width=std::min(460,w-32),height=std::min(h-96,56+int(quickActions().size())*60);
+        int width=std::min(460,w-32),height=std::min(h-96,76+int(quickActions().size())*60);
         if(helpMenu_) height=std::min(560,h-96);
         return {w-width-16,80,width,height};
     }
@@ -1015,13 +1032,14 @@ private:
         auto r=quickSheet(w,h);
         if(helpMenu_ || !ui::contains(r,px,py)) { quickMenu_=helpMenu_=false; dirty_=true; return; }
         // Fixed header shortcut: visible without scrolling the long action list.
-        if(ui::contains({r.x+r.w-164,r.y+4,148,36},px,py)){
+        if(ui::contains({r.x+r.w-164,r.y+4,148,56},px,py)){
             quickMenu_=false;openChoice(1,appSettings_.get().displayOrientation);return;
         }
-        int index=int(py-r.y-44+quickScroll_)/60;
+        int index=int(py-r.y-64+quickScroll_)/60;
         auto actions=quickActions();
-        if(py<r.y+44 || index<0 || index>=int(actions.size())) return;
+        if(py<r.y+64 || index<0 || index>=int(actions.size())) return;
         std::string action=actions[index]; quickMenu_=false;
+        if(action==ui::label("Add this folder")){addBrowserFolder();return;}
         if(action==ui::label("Check for update")){checkForUpdate();return;}
         if(screen_==ScreenState::ReadingJournal){
             if(index==0){screen_=journalReturn_;dirty_=true;}
@@ -1064,7 +1082,7 @@ private:
             if(index==3) toggleSearch();
             if(index==4) { sort_=static_cast<Sort>((static_cast<int>(sort_)+1)%5); updateVisibleBooks(); persistAppSettings(); }
             if(index==5) { viewMode_=viewMode_==ViewMode::Grid?ViewMode::List:ViewMode::Grid; listScroll_=0; persistAppSettings(); }
-            if(index==6) { auto scanned=scan(root_/"books"); for(const auto &book:scanned) if(std::none_of(books_.begin(),books_.end(),[&](const Book &b){return b.id==book.id;})) books_.push_back(book); scheduleMetadataIndex();updateVisibleBooks(); }
+            if(index==6)startLibraryScan();
             if(index==7) quickMenu_=helpMenu_=true;
             if(index==8) exitRequested_=true;
             if(index==9)setCatalogPanel(CatalogPanel::Browse);
@@ -1072,9 +1090,9 @@ private:
         dirty_=true;
     }
     void renderQuickMenu(int w,int h,const ThemePalette &pal) {
-        auto r=quickSheet(w,h); ui::surface(renderer_,r,pal.card,16);
+        auto r=quickSheet(w,h); ui::elevated(renderer_,r,pal);
         typography_->renderText(renderer_,typography_->smallFont(),ui::label(helpMenu_?"DOKUNMA REHBERİ · Kapatmak için dokun":"HIZLI İŞLEMLER"),r.x+20,r.y+12,pal.muted,r.w-200);
-        if(!helpMenu_)ui::button(renderer_,*typography_,{r.x+r.w-164,r.y+4,148,36},
+        if(!helpMenu_)ui::button(renderer_,*typography_,{r.x+r.w-164,r.y+4,148,56},
                                  catLabel("Yatay / Dikey","Rotate"),pal);
         if(helpMenu_) {
             int y=r.y+58; int metadataLines=0;
@@ -1086,14 +1104,14 @@ private:
                 auto b=std::find_if(books_.begin(),books_.end(),[&](const Book &book){return book.id==currentBookId_;});
                 if(b!=books_.end()) { lines.insert(lines.begin(),b->title); ++metadataLines; if(!b->author.empty()) { lines.insert(lines.begin()+1,b->author); ++metadataLines; } }
             }
-            SDL_Rect clip{r.x+12,r.y+44,r.w-24,r.h-56}; SDL_RenderSetClipRect(renderer_,&clip);
+            SDL_Rect clip{r.x+12,r.y+64,r.w-24,r.h-76}; SDL_RenderSetClipRect(renderer_,&clip);
             int lineIndex=0;
             for(const auto &line:lines) { typography_->renderText(renderer_,typography_->smallFont(),lineIndex++<metadataLines?line:ui::label(line),r.x+20,y,pal.fg,r.w-40); y+=38; }
             SDL_RenderSetClipRect(renderer_,nullptr);
         } else {
-            SDL_Rect clip{r.x,r.y+44,r.w,r.h-44}; SDL_RenderSetClipRect(renderer_,&clip);
+            SDL_Rect clip{r.x,r.y+64,r.w,r.h-64}; SDL_RenderSetClipRect(renderer_,&clip);
             auto actions=quickActions(); for(int i=0;i<int(actions.size());++i)
-                ui::menuRow(renderer_,*typography_,{r.x+12,r.y+44+i*60-int(quickScroll_),r.w-24,56},actions[i],pal,false,i==quickFocus_);
+                ui::menuRow(renderer_,*typography_,{r.x+12,r.y+64+i*60-int(quickScroll_),r.w-24,56},actions[i],pal,false,i==quickFocus_);
             SDL_RenderSetClipRect(renderer_,nullptr);
         }
     }
@@ -1108,7 +1126,7 @@ private:
     }
     float maxUiScroll() {
         int w,h; getWindowSize(w,h);
-        if(quickMenu_) return std::max(0,int(quickActions().size())*60-(quickSheet(w,h).h-44));
+        if(quickMenu_) return std::max(0,int(quickActions().size())*60-(quickSheet(w,h).h-64));
         if(screen_==ScreenState::ReadingJournal) return float(journalUI_.maxScrollY());
         if(screen_==ScreenState::AaModal) return std::max(0,settingsRows()*64-ui::SettingsLayout(w,h).content.h);
         if(screen_==ScreenState::FileBrowser) return std::max(0,int(browserEntries_.size())*64-(h-128));
@@ -1238,6 +1256,12 @@ private:
     }
 
     void openBook(Book b) {
+        std::error_code statError;const auto bytes=fs::file_size(fs::u8path(b.path),statError);
+        if(!statError && bytes!=b.bytes) {
+            b.bytes=bytes;b.id=documentId(b.path,bytes);b.title=defaultTitle(fs::u8path(b.path));b.author.clear();
+            for(auto &entry:books_)if(entry.path==b.path){entry=b;break;}
+            rebuildLibraryLookup();updateVisibleBooks();
+        }
         clearHeldControls();
         closeBook();
         coversPaused_=true;
@@ -1613,6 +1637,7 @@ private:
 
     // Own page snapshots independently of the LRU cache. Mixed PDF page sizes
     // share a canvas, and rendering/prefetch cannot invalidate animation textures.
+    #include "library_scan.inc"
     #include "comic_spreads.inc"
     #include "reader_sheets.inc"
 
@@ -2150,6 +2175,7 @@ private:
     }
 
     void openBrowser() {
+        if(doc_)closeBook();
         globalSettings_=false; quickMenu_=false; listVelocity_=0;
 #ifdef __SWITCH__
         browserRoot_ = "sdmc:/";
@@ -2631,6 +2657,7 @@ private:
                 auto oldScroll=listScroll_; updateVisibleBooks(); listScroll_=std::clamp(oldScroll,0.f,maxUiScroll());
             } else openLibraryItem(idx);
         } else if (screen_ == ScreenState::FileBrowser) {
+            if(ui::contains(browserFolderButton(w),px,py)){addBrowserFolder();return;}
             if(py<80) {
                 if(px<180) { screen_=ScreenState::Library; dirty_=true; }
                 else if(px<w-100 && browserPath_!=browserRoot_) { browserPath_=browserPath_.parent_path(); scanBrowserDirectory(); }
@@ -2747,6 +2774,10 @@ private:
             dirty_=true; return;
         } else if(aaTab_==5) {
             auto p=appSettings_.get();
+            if(row==10){openChoice(10,0);return;}
+            if(row==12){startLibraryScan();return;}
+            if(row==13){openChoice(8,p.interfaceStyle);return;}
+            if(row==14){openChoice(9,p.interfaceAccent);return;}
             if(row==0){openChoice(7,globalPaperPresetIndex());return;}
             if(row==6){openChoice(1,p.displayOrientation);return;}
             if(row==7){openChoice(6,p.paperTexture);return;}
@@ -2762,6 +2793,7 @@ private:
             if(row==7) p.paperTexture=(p.paperTexture+1)%3;
             if(row==8) p.expandedViewport=!p.expandedViewport;
             if(row==9) p.landscapeSpreads=!p.landscapeSpreads;
+            if(row==11) p.scanOnLaunch=!p.scanOnLaunch;
             appSettings_.put(p); persistAppSettings();
             if(row==8 || row==9) {
                 applyReaderLayoutOptions();
@@ -2777,7 +2809,7 @@ private:
             panReaderBy(dx*64.f,dy*64.f);
         } else handleDirectional(dx,dy);
     }
-    int settingsRows() const { if(comic()) {if(aaTab_==0 || aaTab_==1)return 1;if(aaTab_==4)return 7;}const int rows[]={6,4,8,6,5,10}; return rows[aaTab_]; }
+    int settingsRows() const { if(comic()) {if(aaTab_==0 || aaTab_==1)return 1;if(aaTab_==4)return 7;}const int rows[]={6,4,8,6,5,15}; return rows[aaTab_]; }
     bool numericSetting() const { if(comic() && aaTab_==0)return false;return (aaTab_==0 && (aaRow_==0 || aaRow_==2 || aaRow_==3)) ||
         (aaTab_==1 && (aaRow_==0 || aaRow_==3)) || (aaTab_==3 && (aaRow_==2 || aaRow_==4)) || (aaTab_==4 && aaRow_==3); }
     void settingsActivate(int direction=1) {
@@ -2793,7 +2825,7 @@ private:
         if(screen_==ScreenState::JournalPreview)return;
         if(moveFocus(dx,dy))return;
         if(quickMenu_) { quickFocus_=std::clamp(quickFocus_+dy,0,std::max(0,int(quickActions().size())-1));
-            int w,h;getWindowSize(w,h);auto r=quickSheet(w,h);quickScroll_=std::clamp(float(quickFocus_*60-(r.h-104)),0.f,maxUiScroll());dirty_=true;return; }
+            int w,h;getWindowSize(w,h);auto r=quickSheet(w,h);quickScroll_=std::clamp(float(quickFocus_*60-(r.h-124)),0.f,maxUiScroll());dirty_=true;return; }
         if (screen_ == ScreenState::Reader) {
             if(dx) { if(continuous()) chapterJump(dx*readingDirection()); else turnPage(dx*readingDirection()); }
             else if(continuous()) { scrollBy(dy*80.f); saveCurrentPosition(); }
@@ -2897,7 +2929,7 @@ private:
         }
 
         if (match(SDLK_RETURN, SDL_CONTROLLER_BUTTON_A)) {
-            if(quickMenu_){int w,h;getWindowSize(w,h);auto rc=quickSheet(w,h);handleQuickMenuTap(rc.x+28,rc.y+44+quickFocus_*60-int(quickScroll_)+24,w,h);return;}
+            if(quickMenu_){int w,h;getWindowSize(w,h);auto rc=quickSheet(w,h);handleQuickMenuTap(rc.x+28,rc.y+64+quickFocus_*60-int(quickScroll_)+24,w,h);return;}
             if(screen_==ScreenState::JournalPreview){enterJournal(true);return;}
             if(screen_==ScreenState::ReadingJournal){journalAction(journalUI_.activate(0,0,journal_));return;}
             if(activateFocus())return;
@@ -2938,8 +2970,8 @@ private:
         }
 
         if (screen_ == ScreenState::Reader) {
-            if (match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) { if(appSettings_.get().shoulderPageTurns)turnPage(1); return; }
-            if (match(SDLK_PAGEUP, SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) { if(appSettings_.get().shoulderPageTurns)turnPage(-1); return; }
+            if (match(SDLK_PAGEDOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) { if(appSettings_.get().shoulderPageTurns)turnPage(shoulderPageDirection(true)); return; }
+            if (match(SDLK_PAGEUP, SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) { if(appSettings_.get().shoulderPageTurns)turnPage(shoulderPageDirection(false)); return; }
             if (!px_document_is_epub(doc_)) {
                 if (!pad && (key == SDLK_EQUALS || key == SDLK_PLUS)) { zoomPdf(pdfZoom_ + 0.25f); return; }
                 if (!pad && key == SDLK_MINUS) { zoomPdf(pdfZoom_ - 0.25f); return; }
@@ -2974,6 +3006,7 @@ private:
             handleDirectional(0, -1);
         }
 
+        if(screen_==ScreenState::FileBrowser && !quickMenu_ && match(SDLK_y,SDL_CONTROLLER_BUTTON_Y)){addBrowserFolder();return;}
         // Shortcuts
         if (screen_ == ScreenState::Reader) {
             if (match(SDLK_x, SDL_CONTROLLER_BUTTON_X)) { openContents(); }
@@ -3019,10 +3052,11 @@ private:
     void render() {
         pollUpdates();
         trace("frame_begin");
-        processPagePreviews();tickPageNavigation();
+        processLibraryScan();processPagePreviews();tickPageNavigation();
         int w = 1280, h = 720;
         getWindowSize(w, h);
-        const auto &pal = palette();
+        const auto readingPal=palette();
+        const auto pal=interfacePalette();
         const int rotation=appSettings_.get().displayOrientation;
         if(rotation) {
             if(!orientationTarget_ || orientationWidth_!=w || orientationHeight_!=h) {
@@ -3040,25 +3074,27 @@ private:
         }
         // Exactly the same resolved background feeds both the page surround
         // and all chrome in this frame (including during asynchronous reflow).
-        SDL_Color canvas=pal.bg;
+        const bool paper=doc_ && screen_!=ScreenState::Library && screen_!=ScreenState::FileBrowser && screen_!=ScreenState::ReadingJournal && !globalSettings_;
+        SDL_Color canvas=paper?readingPal.bg:pal.bg;
         SDL_SetRenderDrawColor(renderer_, canvas.r, canvas.g, canvas.b, 255);
         SDL_RenderClear(renderer_);
+        if(!paper)interfaceBackground(w,h,pal);
 
         if (screen_ == ScreenState::ReadingJournal) {
             journalUI_.setScrollY(int(journalScroll_));
             journalUI_.render(renderer_,*typography_,pal,journal_,progressStore_,catalog_,w,h,ui::language==1);
         } else if(screen_==ScreenState::JournalPreview) {
-            renderReaderScreen(w,h,pal);
+            renderReaderScreen(w,h,readingPal);
             journalUI_.renderPreview(renderer_,*typography_,pal,journal_,currentBookId_,w,h,ui::language==1);
         } else if (screen_ == ScreenState::Library) {
             renderLibraryScreen(w, h, pal);
         } else if (screen_ == ScreenState::Reader) {
-            renderReaderScreen(w, h, pal);
+            renderReaderScreen(w, h, readingPal);
         } else if (screen_ == ScreenState::FileBrowser) {
             renderFileBrowserScreen(w, h, pal);
         } else if (screen_ == ScreenState::AaModal || screen_ == ScreenState::TocModal || screen_ == ScreenState::BookmarksModal) {
             // Keep the reader page rendered in the background!
-            if(globalSettings_) renderLibraryScreen(w,h,pal); else renderReaderScreen(w, h, pal);
+            if(globalSettings_) renderLibraryScreen(w,h,pal); else renderReaderScreen(w, h, readingPal);
 
             // Draw dimming backdrop scrim
             SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
@@ -3083,7 +3119,7 @@ private:
         renderCatalogPanel(w,h,pal);
         if(colorEditing_<0 && choiceKind_<0)paintFocus();
         if(colorEditing_>=0) {
-            auto panel=colorPanel(w,h);ui::surface(renderer_,panel,pal.card,16);
+            auto panel=colorPanel(w,h);ui::elevated(renderer_,panel,pal);
             typography_->renderText(renderer_,typography_->titleFont(),ui::label(colorEditing_?"Arka plan rengi":"Metin rengi"),panel.x+24,panel.y+16,pal.fg);
             int cell=(panel.w-48)/4;
             for(int i=0;i<16;++i) {
@@ -3169,16 +3205,17 @@ private:
         for(int i=0;i<6;++i) ui::button(renderer_,*typography_,categoryRect(i,w),cats[i],pal,static_cast<int>(category_)==i);
         ui::LibraryLayout l(w);
         if(visibleBooks_.empty()) {
-            SDL_Rect empty{32,l.top+16,w-64,std::min(260,h-l.top-48)}; ui::surface(renderer_,empty,pal.card);
-            typography_->renderText(renderer_,typography_->titleFont(),ui::label(libraryEmptyMessage()),empty.x+24,empty.y+28,pal.fg,empty.w-48);
+            SDL_Rect empty{32,l.top+16,w-64,std::min(260,h-l.top-48)}; ui::elevated(renderer_,empty,pal);
+            typography_->renderText(renderer_,typography_->titleFont(),ui::label(libraryScanner_.pending()?"Finding your books...":libraryEmptyMessage()),empty.x+24,empty.y+28,pal.fg,empty.w-48);
             typography_->renderText(renderer_,typography_->uiFont(),(books_.empty()?catLabel("SD’den EPUB, PDF, CBZ ve CBR açın.","Browse SD for EPUB, PDF, CBZ and CBR books."):ui::label("Başka bir kategori seçin veya aramanızı temizleyin.")),empty.x+24,empty.y+96,pal.muted,empty.w-48);
-            if(books_.empty()) ui::button(renderer_,*typography_,{empty.x+24,empty.y+empty.h-72,260,56},"SD’ye gözat / kitap aç",pal,true);
+            if(books_.empty()) ui::button(renderer_,*typography_,{empty.x+24,empty.y+empty.h-72,260,56},ui::label("Add books folder"),pal,true);
         } else {
             if(screen_==ScreenState::Library) prioritizeCovers(w,h);
             SDL_Rect clip{0,l.top,w,h-l.top-28}; SDL_RenderSetClipRect(renderer_,&clip);
             if(viewMode_==ViewMode::Grid) renderGrid(w,h,pal); else renderList(w,h,pal);
             SDL_RenderSetClipRect(renderer_,nullptr);
         }
+        if(libraryScanner_.pending())typography_->renderText(renderer_,typography_->smallFont(),ui::label("Scanning library..."),32,h-56,pal.accent,w-64);
         if(!currentErrorMessage_.empty()) ui::button(renderer_,*typography_,{32,h-96,w-64,56},currentErrorMessage_,pal);
         typography_->renderText(renderer_,typography_->smallFont(),(std::to_string(visibleBooks_.size())+(seriesShelves_.empty()?catLabel(" kitap · "," books · "):catLabel(" öğe · "," items · "))+"EPUB · PDF · CBZ · CBR"+catLabel(" · Çevrimdışı"," · Offline"))+" · "+APP_VERSION_FULL,32,h-25,pal.muted,w-64);
     }
@@ -3191,7 +3228,8 @@ private:
             auto p=progressStore_.get(visibleBooks_[i].id);
             SDL_Rect card{x,y,l.cardWidth,l.cardHeight};
             bool pressed=ui::pointerDown && ui::contains(card,ui::pointerX,ui::pointerY);
-            ui::surface(renderer_,card,pressed?pal.cardBorder:pal.header);
+            ui::elevated(renderer_,card,pal);
+            if(pressed)ui::surface(renderer_,card,pal.header);
 
             drawCover(visibleBooks_[i],{x+10,y+10,l.cardWidth-20,206},pal);
             renderBookTitle(libraryItemTitle(visibleBooks_[i]),{x+12,y+228,l.cardWidth-24,56},pal.fg);
@@ -3206,7 +3244,7 @@ private:
             int y=l.top+i*112-int(listScroll_); if(y>=h-28) break;
             const auto &b=visibleBooks_[i]; auto p=progressStore_.get(b.id);
             SDL_Rect card{32,y,w-64,104};
-            ui::surface(renderer_,card,ui::pointerDown && ui::contains(card,ui::pointerX,ui::pointerY)?pal.cardBorder:pal.card);
+            ui::elevated(renderer_,card,pal);
 
             drawCover(b,{40,y+6,66,92},pal);
             typography_->renderText(renderer_,typography_->uiFont(),libraryItemTitle(b),126,y+14,pal.fg,w-310);
@@ -3282,6 +3320,7 @@ private:
         ui::surface(renderer_,{0,0,w,88},pal.card,0);
         ui::button(renderer_,*typography_,{24,16,152,56},"Kitaplık",pal);
         ui::button(renderer_,*typography_,{192,16,168,56},"Üst klasör",pal);
+        ui::button(renderer_,*typography_,browserFolderButton(w),ui::label("Add this folder"),pal,true);
         typography_->renderText(renderer_,typography_->smallFont(),browserPath_.u8string(),32,90,pal.muted,w-64);
         SDL_Rect clip{24,112,w-48,h-128}; SDL_RenderSetClipRect(renderer_,&clip);
         int first=int(browserScroll_/64);
@@ -3298,13 +3337,14 @@ private:
     void renderAaModal(int w, int h, const ThemePalette &pal) {
         trace("settings_draw");
         ui::SettingsLayout l(w,h);
-        ui::surface(renderer_,l.sheet,pal.card,18);
+        ui::elevated(renderer_,l.sheet,pal);
+        ui::surface(renderer_,{l.sheet.x+8,l.sheet.y+72,l.sidebar,l.sheet.h-88},pal.bg,14);
         typography_->renderText(renderer_,typography_->titleFont(),ui::label("Okuma ve görünüm"),l.sheet.x+24,l.sheet.y+16,pal.fg);
         ui::button(renderer_,*typography_,l.close,"Kapat",pal);
         const char *tabs[]={"Okuma","Sayfa düzeni","Görünüm","Navigasyon","PDF","Uygulama"};
         if(comic()) {tabs[0]=ui::language?"Artwork":"Çizimler";tabs[1]=ui::language?"Borders":"Kenarlar";tabs[4]=ui::language?"Page view":"Sayfa görünümü";}
         for(int i=0;i<6;++i) ui::button(renderer_,*typography_,l.tab(i),tabs[i],pal,aaTab_==i);
-        std::string scope=globalSettings_||!doc_?"Genel tema · Kitaplığa uygulanır":
+        std::string scope=globalSettings_||!doc_?ui::label("Default reading style · Applies to books"):
             extraStyle_.styleOverride?"Bu kitabın teması · Genel temaya dön":"Genel temayı kullanıyor · Bu kitabı özelleştir";
         ui::button(renderer_,*typography_,l.scope,scope,pal,doc_ && extraStyle_.styleOverride);
         auto row=[&](int n,const std::string &label,bool selected=false) {
@@ -3315,9 +3355,7 @@ private:
             auto split=text.find(": ");
             if(numeric && split!=std::string::npos) ui::settingsRow(renderer_,*typography_,r,text.substr(0,split),text.substr(split+2),pal,false,settingsEditing_ && n==aaRow_);
             else {
-                ui::surface(renderer_,r,selected?pal.header:pal.bg,10);
-                typography_->renderText(renderer_,typography_->uiFont(),ui::label(text),r.x+16,r.y+16,pal.fg,r.w-32);
-
+                ui::preferenceRow(renderer_,*typography_,r,text,pal,selected);
             }
         };
         const char *families[]={"Serif","Sans","Yayıncı"};
@@ -3386,9 +3424,23 @@ private:
             row(7,std::string(ui::language?"Paper texture: ":"Kağıt dokusu: ")+(ui::language?textureEn:textureTr)[p.paperTexture]);
             row(8,ui::label("Expanded reading area")+": "+ui::label(p.expandedViewport?"On":"Off"));
             row(9,ui::label("Two pages in landscape")+": "+ui::label(p.landscapeSpreads?"On":"Off"));
+            row(10,ui::label("Book folders")+": "+std::to_string(p.libraryFolders.size()+1));
+            row(11,ui::label("Scan on launch")+": "+ui::label(p.scanOnLaunch?"On":"Off"));
+            row(12,ui::label(libraryScanner_.pending()?"Scanning library...":"Scan library now"));
+            const char *styles[]={"Dark","Light","Follow reading theme"};
+            const char *accents[]={"Purple","Blue","Teal","Green","Orange","Red","Pink"};
+            row(13,ui::label("Interface appearance")+": "+ui::label(styles[p.interfaceStyle]));
+            row(14,ui::label("Accent color")+": "+ui::label(accents[p.interfaceAccent]));
 
         }
         SDL_RenderSetClipRect(renderer_,nullptr);
+        const float maxScroll=maxUiScroll();
+        if(maxScroll>0) {
+            const int thumb=std::max(32,int(float(l.content.h*l.content.h)/(settingsRows()*64)));
+            const int y=l.content.y+int(settingsScroll_/maxScroll*(l.content.h-thumb));
+            ui::surface(renderer_,{l.content.x+l.content.w+8,l.content.y,4,l.content.h},pal.header,2);
+            ui::surface(renderer_,{l.content.x+l.content.w+8,y,4,thumb},pal.accent,2);
+        }
         if(l.preview.w && (!doc_ || px_document_is_epub(doc_))) {
             auto rp=g_palettes[std::clamp(currentTheme_,0,5)];
             rp.bg=readingColor(extraStyle_.backgroundColor,rp.bg); rp.fg=readingColor(extraStyle_.textColor,rp.fg);
@@ -3417,13 +3469,12 @@ private:
     }
 
     void settingsButton(SDL_Rect r, const std::string &label, const ThemePalette &pal) {
-        typography_->drawBox(renderer_, r, pal.bg, pal.cardBorder);
-        typography_->renderText(renderer_, typography_->smallFont(), ui::label(label), r.x + 12, r.y + 12, pal.fg, r.w - 24);
+        ui::menuRow(renderer_,*typography_,r,label,pal);
     }
 
     void renderTocModal(int w,int h,const ThemePalette &pal) {renderContents(w,h,pal);}
     void renderBookmarksModal(int w,int h,const ThemePalette &pal) {
-        auto r=navigationPanel(w,h); ui::surface(renderer_,r,pal.card,18);
+        auto r=navigationPanel(w,h); ui::elevated(renderer_,r,pal);
         typography_->renderText(renderer_,typography_->titleFont(),ui::label("Yer imleri"),56,96,pal.fg);
         ui::button(renderer_,*typography_,{w-184,88,112,56},"Kapat",pal);
         ui::button(renderer_,*typography_,{48,h-112,w-96,56},"Bu konuma yer imi ekle / kaldır",pal,true);

@@ -6,6 +6,7 @@
 
 namespace {
 struct AppTest {
+#include "library_fixture_helpers.inc"
     struct Shot {int w,h;std::vector<Uint32> pixels;};
     static Shot snapshot(PaperNxApp &app,const std::string &name) {
         app.render();auto *target=SDL_GetRenderTarget(app.renderer_);
@@ -33,7 +34,7 @@ struct AppTest {
         return std::to_string(first)+(last>first?"–"+std::to_string(last):"")+" of "+std::to_string(total)+" • "+std::to_string(int(std::lround(100.0*last/total)))+"%";
     }
     static void run(const fs::path &root) {
-        PaperNxApp app(root);assert(app.init());ui::language=1;
+        PaperNxApp app(root);assert(initReady(app));ui::language=1;
         auto book=[&](const char *name){auto it=std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==name;});assert(it!=app.books_.end());return *it;};
         app.openBook(book("hebrew.epub"));
         for(int orientation:{0,1,2})for(int theme:{0,5}) {

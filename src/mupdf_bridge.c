@@ -135,7 +135,7 @@ static void set_css_policy(PxDocument *d,const char *css) {
     fz_set_use_document_css(d->ctx,strstr(value,"/*papernx-reader-controlled*/")==NULL);
 }
 
-PxDocument *px_document_open_limited(const char *path, int w, int h, float em, const char *css, char *err, int cap, size_t memory_limit) {
+static PxDocument *open_document_impl(const char *path, int w, int h, float em, const char *css, char *err, int cap, size_t memory_limit,int metadata_only) {
     if (!path || !path[0]) {
         report(err, cap, "Invalid document path");
         return NULL;
@@ -173,15 +173,17 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
             fz_throw(d->ctx, FZ_ERROR_GENERIC, "Password-protected documents are not supported");
         }
         d->epub = fz_is_document_reflowable(d->ctx, d->doc);
-        if (d->epub) {
+        if (d->epub && !metadata_only) {
             set_css_policy(d,css);
             float layout_w = (w > 100) ? (float)w : 1180.0f;
             float layout_h = h == 0 ? 0 : (h > 100 ? (float)h : 600.0f);
             float layout_em = (em > 8.0f) ? em : 22.0f;
             fz_layout_document(d->ctx, d->doc, layout_w, layout_h, layout_em);
         }
-        d->pages = fz_count_pages(d->ctx, d->doc);
-        if(d->pages<=0)fz_throw(d->ctx,FZ_ERROR_GENERIC,"Document contains no readable pages");
+        if(!metadata_only) {
+            d->pages = fz_count_pages(d->ctx, d->doc);
+            if(d->pages<=0)fz_throw(d->ctx,FZ_ERROR_GENERIC,"Document contains no readable pages");
+        }
     }
     fz_catch(d->ctx) {
         report(err, cap, fz_caught_message(d->ctx));
@@ -191,6 +193,13 @@ PxDocument *px_document_open_limited(const char *path, int w, int h, float em, c
 
     if (d->epub) load_epub_extras(d);
     return d;
+}
+
+PxDocument *px_document_open_limited(const char *path,int w,int h,float em,const char *css,char *err,int cap,size_t memory_limit) {
+    return open_document_impl(path,w,h,em,css,err,cap,memory_limit,0);
+}
+PxDocument *px_document_open_metadata(const char *path,char *err,int cap,size_t memory_limit) {
+    return open_document_impl(path,0,0,16.f,"",err,cap,memory_limit,1);
 }
 
 int px_document_pages(PxDocument *d) {

@@ -29,16 +29,26 @@ inline void surface(SDL_Renderer *r, SDL_Rect rect, SDL_Color color, int corner=
     }
 }
 inline void focusRing(SDL_Renderer *r,SDL_Rect rect,const ThemePalette &pal,bool editing=false) {
-    // Two contrasting outlines stay visible on selected accent fills and on
-    // surrounding surfaces. Shape communicates focus independently of hue.
-    SDL_SetRenderDrawColor(r,pal.bg.r,pal.bg.g,pal.bg.b,255);
-    SDL_Rect outer{rect.x-1,rect.y-1,rect.w+2,rect.h+2}; SDL_RenderDrawRect(r,&outer);
-    auto color=editing?pal.accent:pal.fg;
+    auto color=pal.accent;
     SDL_SetRenderDrawColor(r,color.r,color.g,color.b,255);
     for(int i=0;i<Tokens::focusBorder;++i) {
-        SDL_Rect edge{rect.x+i,rect.y+i,rect.w-2*i,rect.h-2*i}; SDL_RenderDrawRect(r,&edge);
+        const int radius=std::min({14,rect.w/2,rect.h/2});SDL_Point points[37];int n=0;
+        const int xs[]={rect.x+rect.w-radius-i,rect.x+radius+i,rect.x+radius+i,rect.x+rect.w-radius-i};
+        const int ys[]={rect.y+rect.h-radius-i,rect.y+rect.h-radius-i,rect.y+radius+i,rect.y+radius+i};
+        for(int corner=0;corner<4;++corner)for(int step=0;step<9;++step) {
+            const float angle=(corner*90+step*90.f/8)*3.14159265f/180;
+            points[n++]={xs[corner]+int(std::round((radius-i)*std::cos(angle))),ys[corner]+int(std::round((radius-i)*std::sin(angle)))};
+        }
+        points[n++]=points[0];SDL_RenderDrawLines(r,points,n);
     }
     if(editing) { SDL_Rect underline{rect.x+8,rect.y+rect.h-7,rect.w-16,3}; SDL_RenderFillRect(r,&underline); }
+}
+inline void elevated(SDL_Renderer *renderer,SDL_Rect rect,const ThemePalette &pal,int corner=18) {
+    SDL_BlendMode mode;SDL_GetRenderDrawBlendMode(renderer,&mode);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
+    surface(renderer,{rect.x+2,rect.y+5,rect.w,rect.h},{0,0,0,36},corner);
+    SDL_SetRenderDrawBlendMode(renderer,mode);
+    surface(renderer,rect,pal.cardBorder,corner);
+    surface(renderer,{rect.x+1,rect.y+1,rect.w-2,rect.h-2},pal.card,corner-1);
 }
 inline SDL_Color destructiveColor(const ThemePalette &pal) {
     return int(pal.bg.r)+pal.bg.g+pal.bg.b<384?SDL_Color{255,160,150,255}:SDL_Color{155,36,32,255};
@@ -48,16 +58,15 @@ inline void button(SDL_Renderer *r, Typography &type, SDL_Rect rect, const std::
                    bool focused=false,bool editing=false,bool disabled=false,bool destructive=false) {
     auto label=translate?ui::label(text):text;
     pressed=!disabled && (pressed || (pointerDown && contains(rect,pointerX,pointerY)));
-    auto fill=selected?(pressed?blendColor(pal.accent,pal.bg,12):pal.accent):pressed?pal.cardBorder:focused?pal.card:pal.header;
-    surface(r,rect,fill);
-    // Consistent tactile button boundary across paper, sepia and dark palettes.
-    SDL_SetRenderDrawColor(r,pal.cardBorder.r,pal.cardBorder.g,pal.cardBorder.b,255);
-    SDL_Rect border{rect.x,rect.y,rect.w-1,rect.h-1};
-    if(border.w>0 && border.h>0) SDL_RenderDrawRect(r,&border);
+    auto fill=selected?(pressed?blendColor(pal.accent,pal.bg,12):pal.accent):pressed?blendColor(pal.header,pal.accent,20):focused?pal.card:pal.header;
+    surface(r,rect,selected?fill:pal.cardBorder,16);
+    surface(r,{rect.x+1,rect.y+1,rect.w-2,rect.h-2},fill,15);
     if(focused || editing) focusRing(r,rect,pal,editing);
     int tw=0,th=0; type.measureText(type.buttonFont(),label,&tw,&th,rect.w-24);
+    const SDL_Color white{255,255,255,255},black{16,18,25,255};
+    const auto selectedInk=readingContrast(fill,white)>=readingContrast(fill,black)?white:black;
     type.renderText(r,type.buttonFont(),label,rect.x+std::max(12,(rect.w-tw)/2),rect.y+(rect.h-th)/2,
-                    disabled?pal.muted:selected?pal.bg:destructive?destructiveColor(pal):pal.fg,rect.w-24);
+                    disabled?pal.muted:selected?selectedInk:destructive?destructiveColor(pal):pal.fg,rect.w-24);
 }
 // Professional e-reader list action: left-aligned label, separate focus/selection,
 // restrained divider, and consistent typography across modal and quick-action lists.
@@ -65,15 +74,40 @@ inline void menuRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::st
                     const ThemePalette &pal,bool selected=false,bool focused=false,bool destructive=false) {
     if(rect.w<=0||rect.h<=0)return;
     const std::string label = ui::label(rawLabel);
-    const auto fill=selected?pal.accent:(pointerDown&&contains(rect,pointerX,pointerY)?pal.cardBorder:pal.card);
-    surface(r,rect,fill,8);
-    SDL_SetRenderDrawColor(r,pal.cardBorder.r,pal.cardBorder.g,pal.cardBorder.b,255);
-    SDL_RenderDrawLine(r,rect.x+14,rect.y+rect.h-1,rect.x+rect.w-14,rect.y+rect.h-1);
+    const auto fill=selected?blendColor(pal.card,pal.accent,20):(pointerDown&&contains(rect,pointerX,pointerY)?pal.header:pal.card);
+    surface(r,rect,fill,14);
+    if(selected)surface(r,{rect.x+5,rect.y+14,3,rect.h-28},pal.accent,1);
     int textHeight=0;
     type.measureText(type.buttonFont(),label,nullptr,&textHeight,rect.w-76);
-    const auto color=selected?pal.bg:destructive?destructiveColor(pal):pal.fg;
+    const auto color=destructive?destructiveColor(pal):pal.fg;
     type.renderText(r,type.buttonFont(),label,rect.x+20,rect.y+std::max(0,(rect.h-textHeight)/2),color,rect.w-76);
+    SDL_SetRenderDrawColor(r,pal.muted.r,pal.muted.g,pal.muted.b,255);
+    const int x=rect.x+rect.w-28,y=rect.y+rect.h/2;
+    SDL_RenderDrawLine(r,x-3,y-5,x+2,y);SDL_RenderDrawLine(r,x+2,y,x-3,y+5);
     if(focused)focusRing(r,rect,pal);
+}
+inline void preferenceRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &text,
+                          const ThemePalette &pal,bool selected=false) {
+    const auto label=ui::label(text);surface(r,rect,selected?blendColor(pal.header,pal.accent,16):pal.header,14);
+    auto split=label.rfind(": ");std::string title=split==std::string::npos?label:label.substr(0,split);
+    std::string value=split==std::string::npos?"":label.substr(split+2);
+    const bool on=value=="On" || value=="Açık",off=value=="Off" || value=="Kapalı";
+    int th=0;type.measureText(type.uiFont(),title,nullptr,&th);
+    int valueWidth=0;type.measureText(type.smallFont(),value,&valueWidth,nullptr);
+    valueWidth=std::min(std::max(on||off?72:0,valueWidth+20),rect.w/2);
+    type.renderText(r,type.uiFont(),title,rect.x+18,rect.y+(rect.h-th)/2,pal.fg,std::max(1,rect.w-42-valueWidth));
+    if(on || off) {
+        SDL_Rect track{rect.x+rect.w-70,rect.y+(rect.h-28)/2,52,28};surface(r,track,on?pal.accent:pal.cardBorder,14);
+        surface(r,{track.x+(on?26:4),track.y+4,20,20},{255,255,255,255},10);
+    } else if(!value.empty()) {
+        type.measureText(type.smallFont(),value,nullptr,&th);
+        type.renderText(r,type.smallFont(),value,rect.x+rect.w-valueWidth,rect.y+(rect.h-th)/2,pal.muted,valueWidth-12);
+    } else {
+        const int x=rect.x+rect.w-28,y=rect.y+rect.h/2;
+        SDL_SetRenderDrawColor(r,pal.muted.r,pal.muted.g,pal.muted.b,255);
+        if(selected){SDL_Rect dot{x-5,y-5,10,10};surface(r,dot,pal.accent,5);}
+        else {SDL_RenderDrawLine(r,x-3,y-5,x+2,y);SDL_RenderDrawLine(r,x+2,y,x-3,y+5);}
+    }
 }
 struct StepperLayout {
     SDL_Rect label,minus,value,plus;
@@ -87,7 +121,7 @@ struct StepperLayout {
 };
 inline void settingsRow(SDL_Renderer *r,Typography &type,SDL_Rect rect,const std::string &label,
                         const std::string &value,const ThemePalette &pal,bool focused=false,bool editing=false) {
-    surface(r,rect,focused?pal.card:pal.header);
+    surface(r,rect,focused?pal.card:pal.header,14);
     StepperLayout layout(rect); int height=0; type.measureText(type.uiFont(),ui::label(label),nullptr,&height);
     if(layout.label.w>0) type.renderText(r,type.uiFont(),ui::label(label),layout.label.x,rect.y+(rect.h-height)/2,pal.fg,layout.label.w);
     button(r,type,layout.minus,"-",pal,false,false,false);
@@ -111,7 +145,7 @@ struct SettingsLayout {
     int sidebar;
     SettingsLayout(int w,int h) {
         int inset=w<800?8:24;
-        sheet={inset,16,w-2*inset,h-32}; sidebar=w<800?142:190;
+        sheet={inset,16,w-2*inset,h-32}; sidebar=w<800?152:210;
         close={sheet.x+sheet.w-208,sheet.y+8,112,56};
         int x=sheet.x+sidebar+24;
         scope={x,sheet.y+72,sheet.w-sidebar-40,56};

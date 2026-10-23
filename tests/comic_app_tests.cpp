@@ -6,6 +6,7 @@
 
 namespace {
 struct AppTest {
+#include "library_fixture_helpers.inc"
     static void rotatedControls(PaperNxApp &app) {
         const auto original=app.appSettings_.get();const int oldX=app.pdfPanX_,oldY=app.pdfPanY_;
         const int keys[]{SDLK_RIGHT,SDLK_DOWN,SDLK_LEFT,SDLK_UP};
@@ -61,7 +62,7 @@ struct AppTest {
         assert(SDL_SaveBMP(surface,("verification/comics/"+name+".bmp").c_str())==0);SDL_FreeSurface(surface);
     }
     static void run(const fs::path &root) {
-        PaperNxApp app(root);assert(app.init());assert(app.typography_->uiFont());ui::language=1;
+        PaperNxApp app(root);assert(initReady(app));assert(app.typography_->uiFont());ui::language=1;
         auto legacy=app.appSettings_.get();legacy.landscapeSpreads=false;app.appSettings_.put(legacy);
         SDL_RendererInfo info{};SDL_GetRendererInfo(app.renderer_,&info);std::cout<<"Comic renderer: "<<info.name<<"\n";
         assert(app.books_.size()==6);

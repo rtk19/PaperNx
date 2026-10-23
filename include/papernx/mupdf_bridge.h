@@ -25,6 +25,8 @@ typedef struct PxTocEntry {
 // Lifecycle
 PxDocument *px_document_open(const char *path, int width, int height, float em, const char *css, char *error, int capacity);
 PxDocument *px_document_open_limited(const char *path, int width, int height, float em, const char *css, char *error, int capacity, size_t memory_limit);
+// Metadata-only handle: no pagination, page count or raster work is performed.
+PxDocument *px_document_open_metadata(const char *path,char *error,int capacity,size_t memory_limit);
 int px_document_pages(PxDocument *doc);
 int px_document_page_size(PxDocument *doc, int page, float *width, float *height);
 int px_document_is_epub(PxDocument *doc);

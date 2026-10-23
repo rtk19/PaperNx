@@ -15,8 +15,8 @@
             add("catalog.close",{r.x+r.w-124,r.y+12,108,56});
         } else if(quickMenu_) {
             auto r=quickSheet(w,h);auto actions=quickActions();
-            for(int i=0;i<int(actions.size());++i)add("quick."+std::to_string(i),{r.x+12,r.y+44+i*60-int(quickScroll_),r.w-24,56});
-            add("quick.orientation",{r.x+r.w-164,r.y+4,148,36});
+            for(int i=0;i<int(actions.size());++i)add("quick."+std::to_string(i),{r.x+12,r.y+64+i*60-int(quickScroll_),r.w-24,56});
+            add("quick.orientation",{r.x+r.w-164,r.y+4,148,56});
             add("quick.close",{w-80,8,64,64});
         } else if(screen_==ScreenState::AaModal) {
             ui::SettingsLayout l(w,h);
@@ -38,7 +38,7 @@
             if(books_.empty())add("browse",{56,l.top+16+std::min(260,h-l.top-48)-72,260,56});
         } else if(screen_==ScreenState::FileBrowser) {
             for(int i=0;i<int(browserEntries_.size());++i)add("file."+std::to_string(i),{32,112+i*64-int(browserScroll_),w-64,56});
-            add("browser.back",{24,16,152,56});if(browserPath_!=browserRoot_)add("browser.up",{192,16,168,56});add("plus",{w-80,8,64,64});
+            add("browser.folder",browserFolderButton(w));add("browser.back",{24,16,152,56});if(browserPath_!=browserRoot_)add("browser.up",{192,16,168,56});add("plus",{w-80,8,64,64});
         } else if(screen_==ScreenState::TocModal) {
             const int first=std::max(0,int(tocScroll_)/tocStep()-1)*tocColumns(w);
             const int last=std::min(tocCount(),first+(tocContent(w,h).h/tocStep()+4)*tocColumns(w));
@@ -78,7 +78,7 @@
         else if(id.rfind("file.",0)==0){browserSelected_=index("file.");reveal(browserScroll_,browserSelected_*64.f,56,float(h-128));}
         else if(id.rfind("toc.",0)==0){tocSelected_=index("toc.");revealContentsItem();}
         else if(id.rfind("bookmark.",0)==0 && id.rfind("bookmark.delete.",0)!=0 && id!="bookmark.add"){bmSelected_=index("bookmark.");reveal(bookmarkScroll_,bmSelected_*56.f,56,float(h-280));}
-        else if(id.rfind("quick.",0)==0 && id!="quick.close" && id!="quick.orientation"){quickFocus_=index("quick.");auto r=quickSheet(w,h);reveal(quickScroll_,quickFocus_*60.f,56,float(r.h-44));}
+        else if(id.rfind("quick.",0)==0 && id!="quick.close" && id!="quick.orientation"){quickFocus_=index("quick.");auto r=quickSheet(w,h);reveal(quickScroll_,quickFocus_*60.f,56,float(r.h-64));}
         dirty_=true;
     }
     bool moveFocus(int dx,int dy) {
@@ -114,7 +114,7 @@
     }
     void paintFocus() {
         if(screen_==ScreenState::Reader && !quickMenu_ && catalogPanel_==CatalogPanel::None && !readerToolbarFocusActive_)return;
-        rebuildFocus();const auto pal=palette();
+        rebuildFocus();const auto pal=interfacePalette();
         for(const auto &item:navigationFocus_.items())if(item.id==navigationFocus_.active()) {
             const auto r=item.rect;
             const bool contentsCell=screen_==ScreenState::TocModal && item.id.rfind("toc.",0)==0;

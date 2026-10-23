@@ -6,6 +6,7 @@
 
 namespace {
 struct AppTest {
+#include "library_fixture_helpers.inc"
     static void wait(PaperNxApp &app) {
         const auto end=SDL_GetTicks()+10000;
         while(SDL_GetTicks()<end){app.pollUpdates();auto s=app.updater_->status();if(s.state!=UpdateState::Checking&&s.state!=UpdateState::Downloading){app.pollUpdates();return;}SDL_Delay(2);}assert(false);
@@ -23,12 +24,12 @@ struct AppTest {
     }
     static void manual(PaperNxApp &app){
         app.quickMenu_=true;int w,h;app.getWindowSize(w,h);auto actions=app.quickActions();assert(actions.back()=="Check for update");auto r=app.quickSheet(w,h);int index=int(actions.size())-1;
-        app.quickScroll_=std::max(0,index*60-(r.h-100));snapshot(app,"plus-menu");tap(app,{r.x+12,r.y+44+index*60-int(app.quickScroll_),r.w-24,56});assert(app.updateDialog_&&!app.quickMenu_);wait(app);
+        app.quickScroll_=std::max(0,index*60-(r.h-100));snapshot(app,"plus-menu");tap(app,{r.x+12,r.y+64+index*60-int(app.quickScroll_),r.w-24,56});assert(app.updateDialog_&&!app.quickMenu_);wait(app);
     }
     static void run(const fs::path &root,const std::string &base){
         auto u=std::make_shared<SelfUpdater>();const auto path=root/"Renamed PaperNX.nro";std::ofstream(path)<<"original application";
         u->configure(path,"0.12.0-reader.4",{},UpdateSource{base+"unavailable-api",base+"download/"});
-        PaperNxApp app(root,u);assert(app.init());ui::language=1;u->check();wait(app);assert(u->status().state==UpdateState::Error&&!app.updateDialog_);
+        PaperNxApp app(root,u);assert(initReady(app));ui::language=1;u->check();wait(app);assert(u->status().state==UpdateState::Error&&!app.updateDialog_);
         manual(app);assert(app.updateDialog_&&u->status().state==UpdateState::Error);snapshot(app,"manual-error");pad(app,SDL_CONTROLLER_BUTTON_B);assert(!app.updateDialog_);
         u->configure(path,"0.12.0-reader.4",{},UpdateSource{base+"api",base+"download/"});u->check();wait(app);assert(app.updateDialog_&&u->status().state==UpdateState::Available&&app.updateFocus_==2);
         for(int orientation:{0,1,2}){
