@@ -26,7 +26,9 @@ bool LibraryScanner::start(std::vector<fs::path> roots,std::vector<Book> known,f
     cancel_=false;ready_=false;result_={};
     worker_=std::thread([this,roots=std::move(roots),known=std::move(known),inventory=std::move(inventory)] {
         LibraryScanResult result;
+#if defined(__cpp_exceptions)
         try {
+#endif
             std::unordered_map<std::string,Book> prior;prior.reserve(known.size());
             for(auto &book:known){const auto id=book.id;prior.emplace(id,std::move(book));}
             std::unordered_set<std::string> ids;ids.reserve(10000);
@@ -67,7 +69,9 @@ bool LibraryScanner::start(std::vector<fs::path> roots,std::vector<Book> known,f
                 for(const auto &b:result.books){Progress p;p.bookPath=b.path;p.bookTitle=b.title;p.bookAuthor=std::to_string(b.bytes);p.lastRead=b.modified;cache.put(b.id,std::move(p));}
                 result.cached=cache.save();if(!result.cached)result.error="Library cache could not be saved";
             }
+#if defined(__cpp_exceptions)
         } catch(const std::exception &error) {result.error=error.what();}
+#endif
         if(!cancel_){result_=std::move(result);ready_.store(true);}
     });
     return true;
