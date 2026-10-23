@@ -53,7 +53,7 @@ void processLibraryScan() {
     listScroll_=std::clamp(listScroll_,0.f,maxUiScroll());++completedLibraryScans_;dirty_=true;
     if(libraryScanAgain_){libraryScanAgain_=false;startLibraryScan();}
 }
-SDL_Rect browserFolderButton(int w) const {return {368,16,std::max(160,w-464),56};}
+SDL_Rect browserFolderButton(int w) {int unused,h;getWindowSize(unused,h);return ui::BrowserLayout(w,h).import;}
 void addBrowserFolder() {
     std::error_code ec;auto folder=fs::weakly_canonical(browserPath_,ec);
     if(ec || !fs::is_directory(folder,ec))return;

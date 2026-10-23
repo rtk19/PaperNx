@@ -1,3 +1,7 @@
+# Fork update: 0.17.0
+
+Rebuilds the application structure around Home, Library, Collections, Journal and Files, with side navigation in wide layouts and bottom navigation in portrait/compact layouts. Includes first-library guidance, resume hero, new import workspace, responsive settings with reorganized application options, tiled quick actions, a book-action workspace, new contents/bookmarks navigation, selection dialogs, paper-colour preview and staged loading screens. Journal screens share the shell. Reading-page layout, animations, folios, Hebrew direction, zoom, folders, catalog and journal features remain. See [experience and preserved-feature map](APP_EXPERIENCE.md).
+
 # Fork update: 0.16.0
 
 Modern menus, cards, settings, dialogs and journal use dark/light/follow-paper appearance with seven companion-player accents. Reading paper keeps its own style. Whole-folder import supports up to 32 additional scan roots, launch/manual asynchronous scans and an atomic disposable inventory. Hash-based merging and metadata-only EPUB opening reduce repeated work. In landscape, shoulder buttons follow the opened EPUB's reading direction: English R forward/L back, Hebrew L forward/R back. Portrait retains its existing shortcuts. See [menus and library](MODERN_LIBRARY.md).

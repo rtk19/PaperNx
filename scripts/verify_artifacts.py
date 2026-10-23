@@ -8,7 +8,7 @@ from artifact_validation import BUNDLED_FONT_FILES, validate_assets, read_romfs,
 from package_release import validate_nro
 
 parser = argparse.ArgumentParser(description="Validate the real Switch ELF/NRO and embedded assets")
-parser.add_argument("--version", default="0.16.0")
+parser.add_argument("--version", default="0.17.0")
 args = parser.parse_args()
 assert __debug__, "Artifact checks require enabled assertions"
 elf = Path("PaperNX.elf").read_bytes()

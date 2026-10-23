@@ -23,8 +23,8 @@ SDL_Rect readerSeekHit(int w,int h) const {auto r=readerTrack(w,h);return {r.x-8
 SDL_Rect readerPrev(int,int h) const {return {24,h-64,56,56};}
 SDL_Rect readerNext(int w,int h) const {return {w-152,h-64,56,56};}
 SDL_Rect readerPages(int w,int h) const {return {w-88,h-64,64,56};}
-SDL_Rect tocContent(int w,int h) const {return {48,216,std::max(1,w-96),std::max(1,h-272)};}
-SDL_Rect tocTabRect(int tab,int w) const {const int step=(w-96)/3;return {48+tab*step,152,step-8,48};}
+SDL_Rect tocContent(int w,int h) const {return ui::NavigationLayout(w,h).content;}
+SDL_Rect tocTabRect(int tab,int w) {int unused,h;getWindowSize(unused,h);return ui::NavigationLayout(w,h).tab(tab);}
 int tocColumns(int w) const {return tocTab_==0?1:std::clamp((w-96)/260,2,4);}
 int tocStep() const {return tocTab_==0?120:224;}
 int tocCount() const {return tocTab_==0?int(tocEntries_.size()):tocTab_==1?pageCount_:int(tocBookmarks_.size());}
@@ -242,7 +242,7 @@ void activateContentsItem(int index) {
     listTracking_=false;listVelocity_=0;
 }
 void contentsTap(int x,int y,int w,int h) {
-    if(!ui::contains(navigationPanel(w,h),x,y) || ui::contains({w-184,88,112,56},x,y)){closeContents();return;}
+    if(!ui::contains(navigationPanel(w,h),x,y) || ui::contains(ui::NavigationLayout(w,h).close,x,y)){closeContents();return;}
     for(int tab=0;tab<3;++tab)if(ui::contains(tocTabRect(tab,w),x,y)){changeContentsTab(tab);return;}
     if(!ui::contains(tocContent(w,h),x,y))return;
     const int first=std::max(0,int(tocScroll_)/tocStep()*tocColumns(w));
@@ -251,10 +251,13 @@ void contentsTap(int x,int y,int w,int h) {
 }
 void renderContents(int w,int h,const ThemePalette &pal) {
     preparePagePreviews();ui::elevated(renderer_,navigationPanel(w,h),pal);
-    typography_->renderText(renderer_,typography_->titleFont(),ui::label("İçindekiler"),56,96,pal.fg,w-280);
-    ui::button(renderer_,*typography_,{w-184,88,112,56},"Kapat",pal);
+    const ui::NavigationLayout l(w,h);
+    ui::eyebrow(renderer_,*typography_,"FIND YOUR PLACE",l.sheet.x+24,l.sheet.y+16,pal,l.sheet.w-120);
+    typography_->renderText(renderer_,typography_->titleFont(),journalTitle_,l.sheet.x+24,l.sheet.y+44,pal.fg,l.sheet.w-208);
+    ui::iconButton(renderer_,*typography_,l.close,ui::Icon::Back,pal);
     const std::string tabs[]{catLabel("Bölümler","Chapters"),catLabel("Tüm sayfalar","All pages"),ui::label("Yer imleri")};
-    for(int tab=0;tab<3;++tab)ui::button(renderer_,*typography_,tocTabRect(tab,w),tabs[tab],pal,tocTab_==tab,false,false);
+    const ui::Icon glyphs[]={ui::Icon::Books,ui::Icon::Grid,ui::Icon::Bookmark};
+    for(int tab=0;tab<3;++tab)ui::navItem(renderer_,*typography_,l.tab(tab),glyphs[tab],tabs[tab],pal,tocTab_==tab);
     const auto content=tocContent(w,h);SDL_RenderSetClipRect(renderer_,&content);
     if(!tocCount())typography_->renderWrapped(renderer_,typography_->uiFont(),tocTab_==2?catLabel("Henüz yer imi yok.","No bookmarks yet."):catLabel("Bu kitapta bölüm listesi yok. Tüm sayfalar sekmesini kullanın.","No chapter list in this book. Use All pages to browse."),{content.x+12,content.y+16,content.w-24,100},pal.muted);
     const int first=std::max(0,int(tocScroll_)/tocStep()*tocColumns(w));
@@ -285,11 +288,9 @@ void renderContents(int w,int h,const ThemePalette &pal) {
 }
 void renderReaderNavigation(int w,int h,const ThemePalette &pal) {
     ui::surface(renderer_,{0,h-72,w,72},pal.bg,0);
-    ui::button(renderer_,*typography_,readerPrev(w,h),"<",pal);
-    ui::button(renderer_,*typography_,readerNext(w,h),">",pal);
-    const auto pages=readerPages(w,h);ui::button(renderer_,*typography_,pages,"",pal);
-    SDL_SetRenderDrawColor(renderer_,pal.fg.r,pal.fg.g,pal.fg.b,255);
-    for(int row=0;row<2;++row)for(int col=0;col<2;++col){SDL_Rect box{pages.x+19+col*15,pages.y+15+row*15,10,10};SDL_RenderDrawRect(renderer_,&box);}
+    ui::iconButton(renderer_,*typography_,readerPrev(w,h),ui::Icon::Back,pal);
+    ui::iconButton(renderer_,*typography_,readerNext(w,h),ui::Icon::Arrow,pal);
+    const auto pages=readerPages(w,h);ui::iconButton(renderer_,*typography_,pages,ui::Icon::Grid,pal);
     const auto track=readerTrack(w,h);const float fraction=scrub_.active?scrub_.fraction:float(readingFraction());
     ui::surface(renderer_,track,pal.cardBorder,4);const int fill=int(track.w*std::clamp(fraction,0.f,1.f));
     SDL_Rect completed{readingDirection()<0?track.x+track.w-fill:track.x,track.y,fill,track.h};ui::surface(renderer_,completed,pal.accent,4);

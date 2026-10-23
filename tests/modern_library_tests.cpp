@@ -19,8 +19,8 @@ struct AppTest {
     }
     static void setting(PaperNxApp &app,int row) {
         int w,h;app.getWindowSize(w,h);ui::SettingsLayout l(w,h);
-        app.settingsScroll_=std::clamp(float(row*64-l.content.h+56),0.f,app.maxUiScroll());
-        auto r=l.control(row);r.y-=int(app.settingsScroll_);app.handleAaModalTap(r.x+r.w/2,r.y+r.h/2,w,h);
+        app.settingsScroll_=std::clamp(float(app.settingsSlot(row)*72-l.content.h+64),0.f,app.maxUiScroll());
+        auto r=app.settingsControl(row,w,h);r.y-=int(app.settingsScroll_);app.handleAaModalTap(r.x+r.w/2,r.y+r.h/2,w,h);
     }
     static void run(const fs::path &root) {
         {

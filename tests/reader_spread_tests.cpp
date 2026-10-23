@@ -128,7 +128,7 @@ struct AppTest {
         for(int page:{5,3,2,0}) {app.turnPage(-1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
         app.openSettings(false,5);
         for(int row:{8,9}) {
-            app.settingsScroll_=app.maxUiScroll();const auto layout=ui::SettingsLayout(1280,720);auto r=layout.control(row);r.y-=int(app.settingsScroll_);
+            app.settingsScroll_=std::min(float(app.settingsSlot(row)*72),app.maxUiScroll());const auto layout=ui::SettingsLayout(1280,720);auto r=app.settingsControl(row,1280,720);r.y-=int(app.settingsScroll_);
             assert(ui::contains(layout.content,r.x+r.w/2,r.y+r.h/2));
             app.handleAaModalTap(r.x+r.w/2,r.y+r.h/2,1280,720);
         }

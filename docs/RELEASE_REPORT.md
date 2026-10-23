@@ -1,3 +1,9 @@
+# Fork release: 0.17.0
+
+A structural UI/UX remake, with a Home/resume experience, dedicated book library, persistent application navigation, a guided first-library flow, a folder-import workspace, responsive settings, tiled actions, book-management cards, new contents and saved-place workspaces, a unified journal, colour previews and opening screens. All existing reader behavior and data remain: physical pages and folios, RTL/LTR controls, smart comic spreads, curl animation, full-width drag, focal pinch zoom, return-to-top, scan roots, catalog operations, journal and verified automatic updates. See [screen and feature map](APP_EXPERIENCE.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.17.0) include the NRO, installation ZIP, exact tagged source, licenses, checksums and test/screenshot evidence. Developer: Refael Bar. Physical Switch acceptance remains unverified.
+
 # Fork release: 0.16.0
 
 The second requested release modernizes all menus through shared rounded controls, cards, elevated dialogs, switch rows, focus outlines and a cached accent background. Dark, light and follow-reading appearances and seven accents are independent of reading paper. New library-folder management adds whole folders, scans on launch or manually in a background worker, and loads an atomic inventory on subsequent launches. Deduplicated roots, hash-based batch merges and metadata-only EPUB indexing avoid repeated traversal and full pagination during indexing. Landscape R/L now follows the language/direction of each opened book, including Hebrew.

@@ -4,29 +4,11 @@ std::string bookPageKey_;
 std::vector<int> bookPagePrefix_;
 
 SDL_Rect readerHeaderButton(int index,int w) const {
-    if(!comic()) {
-        const int x[]={16,80,w-216,w-152};
-        return {x[index],8,56,56};
-    }
-    if(index==0)return {16,8,152,56};
-    if(index==1)return {w<900?184:w-520,8,w<900?136:160,56};
-    if(index==2)return {w<900?336:w-344,8,w<900?112:136,56};
-    return {w<900?464:w-192,8,w<900?80:96,56};
+    const int x[]={16,80,w-216,w-152};return {x[index],8,56,56};
 }
-
 void drawBookHeaderButton(int index,int w,const ThemePalette &pal) {
-    const auto r=readerHeaderButton(index,w);
-    ui::button(renderer_,*typography_,r,index==0?"<":index==3?"Aa":"",pal);
-    SDL_SetRenderDrawColor(renderer_,pal.fg.r,pal.fg.g,pal.fg.b,255);
-    const int x=r.x+r.w/2,y=r.y+r.h/2;
-    if(index==1)for(int row=-1;row<=1;++row) {
-        SDL_RenderDrawLine(renderer_,x-10,y+row*7,x+10,y+row*7);
-        SDL_RenderDrawLine(renderer_,x-10,y+row*7+1,x+10,y+row*7+1);
-    }
-    if(index==2) {
-        const SDL_Point points[]={{x-8,y+12},{x-8,y-12},{x+8,y-12},{x+8,y+12},{x,y+5},{x-8,y+12}};
-        SDL_RenderDrawLines(renderer_,points,6);
-    }
+    const ui::Icon glyphs[]={ui::Icon::Back,ui::Icon::Books,ui::Icon::Bookmark,ui::Icon::Type};
+    const auto r=readerHeaderButton(index,w);ui::iconButton(renderer_,*typography_,r,glyphs[index],pal);
 }
 
 void cacheBookPageCounts(int w,int h,int through) {
