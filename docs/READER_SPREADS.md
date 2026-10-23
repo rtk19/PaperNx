@@ -1,3 +1,9 @@
+# Current comic behaviour (0.17.4)
+
+Comics always show one complete image in landscape and portrait. The comic pairing/spine/compositor is removed, including while zoomed. **Two pages in landscape (books/PDF)** now applies only to books and PDFs; its stored default remains On. **Expanded reading area** still applies independently. A gesture can start outside comic artwork and folds it only after reaching the image. The image and its folio turn together. Focal zoom, Y/up-arrow return to top, LTR/manga controls and asynchronous preparation remain. [Implementation and regression checks](COMIC_PERFORMANCE.md).
+
+The following sections document the historical spread releases. Their comic-pair behaviour is superseded by 0.17.4; book/PDF spread behaviour remains current.
+
 ## Language-aware shoulder controls (0.16.0)
 
 In landscape, physical R advances an LTR book and goes back in an RTL Hebrew book; L does the reverse. Direction is resolved from each opened EPUB, rather than the interface language. Manga follows its selected reading direction too. The setting for enabling L/R page shortcuts still applies. Portrait preserves the earlier R-next/L-previous shortcuts. PageDown/PageUp match the shoulder buttons; ordinary directional controls continue to follow reading direction and display orientation.

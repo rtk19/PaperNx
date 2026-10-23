@@ -1,3 +1,9 @@
+# Fork release: 0.17.4
+
+Restores comics to one complete image per page, including landscape. Removes the comic pairing, facing-page compositor, spine and paired zoom geometry; restores original single-image fit/pan with modern asynchronous preparation retained. Physical paper curls, outside-to-paper touch contact, focal zoom, moving folios and unrelated fixes remain. Books/PDF retain their landscape spreads, menus and stored data are unchanged. See [rollback and verification](COMIC_PERFORMANCE.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.17.4) include the NRO, installation ZIP, exact source, licenses, hashes and test/build evidence. Developer: Refael Bar. Physical Switch performance remains unverified.
+
 # Fork release: 0.17.3
 
 Corrects consecutive comic spread turns by preparing cold images and pair geometry off the UI thread, retaining accepted input until ready, taking the next finger immediately after the previous release, keeping the worker's bounded CBR document/dictionary through reading pauses, and preparing two following normal pairs. Focus loss releases held paper; Switch finger-ID normalization covers release too. Existing menus, layouts, animations, zoom, preferences and reading data remain. See [implementation and verification](COMIC_PERFORMANCE.md).

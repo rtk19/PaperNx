@@ -1,3 +1,19 @@
+# Single-image comic rollback — 0.17.4
+
+Comics now always display one complete archive image in landscape and portrait, independently of the persisted book/PDF spread preference. This is a rendering/navigation rollback: adjacent-page pairing, neighbouring-header wide-page detection, facing-page zoom/pan geometry, the artificial spine and the paired/fullscreen under-sheet compositor are removed from the comic path. Page turns advance exactly one image. A naturally wide or ComicInfo DoublePage image stays whole and is never paired or split.
+
+The original single-image fit rectangle, pan bounds and focal zoom path are restored. Golden regression rectangles for the 0.12 viewport (1280×720, 40px side margins, original 72px footer) cover a portrait image at **424,72,432,576** and a wide image at **64,72,1152,576**. Both remain identical with the landscape preference On and Off. The expanded-reading-area preference still independently changes the usable viewport; it is not reset.
+
+Comic animation now owns only the current/next image snapshots and their moving folios. The full image is the physical paper, even while zoomed. Input still starts anywhere: the touch segment must intersect the image before folding begins; motion entirely outside it does not turn a page. Tests check live/held/committed contact, empty margins, no artificial vertical spine inside the image, small/large zoom, folios surviving cache eviction and successive cold turns.
+
+The visible image and two directional neighbours use at most roughly 24 MiB of base textures before older cached pages. Only the one visible image receives high-resolution detail. The existing 64 MiB LRU, protected displayed image, asynchronous preparation, priority for explicitly requested pages, bounded completed buffers, retained CBR document/dictionary and pending-input cancellation remain. The old synchronous decoder/cache regressions are not restored.
+
+Books and PDFs keep their independent default-on landscape spread setting and animations. The setting is labelled **Two pages in landscape (books/PDF)**. No book data, settings, progress, library or unrelated UI change is rolled back.
+
+Verification uses the existing 30 native and 30 ASan/UBSan/leak tests, 8 portable tests, packaging checks and offscreen OpenGL runs. Original high-resolution CBZ and 37-page ~43 MB stored/compressed solid RAR4/RAR5 fixtures exercise repeated page buttons, immediate successive swipes, pan/pinch, async single-page detail and an archive retained through a 3.2-second idle pause. Results are development-machine evidence: the actual reported CBR and physical Switch remain unavailable, so device latency cannot be certified from these tests.
+
+---
+
 # Consecutive comic spread turns — 0.17.3
 
 The reported 0.17.2 behaviour was: after one spread turn, additional page-turn attempts were ignored for several seconds while zoom remained responsive. The real 37-page, approximately 43 MB CBR and a physical Switch were unavailable; the checks below use original generated archives of the same scale.

@@ -126,6 +126,7 @@ inline std::string localizeUiText(const std::string &text, int language) {
                 {" of ", " / "},
                 {"Expanded reading area", "Geniş okuma alanı"},
                 {"Two pages in landscape", "Yatayda iki sayfa"},
+                {"Two pages in landscape (books/PDF)", "Yatayda iki sayfa (kitap/PDF)"},
                 {"On", "Açık"}, {"Off", "Kapalı"},
                 {"Check for update", "Güncellemeleri denetle"},
                 {"Software update", "Yazılım güncellemesi"},

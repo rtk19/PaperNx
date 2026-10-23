@@ -48,7 +48,7 @@ std::string readerFooterCaption(int w,int h) {
     if(!toolbarVisible_ && !appSettings_.get().toolbar)return std::to_string(page);
     const int total=readerPageCount(w,h);
     const bool spread=readerLayout().spread;
-    const int first=spread?(comicSpreadActive()?comicSpreadPages(currentPage_).first+1:currentPage_/2*2+1):page;
+    const int first=spread?(currentPage_/2*2+1):page;
     const int last=spread?std::min(total,first+1):page;
     const int percent=std::clamp(int(std::lround(100.0*last/total)),0,100);
     const auto pages=std::to_string(first)+(last>first?"–"+std::to_string(last):"");

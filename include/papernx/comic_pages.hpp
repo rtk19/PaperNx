@@ -17,8 +17,8 @@
 #endif
 
 namespace papernx {
-// Six base pages fit below 48 MiB of the reader's 64 MiB cache. Detailed
-// visible pages have their own two-slot budget and never displace base pages.
+// The visible image and two forward base pages fit below 24 MiB of the
+// reader's 64 MiB cache. One visible detail image never displaces base pages.
 struct ComicResolution {
     static constexpr std::size_t basePixels=2u*1024u*1024u;
     static std::pair<int,int> size(float w,float h,bool detail,int rendererLimit=3072) {

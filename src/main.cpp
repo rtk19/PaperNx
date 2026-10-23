@@ -414,8 +414,8 @@ private:
         Uint32 lastTick{0};
         bool paperContact{false};
     } pageTurnTouch_;
-    // Accepted navigation remains here while a cold comic pair is prepared.
-    // The displayed pair stays usable; no archive work runs on the input path.
+    // Accepted navigation remains here while a cold comic page is prepared.
+    // The displayed page stays usable; no archive work runs on the input path.
     int comicTurnQueued_{0},comicTurnPage_{-1};
     bool comicTouchWaiting_{false};
     float comicTouchX_{0},comicTouchY_{0};
@@ -747,13 +747,12 @@ private:
     ReaderLayout readerLayout() {
         int w,h;getWindowSize(w,h);
         const auto &prefs=appSettings_.get();
-        const bool spread=comic()?comicSpreadPages(currentPage_).second==2:
-            (px_document_is_epub(doc_) || std::abs(pdfZoom_-1.f)<.01f);
+        const bool spread=!comic() && (px_document_is_epub(doc_) || std::abs(pdfZoom_-1.f)<.01f);
         return {w,h,std::clamp(presentedStyle().margin,0,120),
             prefs.landscapeSpreads && w>h && !continuous() && spread,prefs.expandedViewport};
     }
     int readerTurnTarget(int page,int steps) {
-        if(comicSpreadActive())return comicTurnTarget(page,steps);
+        if(comic())return std::clamp(page+steps,0,std::max(0,pageCount_-1));
         if(readerLayout().spread) {
             const int base=page/2*2;
             return std::clamp(base+steps*2,0,(std::max(1,pageCount_)-1)/2*2);
@@ -761,7 +760,7 @@ private:
         return std::clamp(page+steps,0,std::max(0,pageCount_-1));
     }
     bool sameReaderSpread(int a,int b) {
-        if(comicSpreadActive())return comicSpreadPages(a).first==comicSpreadPages(b).first;
+        if(comic())return a==b;
         return readerLayout().spread && a/2==b/2;
     }
     int shoulderPageDirection(bool right) {
@@ -1542,12 +1541,6 @@ private:
     }
     void clampPdfPan() {
         if (!doc_ || px_document_is_epub(doc_)) return;
-        if(comicSpreadActive()) {
-            int w,h;getWindowSize(w,h);
-            pdfPanX_=std::clamp(pdfPanX_,0,std::max(0,int(std::ceil(fixedViewportWidth(w)*(pdfZoom_-1)))));
-            pdfPanY_=std::clamp(pdfPanY_,0,std::max(0,int(std::ceil(comicViewportHeight(h)*(pdfZoom_-1)))));
-            return;
-        }
         float pw = 0, ph = 0;
         if (!px_document_page_size(doc_, currentPage_, &pw, &ph)) return;
         int w, h; getWindowSize(w, h);
@@ -1576,12 +1569,7 @@ private:
         float panX=pdfPanX_+(retain?zoomFractionX_:0),panY=pdfPanY_+(retain?zoomFractionY_:0);
         int w, h; getWindowSize(w, h);
         float pw=0,ph=0;
-        if(comicSpreadActive()) {
-            const float vw=float(fixedViewportWidth(w)),vh=float(comicViewportHeight(h)),ratio=pdfZoom_/previous;
-            const float fx=std::clamp(focalX*w-currentMargin_,0.f,vw),fy=std::clamp(focalY*h-72,0.f,vh);
-            panX=(panX+fx-std::max(0.f,vw*(1-previous)/2))*ratio-fx+std::max(0.f,vw*(1-pdfZoom_)/2);
-            panY=(panY+fy-std::max(0.f,vh*(1-previous)/2))*ratio-fy+std::max(0.f,vh*(1-pdfZoom_)/2);
-        } else if(comic() && px_document_page_size(doc_,currentPage_,&pw,&ph)) {
+        if(comic() && px_document_page_size(doc_,currentPage_,&pw,&ph)) {
             const float vw=float(fixedViewportWidth(w)),vh=float(comicViewportHeight(h));
             const float fit=std::min(vw/pw,vh/ph),ratio=pdfZoom_/previous;
             const float fx=std::clamp(focalX*w-currentMargin_,0.f,vw),fy=std::clamp(focalY*h-72,0.f,vh);
@@ -2138,12 +2126,11 @@ private:
             prefetchPage_=currentPage_;prefetchStep_=0;prefetchDue_=now+60;comicDetailDue_=now+180;return;
         }
         if(now<prefetchDue_)return;
-        if(prefetchStep_<4) {
-            const auto group=comicSpreadPages(currentPage_);
+        if(prefetchStep_<2) {
             const int step=prefetchStep_++;
             // Read in the navigation direction. Speculative backward reads
             // would repeatedly restart decompression of a solid RAR archive.
-            const int target=comicPrefetchDirection_>0?group.first+group.second+step:group.first-1-step;
+            const int target=currentPage_+comicPrefetchDirection_*(step+1);
             if(target>=0 && target<pageCount_ && !pageCache_.get(comicTextureKey(target)))comicPages_.request(target);
             prefetchDue_=now+30;return;
         }
@@ -2153,9 +2140,9 @@ private:
         if(!comic() || pdfZoom_<=1.01f || screen_!=ScreenState::Reader || quickMenu_ || continuous() ||
            appBackground_ || !activeFingers_.empty() || pageTurnAnimation_.active ||
            std::abs(panVelocityX_)+std::abs(panVelocityY_)>2 || Sint32(SDL_GetTicks()-comicDetailDue_)<0)return;
-        configureComicPages();const auto group=comicSpreadPages(currentPage_);
-        for(int i=0;i<group.second;++i)if(!comicDetails_.count(group.first+i) &&
-            (!comicDetailRetry_.count(group.first+i) || Sint32(SDL_GetTicks()-comicDetailRetry_[group.first+i])>=0))comicPages_.request(group.first+i,true);
+        configureComicPages();
+        if(!comicDetails_.count(currentPage_) && (!comicDetailRetry_.count(currentPage_) ||
+           Sint32(SDL_GetTicks()-comicDetailRetry_[currentPage_])>=0))comicPages_.request(currentPage_,true);
     }
     void processComicPages() {
         const bool detailAllowed=activeFingers_.empty() && !pageTurnAnimation_.active && std::abs(panVelocityX_)+std::abs(panVelocityY_)<=2;
@@ -2170,7 +2157,7 @@ private:
                 }
                 continue;
             }
-            const auto group=comicSpreadPages(currentPage_);const bool visible=result.page>=group.first && result.page<group.first+group.second;
+            const bool visible=result.page==currentPage_;
             if(result.detail && (!visible || pdfZoom_<=1.01f))continue;
             const auto key=comicTextureKey(result.page);
             if(!result.detail && pageCache_.get(key))continue;
@@ -2182,12 +2169,11 @@ private:
 #endif
             if(result.detail) {
                 for(auto it=comicDetails_.begin();it!=comicDetails_.end();) {
-                    if(it->first<group.first || it->first>=group.first+group.second)it=comicDetails_.erase(it);else ++it;
+                    if(it->first!=currentPage_)it=comicDetails_.erase(it);else ++it;
                 }
                 ComicDetail detail;detail.identity=result.identity;detail.texture.reset(texture);comicDetails_[result.page]=std::move(detail);
             } else {
-                std::vector<std::string> protectedKeys;
-                for(int i=0;i<group.second;++i)protectedKeys.push_back(comicTextureKey(group.first+i));
+                const std::vector<std::string> protectedKeys{comicTextureKey(currentPage_)};
                 pageCache_.put(key,texture,result.width,result.height,protectedKeys);
             }
             if(visible)dirty_=true;
@@ -3410,7 +3396,7 @@ private:
                 renderComicTurnFolios(w,h);
             }
         } else if(gpuComic) {
-            if(comicSpreadActive())renderComicSpreadZoom(w,h);else renderComicZoom(w,h);
+            renderComicZoom(w,h);
         } else if(!continuous()) {
             drawReaderSheets(currentPage_);
         }
@@ -3545,7 +3531,7 @@ private:
             const char *textureEn[]={"Off","Soft paper","Natural paper"};const char *textureTr[]={"Kapal\u0131","Yumu\u015fak ka\u011f\u0131t","Do\u011fal ka\u011f\u0131t"};
             row(7,std::string(ui::language?"Paper texture: ":"Kağıt dokusu: ")+(ui::language?textureEn:textureTr)[p.paperTexture]);
             row(8,ui::label("Expanded reading area")+": "+ui::label(p.expandedViewport?"On":"Off"));
-            row(9,ui::label("Two pages in landscape")+": "+ui::label(p.landscapeSpreads?"On":"Off"));
+            row(9,ui::label("Two pages in landscape (books/PDF)")+": "+ui::label(p.landscapeSpreads?"On":"Off"));
             row(10,ui::label("Book folders")+": "+std::to_string(p.libraryFolders.size()+1));
             row(11,ui::label("Scan on launch")+": "+ui::label(p.scanOnLaunch?"On":"Off"));
             row(12,ui::label(libraryScanner_.pending()?"Scanning library...":"Scan library now"));

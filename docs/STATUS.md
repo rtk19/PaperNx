@@ -1,3 +1,7 @@
+# Fork update: 0.17.4
+
+Single-image comic reading is restored in all orientations, independently of existing book/PDF spread preferences. The paired comic compositor, header-pair detection, centre spine and spread zoom geometry are removed. Single-image pan/zoom, paper-bounded animation and outside-to-paper gesture contact remain, along with asynchronous loading, retained CBR streams, controls, folios, expanded-area settings, menus and data. [Verification](COMIC_PERFORMANCE.md) includes historical single-image fit rectangles, repeated cold input and original 37-page CBR fixtures. Physical Switch timings remain unverified.
+
 # Fork update: 0.17.3
 
 Consecutive comic turns preserve input while cold pair images/geometry prepare asynchronously. A new touch grips after the prior release settles; zoom remains immediately available and cancels pending turns. The CBR worker no longer discards its stream/dictionary after three idle seconds, and prepares two following normal pairs. New real SDL event regressions cover the cold second spread, repeated gestures/buttons, idle archive retention and focus-loss recovery. Existing reading behaviour, data and 0.16 menus remain. See [performance](COMIC_PERFORMANCE.md). Switch timings remain unverified.

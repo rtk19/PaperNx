@@ -1,3 +1,7 @@
+# Fork verification: 0.17.4
+
+Comic tests now assert single-image landscape/portrait reading with the existing spread preference enabled, sequential one-image navigation through ordinary/wide/DoublePage scans, original 0.12 fit rectangles, one detailed image, paper-only animation, outer-margin contact, absence of the artificial spine and preservation of focal zoom/folios. Book/PDF spreads continue through the unchanged spread/RTL suite. The 30 native and 30 ASan/UBSan/leak tests, 8 portable tests, packaging, and additional OpenGL high-resolution CBZ/37-page CBR checks cover the rollback. [Details and limits](COMIC_PERFORMANCE.md). No physical Switch or actual user CBR was available.
+
 # Fork verification: 0.17.3
 
 The 30 native and 30 ASan/UBSan/leak tests now exercise immediate consecutive SDL comic swipes and shoulder requests with a cold second pair, cache-only geometry checks, retained pending input, responsive/cancelling zoom, focus-loss recovery and archive retention across a 3.2-second idle pause. Both high-resolution CBZ and a generated 37-page ~43.5 MB CBR run this sequence. The previous worker fails the isolated idle-retention probe; the corrected worker passes. The 8 portable tests, packaging and additional offscreen OpenGL compressed solid RAR4/RAR5 and reader suites are also checked. See [details and device limitations](COMIC_PERFORMANCE.md). A physical Switch and the actual reported CBR remain unavailable.

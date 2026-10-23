@@ -47,8 +47,8 @@ struct AppTest {
                 if(px_document_is_epub(app.doc_))app.reflowEpub(24);else app.pageCache_.clear();
                 app.currentPage_=0;app.toolbarVisible_=false;
                 const auto l=app.readerLayout();assert(l.width==1280 && l.height==720);
-                assert(l.spread==(!app.comic() || app.comicSpreadPages(0).second==2));
-                const int firstSide=app.readingDirection()<0?1:0;
+                assert(l.spread==!app.comic());
+                const int firstSide=l.spread && app.readingDirection()<0?1:0;
                 const auto first=sheet(app,0),rest=spread(app,0);
                 // Both content and the folio occupy the correct physical leaf.
                 assert(same(rest,first,l.leaf(firstSide)));
@@ -58,8 +58,8 @@ struct AppTest {
                 const auto prefix=std::string(name)+"-"+std::to_string(theme);
                 save(rest,prefix+"-landscape");
                 preparedTurn(app,-1);assert(app.currentPage_==0 && !app.pageTurnAnimation_.active);
-                if(app.comic() && app.pageCount_>2 && app.comicSpreadPages(2).second!=2) {
-                    preparedTurn(app,1);assert(app.currentPage_==2 && app.pageTurnAnimation_.active && !app.pageTurnAnimation_.spread);
+                if(app.comic() && app.pageCount_>1) {
+                    preparedTurn(app,1);assert(app.currentPage_==1 && app.pageTurnAnimation_.active && !app.pageTurnAnimation_.spread);
                     finish(app);preparedTurn(app,-1);finish(app);assert(app.currentPage_==0);
                 } else if(app.pageCount_>2) {
                     const auto before=rest;preparedTurn(app,1);assert(app.currentPage_==2 && app.pageTurnAnimation_.spread);
@@ -94,7 +94,7 @@ struct AppTest {
                     if(app.pageCount_>4){preparedTurn(app,1);preparedTurn(app,1);finish(app);assert(app.currentPage_==4);finish(app);}
                     app.currentPage_=app.pageCount_-1;preparedTurn(app,1);assert(!app.pageTurnAnimation_.active);
                 } else {preparedTurn(app,1);assert(app.currentPage_==0 && !app.pageTurnAnimation_.active);}
-                if(app.pageCount_%2 && (!app.comic() || app.comicSpreadPages(app.pageCount_-1).second==2)) {
+                if(!app.comic() && app.pageCount_%2) {
                     const auto last=spread(app,app.pageCount_-1);const int blankSide=1-firstSide;
                     const auto rect=l.leaf(blankSide);
                     for(int y=0;y<rect.h;++y)for(int x=rect.x;x<rect.x+rect.w;++x)assert((last.pixels[y*last.w+x]&0xffffff)==bg);
@@ -117,17 +117,18 @@ struct AppTest {
             app.closeBook();
         }
         app.openBook(book("smart.cbz"));app.currentPage_=0;app.toolbarVisible_=false;
-        assert(app.readerLayout().spread && app.comicSpreadPages(0).second==2);
-        const auto left=app.comicLeafArtwork(0,{0,0,640,720}),right=app.comicLeafArtwork(1,{640,0,640,720});
-        assert(std::abs(left.x+left.w-639)<.01 && std::abs(right.x-641)<.01); // Real centre gutter, no doubled inner margins.
+        assert(!app.readerLayout().spread && app.appSettings_.get().landscapeSpreads);
+        // One whole archive image is displayed, even when ComicInfo marks it
+        // as DoublePage or the image is naturally wide. It is never paired.
         app.render();const auto decodes=app.comicTextureBuilds_;
-        save(read(app,nullptr),"smart-comic-fit");
-        auto focal=[&]{return std::pair<float,float>{(.73f*1280-app.currentMargin_+app.pdfPanX_)/app.pdfZoom_,(.38f*720-72+app.pdfPanY_)/app.pdfZoom_};};
-        const auto before=focal();app.zoomPdf(1.01f,.73f,.38f,true);app.render();
-        assert(app.readerLayout().spread && app.comicTextureBuilds_==decodes); // No cold decode or single-page switch at the first pinch.
-        const auto after=focal();assert(std::abs(before.first-after.first)<1 && std::abs(before.second-after.second)<1);
-        app.zoomPdf(2,.73f,.38f,true);assert(app.readerLayout().spread && app.pdfPanX_>0 && app.pdfPanY_>0);
-        app.render();save(read(app,nullptr),"smart-comic-zoom");
+        save(read(app,nullptr),"single-comic-fit");
+        auto focal=[&]{const auto r=app.comicPageRect(app.currentPage_);return std::pair<float,float>{(.5f*1280-r.x)/r.w,(.38f*720-r.y)/r.h};};
+        const auto before=focal();app.zoomPdf(1.01f,.5f,.38f,true);app.render();
+        assert(!app.readerLayout().spread && app.comicTextureBuilds_==decodes);
+        const auto after=focal();assert(std::abs(before.first-after.first)<.005 && std::abs(before.second-after.second)<.005);
+        app.zoomPdf(4,.5f,.38f,true);assert(!app.readerLayout().spread && app.pdfPanX_>0 && app.pdfPanY_>0);
+        app.zoomPdf(2,.5f,.38f,true);
+        app.render();save(read(app,nullptr),"single-comic-zoom");
         const int x=app.pdfPanX_;app.returnComicToTop();assert(app.pdfPanY_==0 && app.pdfPanX_==x && app.pdfZoom_==2);
         app.pdfPanY_=140;bool running=true;SDL_Event key{};key.type=SDL_KEYDOWN;key.key.keysym.sym=SDLK_y;app.handleEvent(key,running);
         assert(app.pdfPanY_==0 && app.progressStore_.get(app.currentBookId_).bookmarks.empty());
@@ -135,9 +136,22 @@ struct AppTest {
         for(Uint32 type:{SDL_FINGERDOWN,SDL_FINGERUP}) {SDL_Event event{};event.type=type;event.tfinger.fingerId=71;event.tfinger.x=(top.x+top.w/2)/1280.f;event.tfinger.y=(top.y+top.h/2)/720.f;app.handleEvent(event,running);}
         assert(app.pdfPanY_==0 && app.pdfZoom_==2);
         app.setPdfView(0);app.currentPage_=0;
-        for(int page:{2,3,5,6}) {preparedTurn(app,1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
+        for(int page:{1,2,3,4,5,6}) {preparedTurn(app,1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
         assert(px_document_page_is_spread(app.doc_,5) && !app.readerLayout().spread);
-        for(int page:{5,3,2,0}) {preparedTurn(app,-1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
+        for(int page:{5,4,3,2,1,0}) {preparedTurn(app,-1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
+        // Golden fit rectangles from the pre-spread single-image viewport
+        // (0.12, 1280x720, 40px side margin and the original 72px footer).
+        const int savedMargin=app.currentMargin_;auto legacy=app.appSettings_.get();
+        legacy.expandedViewport=false;app.currentMargin_=40;
+        for(bool enabled:{false,true}) {
+            legacy.landscapeSpreads=enabled;app.appSettings_.put(legacy);app.setPdfView(0);
+            for(auto expected:std::vector<std::pair<int,SDL_Rect>>{{0,{424,72,432,576}},{2,{64,72,1152,576}}}) {
+                assert(!app.readerLayout().spread);
+                const auto rect=app.comicTurnBounds(expected.first);const auto want=expected.second;
+                assert(rect.x==want.x && rect.y==want.y && rect.w==want.w && rect.h==want.h);
+            }
+        }
+        legacy.landscapeSpreads=legacy.expandedViewport=true;app.appSettings_.put(legacy);app.currentMargin_=savedMargin;
         app.openSettings(false,5);
         for(int row:{8,9}) {
             app.settingsScroll_=app.maxUiScroll();const auto layout=ui::SettingsLayout(1280,720);auto r=layout.control(row);r.y-=int(app.settingsScroll_);
@@ -177,7 +191,7 @@ struct AppTest {
         app.beginPageTurnTouch(.9f,.5f,9);assert(app.movePageTurnTouch(.4f,.5f,9));
         SDL_SetWindowSize(app.window_,720,1280);app.tickPageTurn();assert(!app.pageTurnAnimation_.active && app.currentPage_==2);
         app.closeBook();
-        std::cout<<"PASS: LTR/RTL spreads; EPUB/PDF/CBZ/CBR; owned folios; all four curl faces; exact endpoints; blank final leaf; queued/interactive turns; portrait and rotation cancellation\n";
+        std::cout<<"PASS: LTR/RTL book/PDF spreads and single-image CBZ/CBR; owned folios; all four curl faces; exact endpoints; blank final leaf; queued/interactive turns; portrait and rotation cancellation\n";
     }
 };
 }

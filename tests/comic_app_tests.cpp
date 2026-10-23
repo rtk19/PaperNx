@@ -63,7 +63,7 @@ struct AppTest {
     }
     static void run(const fs::path &root) {
         PaperNxApp app(root);assert(initReady(app));assert(app.typography_->uiFont());ui::language=1;
-        auto legacy=app.appSettings_.get();legacy.landscapeSpreads=false;app.appSettings_.put(legacy);
+        assert(app.appSettings_.get().landscapeSpreads); // Comics ignore the enabled book/PDF spread preference.
         SDL_RendererInfo info{};SDL_GetRendererInfo(app.renderer_,&info);std::cout<<"Comic renderer: "<<info.name<<"\n";
         assert(app.books_.size()==6);
         auto book=[&](const char *filename) {return *std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==filename;});};

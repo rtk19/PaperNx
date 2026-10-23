@@ -54,7 +54,7 @@ struct AppTest {
         }
         SDL_SetWindowSize(app.window_,1280,720);app.openBook(book("smart.cbz"));
         app.toolbarVisible_=false;app.setPdfView(0);app.currentPage_=0;app.render();
-        // Warm both pages in the next group; turning must reuse these textures.
+        // Warm neighbouring images; turning must reuse the next single image.
         app.prefetchPage_=0;app.prefetchStep_=0;
         for(int i=0;i<4;++i){app.prefetchDue_=0;app.idlePrefetch();}
         const auto warmDeadline=SDL_GetTicks()+10000;
@@ -74,11 +74,11 @@ struct AppTest {
         touch(app,SDL_FINGERMOTION,end,.5f);
         assert(app.pageTurnAnimation_.active && app.pageTurnAnimation_.dragging && app.pageTurnAnimation_.comicSheet);
         assert(app.pageTurnAnimation_.viewport.y>=72 && app.pageTurnAnimation_.viewport.h<720);
-        touch(app,SDL_FINGERUP,end,.5f);finish(app);assert(app.currentPage_==2);
+        touch(app,SDL_FINGERUP,end,.5f);finish(app);assert(app.currentPage_==1);
         // A gesture wholly above the artwork consumes no page turn on release.
         app.currentPage_=0;touch(app,SDL_FINGERDOWN,.85f,.01f);touch(app,SDL_FINGERMOTION,.35f,.01f);
         assert(!app.pageTurnAnimation_.active);touch(app,SDL_FINGERUP,.35f,.01f);assert(app.currentPage_==0);
-        // Zoomed spread keeps two pages and supports controller curls; a
+        // Zoomed single image supports controller curls; a
         // horizontal outer-edge drag turns, while an interior drag still pans.
         app.zoomPdf(2,.5f,.5f,true);app.pdfPanY_=0;app.pdfPanX_=0;
         preparedTurn(app,1);assert(app.pageTurnAnimation_.active && app.pageTurnAnimation_.comicSheet);finish(app);
@@ -90,13 +90,14 @@ struct AppTest {
             app.pdfPanX_=app.pdfPanY_=0;
             const auto paper=app.comicTurnBounds(0);assert(paper.y>72 && paper.y+paper.h<676);
             auto frame=pixels(app);const auto bg=app.palette().bg;const auto background=(Uint32(bg.r)<<16)|(Uint32(bg.g)<<8)|bg.b;
-            // Neither half of the spine may continue through empty space.
-            int seam=640;if(zoom>1)seam=int(app.currentMargin_+(640-app.currentMargin_)*zoom);
+            // No artificial spine inside the single image or in its margins.
+            const int seam=640; // Single images have no artificial spine, even with spreads enabled.
+            assert((frame[(paper.y+paper.h/4)*1280+seam]&0xffffff)==0x2878b9);
             for(int y=73;y<paper.y-2;++y)for(int x=seam-1;x<=seam;++x)assert((frame[y*1280+x]&0xffffff)==background);
             for(int y=paper.y+paper.h+2;y<676;++y)for(int x=seam-1;x<=seam;++x)assert((frame[y*1280+x]&0xffffff)==background);
             screenshot(app,zoom==1?"fit-bounded-spine":"zoom-bounded-spine");
-            preparedTurn(app,1);auto &turn=app.pageTurnAnimation_;assert(turn.spread && turn.comicSheet);
-            assert(turn.viewport.y==paper.y && turn.viewport.h==paper.h && turn.viewport.w<640);
+            preparedTurn(app,1);auto &turn=app.pageTurnAnimation_;assert(!turn.spread && turn.comicSheet && !turn.under);
+            assert(turn.viewport.y==paper.y && turn.viewport.h==paper.h && turn.viewport.w<1280);
             // Draw at a held progress, proving that the real paper mesh and its
             // folio snapshots survive eviction and leave the outer chrome clear.
             app.pageCache_.clear();turn.dragging=true;
@@ -109,7 +110,7 @@ struct AppTest {
             }
             turn.dragging=false;finish(app);
         }
-        app.closeBook();std::cout<<"PASS: 0.16 menu rollback; live edge drags LTR/RTL portrait/landscape; comic margin contact, warm next pair and zoomed paging\n";
+        app.closeBook();std::cout<<"PASS: 0.16 menus; live book edge drags; single comic margin contact and image-only folds, no spine, owned folios and zoomed paging\n";
     }
 };
 }

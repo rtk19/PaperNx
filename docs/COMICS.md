@@ -8,6 +8,8 @@ they do for existing books. Existing EPUB/PDF records and files remain compatibl
 
 ## Reading
 
+Comics use **one complete archive image at a time**, in landscape as well as portrait. There is no artificial centre spine or pairing of adjacent images. A wide/DoublePage scan remains whole. The landscape two-page preference applies to books/PDF only. Comic fit/pan uses the original single-image viewport, while the independent Expanded reading area setting remains available. Curls bend only the artwork; a gesture beginning outside it is tracked and grips the paper on contact. Only the visible image receives zoom detail, and the next two images prepare asynchronously in the reading direction.
+
 The bottom margin always shows the current comic page while tools are hidden. Tap the center to show `current of total • x%` in the same place. EPUB, PDF, CBZ and CBR share this footer; the seek bar appears above it with the toolbar.
 
 The bottom progress bar supports drag previews and one jump on release. The grid button opens All pages, Chapters and Bookmarks; comics default to the page grid. Full artwork previews ignore reading zoom and pan. Current pages and bookmarked pages are marked. ComicInfo Bookmark labels appear as chapter rows with thumbnails; plain archives can still be browsed page by page. See [page navigation](PAGE_NAVIGATION.md) for touch/controller controls, cancellation, Hebrew and rotation behavior.
