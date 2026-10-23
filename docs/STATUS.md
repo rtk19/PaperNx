@@ -1,3 +1,7 @@
+# Fork update: 0.17.5
+
+Comic curls now have an explicit paper reverse using the book renderer; saturated mirrored front artwork is no longer reused as the underside. Comic counters are fixed outside image snapshots and update only on turn completion. Books retain moving folios. Fit/zoom frame-pixel, cancellation, backwards and queued-turn regressions accompany existing reading/performance checks. Single-image comics, outside-to-paper touch, CBR preparation, controls, menus and data remain. [Verification](COMIC_PERFORMANCE.md). Physical Switch acceptance remains unverified.
+
 # Fork update: 0.17.4
 
 Single-image comic reading is restored in all orientations, independently of existing book/PDF spread preferences. The paired comic compositor, header-pair detection, centre spine and spread zoom geometry are removed. Single-image pan/zoom, paper-bounded animation and outside-to-paper gesture contact remain, along with asynchronous loading, retained CBR streams, controls, folios, expanded-area settings, menus and data. [Verification](COMIC_PERFORMANCE.md) includes historical single-image fit rectangles, repeated cold input and original 37-page CBR fixtures. Physical Switch timings remain unverified.

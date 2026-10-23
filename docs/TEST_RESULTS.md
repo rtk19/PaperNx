@@ -1,3 +1,7 @@
+# Fork verification: 0.17.5
+
+The 30 native and 30 ASan/UBSan/leak tests now include pixel-for-pixel stationary comic footer checks during fit/zoom curls, an explicit paper reverse, and page-number changes at completion only, including backward/queued turns and touch cancellation. Book folios retain their existing pixel/snapshot assertions. The 8 portable tests, packaging and additional OpenGL reader/37-page solid RAR4/RAR5 performance runs remain. [Details and limits](COMIC_PERFORMANCE.md). Physical Switch acceptance remains unverified.
+
 # Fork verification: 0.17.4
 
 Comic tests now assert single-image landscape/portrait reading with the existing spread preference enabled, sequential one-image navigation through ordinary/wide/DoublePage scans, original 0.12 fit rectangles, one detailed image, paper-only animation, outer-margin contact, absence of the artificial spine and preservation of focal zoom/folios. Book/PDF spreads continue through the unchanged spread/RTL suite. The 30 native and 30 ASan/UBSan/leak tests, 8 portable tests, packaging, and additional OpenGL high-resolution CBZ/37-page CBR checks cover the rollback. [Details and limits](COMIC_PERFORMANCE.md). No physical Switch or actual user CBR was available.

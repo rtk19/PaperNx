@@ -1,3 +1,7 @@
+# Comic counters and curls (0.17.5)
+
+Comics keep a stationary bottom counter; digits never appear in image snapshots or fold meshes. The number updates only when a turn completes, including touch/buttons and queued turns, and stays unchanged after cancellation. The curl shares the book renderer with an explicit subdued paper reverse. Comics still show one complete image and wait for outside gestures to contact the artwork. Book/PDF spreads and their moving physical folios remain unchanged. [Regression details](COMIC_PERFORMANCE.md).
+
 # Current comic behaviour (0.17.4)
 
 Comics always show one complete image in landscape and portrait. The comic pairing/spine/compositor is removed, including while zoomed. **Two pages in landscape (books/PDF)** now applies only to books and PDFs; its stored default remains On. **Expanded reading area** still applies independently. A gesture can start outside comic artwork and folds it only after reaching the image. The image and its folio turn together. Focal zoom, Y/up-arrow return to top, LTR/manga controls and asynchronous preparation remain. [Implementation and regression checks](COMIC_PERFORMANCE.md).

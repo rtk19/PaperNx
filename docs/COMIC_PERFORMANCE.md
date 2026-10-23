@@ -1,3 +1,13 @@
+# Comic curl and fixed counter — 0.17.5
+
+Comics retain one image and paper-only contact in every orientation. They use the same cylinder/lighting renderer as books, now with explicit front, paper reverse and incoming image snapshots. Without a reverse texture, the renderer reused the saturated front image on the folded underside; its mirrored copy could resemble overlapping artwork. The reverse now has a paper surface with subdued ink, while the resting front/incoming image pixels, pan, aspect ratio and outside-to-paper touch intersection remain unchanged. Snapshot resolution and asynchronous base/detail preparation stay bounded.
+
+Comic digits are now independent fixed chrome. They are omitted from resting image/sheet captures and there are no separate folio surfaces or folio curl calls. The outgoing page number stays in the bottom strip through drag, settling and button-driven animation. A completed turn updates it once; a cancelled touch keeps it. Queued turns expose each completed number in order. Open tools retain current-of-total and percentage formatting. Hidden-tool counter placement is consistent between fitted and zoomed comic pages. Book/PDF folios still belong to their sheets.
+
+Pixel regressions read every footer pixel at five held fold positions in fitted and zoomed comics, compare them with the resting footer, inspect the actual paper reverse, evict the base cache mid-animation and check completion, backwards turns, cancellation and queued input. Existing margin-contact, RTL/LTR book curls, rotated comic captions, pan/pinch, archive, CBR latency, library and updater suites remain. Validation includes 30 native and 30 ASan/UBSan/leak tests, 8 portable tests, packaging, and offscreen OpenGL on generated 37-page ~43 MB solid RAR4/RAR5 archives. These development-machine checks do not certify physical Switch behaviour; the actual reported CBR and a Switch were unavailable.
+
+---
+
 # Single-image comic rollback — 0.17.4
 
 Comics now always display one complete archive image in landscape and portrait, independently of the persisted book/PDF spread preference. This is a rendering/navigation rollback: adjacent-page pairing, neighbouring-header wide-page detection, facing-page zoom/pan geometry, the artificial spine and the paired/fullscreen under-sheet compositor are removed from the comic path. Page turns advance exactly one image. A naturally wide or ComicInfo DoublePage image stays whole and is never paired or split.

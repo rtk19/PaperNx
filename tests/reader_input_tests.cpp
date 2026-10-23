@@ -96,21 +96,51 @@ struct AppTest {
             for(int y=73;y<paper.y-2;++y)for(int x=seam-1;x<=seam;++x)assert((frame[y*1280+x]&0xffffff)==background);
             for(int y=paper.y+paper.h+2;y<676;++y)for(int x=seam-1;x<=seam;++x)assert((frame[y*1280+x]&0xffffff)==background);
             screenshot(app,zoom==1?"fit-bounded-spine":"zoom-bounded-spine");
-            preparedTurn(app,1);auto &turn=app.pageTurnAnimation_;assert(!turn.spread && turn.comicSheet && !turn.under);
+            const auto resting=frame;
+            preparedTurn(app,1);auto &turn=app.pageTurnAnimation_;assert(!turn.spread && turn.comicSheet && !turn.under && turn.back);
+            assert(app.readerFooterCaption(1280,720)=="1"); // Buttons must not show the incoming number early.
             assert(turn.viewport.y==paper.y && turn.viewport.h==paper.h && turn.viewport.w<1280);
-            // Draw at a held progress, proving that the real paper mesh and its
-            // folio snapshots survive eviction and leave the outer chrome clear.
+            // Explicit paper reverse, rather than another saturated mirrored
+            // image. Read actual rendered pixels and preserve the target state.
+            auto pixel=[&](SDL_Texture *texture) {
+                int w,h;SDL_QueryTexture(texture,nullptr,nullptr,&w,&h);auto *old=SDL_GetRenderTarget(app.renderer_);
+                assert(SDL_SetRenderTarget(app.renderer_,texture)==0);SDL_Rect r{w/4,h/4,1,1};Uint32 rgb=0;
+                assert(SDL_RenderReadPixels(app.renderer_,&r,SDL_PIXELFORMAT_ARGB8888,&rgb,4)==0);
+                SDL_SetRenderTarget(app.renderer_,old);return rgb;
+            };
+            const auto front=pixel(turn.previous.get()),reverse=pixel(turn.back.get());
+            auto distance=[&](Uint32 rgb){return std::abs(int((rgb>>16)&255)-bg.r)+std::abs(int((rgb>>8)&255)-bg.g)+std::abs(int(rgb&255)-bg.b);};
+            assert(front!=reverse && distance(reverse)<distance(front));
+            // The physical mesh survives cache eviction. Every footer pixel
+            // stays identical through the fold, with just one stationary digit.
             app.pageCache_.clear();turn.dragging=true;
             for(float progress:{0.f,.25f,.5f,.75f,1.f}) {
                 turn.progress=progress;frame=pixels(app);
                 for(int y=0;y<6;++y)for(int x=0;x<1280;++x)assert((frame[y*1280+x]&0xffffff)==background);
-                int footerInk=0;for(int y=676;y<720;++y)for(int x=0;x<1280;++x)footerInk+=(frame[y*1280+x]&0xffffff)!=background;
-                assert(footerInk<1000); // Folios move as ink, without a folded fullscreen background strip.
+                for(int y=676;y<720;++y)for(int x=0;x<1280;++x)assert(frame[y*1280+x]==resting[y*1280+x]);
+                assert(app.readerFooterCaption(1280,720)=="1");
                 screenshot(app,std::string(zoom==1?"paper-":"zoom-paper-")+std::to_string(int(progress*100)));
             }
-            turn.dragging=false;finish(app);
+            turn.dragging=false;finish(app);assert(app.readerFooterCaption(1280,720)=="2");
+            assert(pixels(app)!=resting);
         }
-        app.closeBook();std::cout<<"PASS: 0.16 menus; live book edge drags; single comic margin contact and image-only folds, no spine, owned folios and zoomed paging\n";
+        // Interactive cancellation keeps the old number. A committed touch
+        // updates it only at completion, just like a controller-driven turn.
+        app.currentPage_=0;app.setPdfView(0);app.toolbarVisible_=false;
+        touch(app,SDL_FINGERDOWN,.92f,.5f);touch(app,SDL_FINGERMOTION,.4f,.5f);awaitComicTurn(app);
+        assert(app.pageTurnAnimation_.dragging && app.readerFooterCaption(1280,720)=="1");
+        touch(app,SDL_FINGERMOTION,.919f,.5f);app.pageTurnTouch_.velocity=0;
+        touch(app,SDL_FINGERUP,.919f,.5f);assert(!app.pageTurnAnimation_.complete);finish(app);
+        assert(app.currentPage_==0 && app.readerFooterCaption(1280,720)=="1");
+        touch(app,SDL_FINGERDOWN,.92f,.5f);touch(app,SDL_FINGERMOTION,.4f,.5f);touch(app,SDL_FINGERUP,.4f,.5f);
+        assert(app.pageTurnAnimation_.complete && app.readerFooterCaption(1280,720)=="1");finish(app);
+        assert(app.currentPage_==1 && app.readerFooterCaption(1280,720)=="2");
+        preparedTurn(app,-1);assert(app.readerFooterCaption(1280,720)=="2");finish(app);
+        assert(app.readerFooterCaption(1280,720)=="1");
+        preparedTurn(app,1);app.turnPage(1);assert(app.readerFooterCaption(1280,720)=="1");finish(app);
+        assert(app.pageTurnAnimation_.active && app.readerFooterCaption(1280,720)=="2");finish(app);
+        assert(app.readerFooterCaption(1280,720)=="3");
+        app.closeBook();std::cout<<"PASS: book edge drags; single comic contact and book-style image-only curl, paper reverse, fixed counter until completion/cancellation and zoomed paging\n";
     }
 };
 }

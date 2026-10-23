@@ -1,5 +1,5 @@
-// Open-menu summaries occupy the chrome strips. Hidden-menu folios are drawn
-// on each physical leaf by reader_sheets.inc.
+// Books have physical folios. Comics keep a fixed counter outside the fold,
+// retaining the outgoing number until a page turn actually finishes.
 std::string bookPageKey_;
 std::vector<int> bookPagePrefix_;
 
@@ -27,6 +27,8 @@ void cacheBookPageCounts(int w,int h,int through) {
 }
 
 int readerPageNumber(int w,int h) {
+    if(comic() && pageTurnAnimation_.active && pageTurnAnimation_.sourcePage>=0)
+        return pageTurnAnimation_.sourcePage+1;
     if(!continuous() || !px_document_is_epub(doc_))return currentPage_+1;
     cacheBookPageCounts(w,h,currentPage_+1);
     const int height=std::max(1,h-144);

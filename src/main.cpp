@@ -393,7 +393,7 @@ private:
         PageTurnTexture under{nullptr, SDL_DestroyTexture};
         bool spread{false};
         bool active{false};
-        int page{-1}, targetPage{-1};
+        int page{-1}, targetPage{-1}, sourcePage{-1};
         bool interactive{false}, dragging{false}, complete{true};
         float progress{0}, from{0}, to{1}, anchorY{.78f}, dragY{0};
         Uint32 duration{460};
@@ -404,7 +404,6 @@ private:
         SDL_Rect viewport{0,0,0,0};
         SDL_Rect nextViewport{0,0,0,0};
         bool comicSheet{false};
-        PageTurnTexture folioFront{nullptr,SDL_DestroyTexture},folioBack{nullptr,SDL_DestroyTexture},folioUnder{nullptr,SDL_DestroyTexture};
         SDL_Rect oppositeViewport{};
     } pageTurnAnimation_;
     struct PageTurnTouch {
@@ -3393,7 +3392,6 @@ private:
                                      pageTurnAnimation_.comicSheet?&pageTurnAnimation_.nextViewport:nullptr);
             if(pageTurnAnimation_.comicSheet) {
                 SDL_RenderSetClipRect(renderer_,nullptr);
-                renderComicTurnFolios(w,h);
             }
         } else if(gpuComic) {
             renderComicZoom(w,h);
@@ -3420,8 +3418,11 @@ private:
 
             renderReaderNavigation(w,h,pal);
         }
-        if(doc_ && (continuous() || gpuComic || toolbarVisible_ || appSettings_.get().toolbar))
-            drawReaderCaption(readerFooterCaption(w,h),{96,h-58,std::max(1,w-192),44},pal);
+        if(doc_ && (comic() || continuous() || gpuComic || toolbarVisible_ || appSettings_.get().toolbar)) {
+            auto area=SDL_Rect{96,h-58,std::max(1,w-192),44};
+            if(comic() && !continuous() && !toolbarVisible_ && !appSettings_.get().toolbar)area=readerLayout().folio(0);
+            drawReaderCaption(readerFooterCaption(w,h),area,pal);
+        }
     }
 
     void renderFileBrowserScreen(int w,int h,const ThemePalette &pal) {

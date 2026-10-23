@@ -1,5 +1,5 @@
-// Sheet rendering is shared by resting pages and animation snapshots. Folios
-// belong to the paper, never to a fixed overlay (except the open-menu summary).
+// Book folios belong to the paper. Comic counters are independent fixed chrome
+// and must never enter any of the animated image snapshots.
 void drawReaderLeaf(int page,SDL_Rect leaf) {
     if(page<0 || page>=pageCount_)return; // Blank facing leaf at the end.
     auto texture=comic()?nullptr:getOrRenderPageTexture(page);
@@ -17,7 +17,7 @@ void drawReaderLeaf(int page,SDL_Rect leaf) {
         SDL_RenderCopy(renderer_,texture,nullptr,&destination);
         SDL_RenderSetClipRect(renderer_,clipped?&oldClip:nullptr);
     }
-    drawReaderCaption(std::to_string(page+1),
+    if(!comic())drawReaderCaption(std::to_string(page+1),
         {leaf.x+16,leaf.y+leaf.h-readerLayout().footerHeight(),std::max(1,leaf.w-32),readerLayout().footerHeight()},palette());
 }
 
@@ -53,27 +53,17 @@ PageTurnTexture captureReaderSurface(int width,int height,Draw draw,bool transpa
     return result;
 }
 
-void drawComicFolio(int page,SDL_Rect leaf) {
-    drawReaderCaption(std::to_string(page+1),{leaf.x+16,leaf.y,std::max(1,leaf.w-32),leaf.h},palette());
-}
 bool prepareComicTurn(int from,int target) {
-    auto &turn=pageTurnAnimation_;const auto layout=readerLayout();
+    auto &turn=pageTurnAnimation_;
+    turn.sourcePage=from;
     turn.comicSheet=true;turn.spread=false;
     turn.viewport=comicTurnBounds(from);turn.nextViewport=comicTurnBounds(target,true);
-    // Two small independent image snapshots replace the paired compositor,
-    // its fullscreen under-sheet and its additional facing-page surfaces.
+    // Use the book curl's front/reverse/next model. An explicit paper reverse
+    // avoids bending a second full-strength mirrored copy of the comic image.
     turn.previous=captureTurnPage(from,false,turn.viewport);
+    turn.back=turn.previous?captureTurnPage(from,true,turn.viewport):PageTurnTexture{nullptr,SDL_DestroyTexture};
     turn.next=captureTurnPage(target,false,turn.nextViewport);
-    const int footer=layout.footerHeight();
-    turn.folioFront=captureReaderSurface(layout.width,footer,[&]{drawComicFolio(from,{0,0,layout.width,footer});},true);
-    turn.folioBack=captureReaderSurface(layout.width,footer,[&]{drawComicFolio(target,{0,0,layout.width,footer});},true);
-    return turn.previous && turn.next;
-}
-void renderComicTurnFolios(int w,int h) {
-    if(toolbarVisible_ || appSettings_.get().toolbar)return;
-    auto &turn=pageTurnAnimation_;const int footer=readerLayout().footerHeight();
-    const SDL_Rect folio{0,h-footer,w,footer};
-    PageCurlRenderer::render(renderer_,turn.folioFront.get(),turn.folioBack.get(),folio,turn.progress,turn.direction,.5f,0,nullptr,nullptr,true);
+    return turn.previous && turn.back && turn.next;
 }
 
 bool prepareReaderTurn(int from,int target,int direction) {

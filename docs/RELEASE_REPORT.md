@@ -1,3 +1,9 @@
+# Fork release: 0.17.5
+
+Comics use a book-style physical curl with a subdued paper reverse, and a fixed bottom counter instead of moving folios. The number changes only after a completed turn; cancellation retains the outgoing number and queued turns update in order. Image-only contact, single-page viewing, zoom, loading fixes, book folios and user data remain. See [implementation and verification](COMIC_PERFORMANCE.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.17.5) include NRO, installation ZIP, exact source, licenses, checksums and test/build evidence. Developer: Refael Bar. Physical Switch interaction remains unverified.
+
 # Fork release: 0.17.4
 
 Restores comics to one complete image per page, including landscape. Removes the comic pairing, facing-page compositor, spine and paired zoom geometry; restores original single-image fit/pan with modern asynchronous preparation retained. Physical paper curls, outside-to-paper touch contact, focal zoom, moving folios and unrelated fixes remain. Books/PDF retain their landscape spreads, menus and stored data are unchanged. See [rollback and verification](COMIC_PERFORMANCE.md).
