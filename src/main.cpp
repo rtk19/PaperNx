@@ -414,6 +414,11 @@ private:
         Uint32 lastTick{0};
         bool paperContact{false};
     } pageTurnTouch_;
+    // Accepted navigation remains here while a cold comic pair is prepared.
+    // The displayed pair stays usable; no archive work runs on the input path.
+    int comicTurnQueued_{0},comicTurnPage_{-1};
+    bool comicTouchWaiting_{false};
+    float comicTouchX_{0},comicTouchY_{0};
     static constexpr Uint32 PAGE_TURN_MS = 460;
     float scrollY_{0}, scrollVelocity_{0};
     float scrollLastX_{0}, scrollLastY_{0};
@@ -1641,6 +1646,7 @@ private:
     void cancelPageTurn() {
         pageTurnAnimation_ = PageTurnAnimation{};
         pageTurnTouch_ = PageTurnTouch{};
+        comicTurnQueued_=0;comicTurnPage_=-1;comicTouchWaiting_=false;
     }
 
     SDL_Rect comicPageRect(int page,bool head=false) {
@@ -1743,6 +1749,7 @@ private:
             auto &turn=pageTurnAnimation_;
             const int base=turn.interactive && turn.complete?turn.targetPage:currentPage_;
             const int requested=turn.queued+delta;
+            if(comic()) {turn.queued=std::clamp(requested,-pageCount_,pageCount_);return;}
             int position=base;turn.queued=0;
             for(int i=0;i<std::min(pageCount_,std::abs(requested));++i) {
                 const int next=readerTurnTarget(position,requested>0?1:-1);if(next==position)break;
@@ -1750,7 +1757,16 @@ private:
             }
             return;
         }
-        const int target=readerTurnTarget(currentPage_,delta);
+        int remaining=0,target=0;
+        if(comic() && !continuous()) {
+            delta=std::clamp(comicTurnQueued_+delta,-pageCount_,pageCount_);comicTurnQueued_=0;
+            if(!delta)return;
+            const int step=delta>0?1:-1;
+            if(!readyComicTurn(step,target)) {
+                comicTurnQueued_=delta;comicTurnPage_=currentPage_;dirty_=true;return;
+            }
+            remaining=delta-step;delta=step;
+        } else target=readerTurnTarget(currentPage_,delta);
         if (target==currentPage_ || sameReaderSpread(target,currentPage_)) return;
         const int direction=(target>currentPage_?1:-1)*readingDirection();
         if(!comic() && !px_document_is_epub(doc_) && !appSettings_.get().preservePdfZoom)
@@ -1766,11 +1782,18 @@ private:
             getWindowSize(turn.width,turn.height);
             turn.page=turn.targetPage=currentPage_;turn.direction=direction;
             turn.started=SDL_GetTicks();turn.active=true;
+            turn.queued=remaining;
         }
         dirty_=true;
+        if(!animate && remaining)turnPage(remaining);
     }
 
     void beginPageTurnTouch(float x,float y,SDL_FingerID finger) {
+        // The next finger owns the next sheet immediately, even if the prior
+        // release is still settling. Do not lose its DOWN and all later motion.
+        if(pageTurnAnimation_.active && !pageTurnAnimation_.dragging) {
+            pageTurnAnimation_.started=SDL_GetTicks()-pageTurnAnimation_.duration;tickPageTurn();
+        }
         if(!canCurlPage() || pageTurnAnimation_.active) return;
         int w,h;getWindowSize(w,h);
         // Reserve visible controls, not entire invisible bands. Hidden tools
@@ -1792,8 +1815,7 @@ private:
         const float dx=pageTurnTouch_.startX-x, dy=y-pageTurnTouch_.startY;
         if(!pageTurnAnimation_.active) {
             if(!allowBegin || !canCurlPage() || std::abs(dx)*w<10 || std::abs(dx)*w<std::abs(dy)*h*.65f) return false;
-            const int direction=dx>0?1:-1, target=readerTurnTarget(currentPage_,direction*readingDirection());
-            if(target==currentPage_ || sameReaderSpread(target,currentPage_)) return false;
+            const int direction=dx>0?1:-1;int target=0;
             if(comic()) {
                 const auto paper=comicTurnBounds(currentPage_);
                 if(!pageTurnTouch_.paperContact) {
@@ -1805,6 +1827,13 @@ private:
                     pageTurnTouch_.paperContact=true;
                 }
             }
+            if(comic() && (comicTurnQueued_ || !readyComicTurn(direction*readingDirection(),target))) {
+                comicTouchWaiting_=true;comicTouchX_=x;comicTouchY_=y;
+                gestureTracker_.reset();return true;
+            }
+            comicTouchWaiting_=false;
+            if(!comic())target=readerTurnTarget(currentPage_,direction*readingDirection());
+            if(target==currentPage_ || sameReaderSpread(target,currentPage_)) return false;
             if(!prepareReaderTurn(currentPage_,target,direction)){cancelPageTurn();return false;}
             auto &turn=pageTurnAnimation_;
             const auto canvas=turn.viewport;
@@ -1835,6 +1864,13 @@ private:
         // A release-only short drift is still a tap; real motion updates are live.
         movePageTurnTouch(x,y,finger,std::abs(x-pageTurnTouch_.startX)>.06f);
         pageTurnTouch_.tracking=false;
+        if(comicTouchWaiting_) {
+            comicTouchWaiting_=false;
+            int w,h;getWindowSize(w,h);const float travel=(pageTurnTouch_.startX-x)*w;
+            const auto paper=comicTurnBounds(currentPage_);
+            if(std::abs(travel)>=std::max(10.f,paper.w*.14f))turnPage((travel>0?1:-1)*readingDirection());
+            gestureTracker_.reset();return true;
+        }
         auto &turn=pageTurnAnimation_;
         if(!turn.active || !turn.dragging) {
             if(comic() && std::abs(x-pageTurnTouch_.startX)>.02f){gestureTracker_.reset();return true;}
@@ -1852,7 +1888,20 @@ private:
 
     void tickPageTurn() {
         auto &turn=pageTurnAnimation_;
-        if(!turn.active) return;
+        if(!turn.active) {
+            if((comicTurnQueued_ || comicTouchWaiting_) && (!canCurlPage() ||
+               (comicTurnQueued_ && comicTurnPage_!=currentPage_))) {cancelPageTurn();return;}
+            if(comicTouchWaiting_ && pageTurnTouch_.tracking)
+                movePageTurnTouch(comicTouchX_,comicTouchY_,pageTurnTouch_.finger);
+            else if(comicTurnQueued_) {
+                int target=0;
+                // A pending request needs polling, not another unchanged frame
+                // at every poll. Leave the worker CPU time until it is ready.
+                if(!readyComicTurn(comicTurnQueued_>0?1:-1,target))return;
+                const int queued=comicTurnQueued_;comicTurnQueued_=0;turnPage(queued);
+            }
+            return;
+        }
         int w,h;getWindowSize(w,h);
         if(!doc_ || screen_!=ScreenState::Reader || quickMenu_ || appBackground_ || continuous() ||
            layoutPending_ || layoutWorker_.joinable() || turn.page!=currentPage_ || w!=turn.width || h!=turn.height) {
@@ -2083,12 +2132,13 @@ private:
     }
     void prefetchComicPages() {
         configureComicPages();const auto now=SDL_GetTicks();
+        if(comicTurnQueued_ || comicTouchWaiting_)return;
         if(prefetchPage_!=currentPage_) {
             if(prefetchPage_>=0)comicPrefetchDirection_=currentPage_>prefetchPage_?1:-1;
             prefetchPage_=currentPage_;prefetchStep_=0;prefetchDue_=now+60;comicDetailDue_=now+180;return;
         }
         if(now<prefetchDue_)return;
-        if(prefetchStep_<2) {
+        if(prefetchStep_<4) {
             const auto group=comicSpreadPages(currentPage_);
             const int step=prefetchStep_++;
             // Read in the navigation direction. Speculative backward reads
@@ -2113,7 +2163,13 @@ private:
             if(!comic() || result.identity!=comicTextureIdentity())continue;
             px_document_remember_comic_size(doc_,result.page,result.nativeWidth,result.nativeHeight);
             if(result.detail && !detailAllowed){comicDetailRetry_[result.page]=SDL_GetTicks()+180;continue;}
-            if(result.rgb.empty()){if(result.detail)comicDetailRetry_[result.page]=SDL_GetTicks()+3000;continue;}
+            if(result.rgb.empty()){
+                if(result.detail)comicDetailRetry_[result.page]=SDL_GetTicks()+3000;
+                else if(comicTurnQueued_ || comicTouchWaiting_) {
+                    cancelPageTurn();pageRenderError_=catLabel("Sayfa açılamadı: ","Could not render page: ")+std::to_string(result.page+1);dirty_=true;
+                }
+                continue;
+            }
             const auto group=comicSpreadPages(currentPage_);const bool visible=result.page>=group.first && result.page<group.first+group.second;
             if(result.detail && (!visible || pdfZoom_<=1.01f))continue;
             const auto key=comicTextureKey(result.page);
@@ -2347,8 +2403,18 @@ private:
             return;
         }
 
+        // Switch SDL can report a different ID for a single contact's motion
+        // and release. Normalize both; correcting only motion could leave the
+        // paper held forever after UP, blocking page buttons but not zoom.
+#ifdef __SWITCH__
+        if((e.type==SDL_FINGERMOTION || e.type==SDL_FINGERUP) && activeFingers_.size()==1 &&
+           !activeFingers_.count(e.tfinger.fingerId))e.tfinger.fingerId=*activeFingers_.begin();
+#endif
         if(updateEvent(e))return;
-        if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST) {controllerFocused_=false;clearHeldControls();}
+        if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST) {
+            controllerFocused_=false;clearHeldControls();cancelPageTurn();
+            activeFingers_.clear();multiTouch_=pdfDragging_=pointerActive_=false;gestureTracker_.reset();
+        }
         if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_GAINED) {controllerFocused_=true;clearHeldControls();}
         if(e.type==SDL_APP_WILLENTERBACKGROUND)clearHeldControls();
         if(trackHeldControl(e))return;
@@ -2464,12 +2530,6 @@ private:
                 if(scrollMoved_) { scrollBy(dy); scrollVelocity_=std::clamp(dy*1000/std::max(8u,now-scrollTick_),-2400.f,2400.f); }
                 scrollLastX_=e.tfinger.x; scrollLastY_=e.tfinger.y; scrollTick_=now; return;
             }
-#ifdef __SWITCH__
-            if (activeFingers_.size() == 1 && !activeFingers_.count(e.tfinger.fingerId)) {
-                SDL_Event corrected = incoming; corrected.tfinger.fingerId = *activeFingers_.begin();
-                handleEvent(corrected, running); return;
-            }
-#endif
             if (pdfDragging_ && e.tfinger.fingerId == pdfFinger_) {
                 int w, h; getWindowSize(w, h);
                 if(comic() && pageTurnTouch_.tracking) {

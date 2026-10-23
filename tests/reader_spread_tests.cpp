@@ -26,7 +26,7 @@ struct AppTest {
         return true;
     }
     static void finish(PaperNxApp &app) {
-        app.pageTurnAnimation_.started=SDL_GetTicks()-2000;app.tickPageTurn();
+        app.pageTurnAnimation_.started=SDL_GetTicks()-2000;app.tickPageTurn();awaitComicTurn(app);
     }
     static Shot sheet(PaperNxApp &app,int page) {
         auto l=app.readerLayout();auto t=app.captureReaderSurface(l.leafWidth(),l.height,[&]{app.drawReaderLeaf(page,{0,0,l.leafWidth(),l.height});});assert(t);
@@ -57,12 +57,12 @@ struct AppTest {
                 assert(ink>10);
                 const auto prefix=std::string(name)+"-"+std::to_string(theme);
                 save(rest,prefix+"-landscape");
-                app.turnPage(-1);assert(app.currentPage_==0 && !app.pageTurnAnimation_.active);
+                preparedTurn(app,-1);assert(app.currentPage_==0 && !app.pageTurnAnimation_.active);
                 if(app.comic() && app.pageCount_>2 && app.comicSpreadPages(2).second!=2) {
-                    app.turnPage(1);assert(app.currentPage_==2 && app.pageTurnAnimation_.active && !app.pageTurnAnimation_.spread);
-                    finish(app);app.turnPage(-1);finish(app);assert(app.currentPage_==0);
+                    preparedTurn(app,1);assert(app.currentPage_==2 && app.pageTurnAnimation_.active && !app.pageTurnAnimation_.spread);
+                    finish(app);preparedTurn(app,-1);finish(app);assert(app.currentPage_==0);
                 } else if(app.pageCount_>2) {
-                    const auto before=rest;app.turnPage(1);assert(app.currentPage_==2 && app.pageTurnAnimation_.spread);
+                    const auto before=rest;preparedTurn(app,1);assert(app.currentPage_==2 && app.pageTurnAnimation_.spread);
                     auto &turn=app.pageTurnAnimation_;const int side=turn.direction>0?1:0;
                     auto front=read(app,turn.previous.get()),back=read(app,turn.back.get());
                     if(!app.comic())assert(same(before,front,l.leaf(side)));
@@ -89,11 +89,11 @@ struct AppTest {
                             std::cerr<<"Differing pixels: "<<count<<" pages="<<app.pageCount_<<" direction="<<turn.direction<<"\n";assert(false);}
                         save(frame,prefix+"-forward-"+std::to_string(int(p*100)));
                     }
-                    finish(app);app.turnPage(-1);assert(app.currentPage_==0 && app.pageTurnAnimation_.spread);finish(app);
+                    finish(app);preparedTurn(app,-1);assert(app.currentPage_==0 && app.pageTurnAnimation_.spread);finish(app);
                     // Queued controller turns advance spreads without skipping leaves.
-                    if(app.pageCount_>4){app.turnPage(1);app.turnPage(1);finish(app);assert(app.currentPage_==4);finish(app);}
-                    app.currentPage_=app.pageCount_-1;app.turnPage(1);assert(!app.pageTurnAnimation_.active);
-                } else {app.turnPage(1);assert(app.currentPage_==0 && !app.pageTurnAnimation_.active);}
+                    if(app.pageCount_>4){preparedTurn(app,1);preparedTurn(app,1);finish(app);assert(app.currentPage_==4);finish(app);}
+                    app.currentPage_=app.pageCount_-1;preparedTurn(app,1);assert(!app.pageTurnAnimation_.active);
+                } else {preparedTurn(app,1);assert(app.currentPage_==0 && !app.pageTurnAnimation_.active);}
                 if(app.pageCount_%2 && (!app.comic() || app.comicSpreadPages(app.pageCount_-1).second==2)) {
                     const auto last=spread(app,app.pageCount_-1);const int blankSide=1-firstSide;
                     const auto rect=l.leaf(blankSide);
@@ -105,7 +105,7 @@ struct AppTest {
                 app.currentPage_=0;assert(!app.readerLayout().spread);
                 const auto portrait=spread(app,0);save(portrait,prefix+"-portrait");
                 if(app.pageCount_>1) {
-                    app.turnPage(1);assert(app.currentPage_==1 && !app.pageTurnAnimation_.spread);
+                    preparedTurn(app,1);assert(app.currentPage_==1 && !app.pageTurnAnimation_.spread);
                     auto captured=read(app,app.pageTurnAnimation_.previous.get());
                     if(!app.comic())assert(captured.pixels==portrait.pixels);
                     else {assert(app.pageTurnAnimation_.comicSheet && app.pageTurnAnimation_.viewport.h<1280);assert(app.pageTurnAnimation_.folioFront);}
@@ -135,9 +135,9 @@ struct AppTest {
         for(Uint32 type:{SDL_FINGERDOWN,SDL_FINGERUP}) {SDL_Event event{};event.type=type;event.tfinger.fingerId=71;event.tfinger.x=(top.x+top.w/2)/1280.f;event.tfinger.y=(top.y+top.h/2)/720.f;app.handleEvent(event,running);}
         assert(app.pdfPanY_==0 && app.pdfZoom_==2);
         app.setPdfView(0);app.currentPage_=0;
-        for(int page:{2,3,5,6}) {app.turnPage(1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
+        for(int page:{2,3,5,6}) {preparedTurn(app,1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
         assert(px_document_page_is_spread(app.doc_,5) && !app.readerLayout().spread);
-        for(int page:{5,3,2,0}) {app.turnPage(-1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
+        for(int page:{5,3,2,0}) {preparedTurn(app,-1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==page);}
         app.openSettings(false,5);
         for(int row:{8,9}) {
             app.settingsScroll_=app.maxUiScroll();const auto layout=ui::SettingsLayout(1280,720);auto r=layout.control(row);r.y-=int(app.settingsScroll_);
@@ -147,7 +147,7 @@ struct AppTest {
         assert(!app.appSettings_.get().expandedViewport && !app.appSettings_.get().landscapeSpreads);app.dismissSettings();
         assert(!app.readerLayout().spread && app.readerLayout().contentHeight()==576);
         assert(app.buildEpubCss().find("@page")==std::string::npos);
-        app.turnPage(1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==1);
+        preparedTurn(app,1);if(app.pageTurnAnimation_.active)finish(app);assert(app.currentPage_==1);
         auto prefs=app.appSettings_.get();prefs.landscapeSpreads=prefs.expandedViewport=true;app.appSettings_.put(prefs);app.closeBook();
         // Actual shoulder and keyboard events follow each newly opened book in landscape.
         for(const char *name:{"hebrew.epub","english.epub","hebrew.epub"}) {

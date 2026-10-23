@@ -24,7 +24,7 @@ struct AppTest {
   assert(app.comicTextureBuilds_==builds); // Old 0.17.1 performed 12 here.
   drain(app);
   for(int page=original;page<original+4;++page)assert(app.pageCache_.get(app.comicTextureKey(page)));
-  assert(app.pageCache_.currentBytes()<36u*1024u*1024u);
+  assert(app.pageCache_.currentBytes()<52u*1024u*1024u);
   // Once both neighbours are ready, rendering and a controller turn perform no
   // archive IO/rasterization on the UI thread, even with large native scans.
   const fs::path archive=app.books_.front().path,held=archive.string()+".held";
@@ -50,6 +50,49 @@ struct AppTest {
   for(int i=0;i<10;++i){app.zoomPdf(2+i*.1f,.6f,.4f,true);app.pdfPanY_+=3;app.render();}
   assert(app.comicTextureBuilds_==builds);
   app.closeBook();assert(app.comicDetails_.empty());drain(app);
+  // The reported failure is the SECOND immediate spread, not a warmed first
+  // turn. Prepare only one neighbour, then send real successive SDL gestures
+  // and shoulder presses without running any background-result processing.
+  app.openBook(app.books_.front());app.currentPage_=0;app.setPdfView(0);app.toolbarVisible_=false;app.render();app.configureComicPages();
+  app.comicPages_.request(2);app.comicPages_.request(3);drain(app);
+  assert(!px_document_comic_size_known(app.doc_,4));builds=app.comicTextureBuilds_;
+  bool running=true;
+  auto touch=[&](Uint32 type,float x) {
+   SDL_Event e{};e.type=type;e.tfinger.fingerId=81;e.tfinger.x=x;e.tfinger.y=.5f;app.handleEvent(e,running);
+  };
+  auto shoulder=[&] {
+   SDL_Event e{};e.type=SDL_CONTROLLERBUTTONDOWN;e.cbutton.button=SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;app.handleEvent(e,running);
+  };
+  touch(SDL_FINGERDOWN,.9f);touch(SDL_FINGERMOTION,.25f);touch(SDL_FINGERUP,.25f);
+  assert(app.pageTurnAnimation_.active && !app.pageTurnAnimation_.dragging);
+  touch(SDL_FINGERDOWN,.9f);assert(app.currentPage_==2 && app.pageTurnTouch_.tracking);
+  touch(SDL_FINGERMOTION,.25f);assert(app.comicTouchWaiting_ && !app.pageTurnAnimation_.active);
+  touch(SDL_FINGERUP,.25f);assert(app.comicTurnQueued_==1);
+  touch(SDL_FINGERDOWN,.9f);touch(SDL_FINGERMOTION,.25f);touch(SDL_FINGERUP,.25f);
+  assert(app.comicTurnQueued_==2);shoulder();assert(app.comicTurnQueued_==3);
+  assert(!px_document_comic_size_known(app.doc_,4) && app.comicTextureBuilds_==builds);
+  // Zoom remains immediate and cancels outstanding navigation, rather than
+  // unexpectedly jumping pages after the user starts examining this pair.
+  app.zoomPdf(1.3f,.5f,.5f,true);assert(app.pdfZoom_==1.3f && !app.comicTurnQueued_ && app.currentPage_==2);
+  app.render();assert(app.comicTextureBuilds_==builds);app.setPdfView(0);
+  shoulder();shoulder();shoulder();assert(app.comicTurnQueued_==3);
+  const auto inputStart=SDL_GetTicks(),inputDeadline=inputStart+20000;Uint32 longest=0;
+  while((app.comicTurnQueued_ || app.pageTurnAnimation_.active) && SDL_GetTicks()<inputDeadline) {
+   const auto frameStart=SDL_GetTicks();app.processComicPages();app.tickPageTurn();app.prefetchComicPages();
+   if(app.dirty_){app.render();app.dirty_=false;}
+   longest=std::max(longest,SDL_GetTicks()-frameStart);SDL_Delay(8);
+  }
+  assert(app.currentPage_==(app.pageCount_>8?8:6) && !app.comicTurnQueued_ && !app.pageTurnAnimation_.active);
+  assert(app.comicTextureBuilds_==builds && running);
+  std::cout<<"Immediate second swipe + three cold queued shoulders: "<<SDL_GetTicks()-inputStart
+           <<" ms total; longest UI frame="<<longest<<" ms; UI rasterizations="<<app.comicTextureBuilds_-builds<<std::endl;
+  // Losing focus mid-grip must release ownership instead of silently dropping
+  // all later page buttons until another pinch cancels the held animation.
+  touch(SDL_FINGERDOWN,.15f);touch(SDL_FINGERMOTION,.8f);
+  awaitComicTurn(app);assert(app.pageTurnAnimation_.dragging);
+  SDL_Event lost{};lost.type=SDL_WINDOWEVENT;lost.window.event=SDL_WINDOWEVENT_FOCUS_LOST;app.handleEvent(lost,running);
+  assert(!app.pageTurnAnimation_.active && app.activeFingers_.empty());
+  app.closeBook();drain(app);
   // Configuration replacement discards old queued/completed data. Stop wakes
   // a producer blocked by the two-result back-pressure limit as well.
   ComicPages worker;const auto path=app.books_.front().path;
@@ -57,6 +100,15 @@ struct AppTest {
   worker.configure({"new",path});worker.request(2);bool received=false;const auto deadline=SDL_GetTicks()+20000;
   while(worker.pending() && SDL_GetTicks()<deadline){for(auto &r:worker.take()){assert(r.identity=="new" && r.page==2 && !r.rgb.empty());received=true;}SDL_Delay(2);}
   assert(received && !worker.pending());for(int i=0;i<6;++i)worker.request(i);SDL_Delay(20);worker.stop();
+  ComicPages retained;retained.configure({"retained",path});retained.request(0);received=false;
+  auto until=SDL_GetTicks()+20000;
+  while(retained.pending() && SDL_GetTicks()<until){for(auto &r:retained.take()){assert(!r.rgb.empty());received=true;}SDL_Delay(2);}
+  assert(received && !retained.pending());SDL_Delay(3200);
+  // The 0.17.2 worker closed this document after three idle seconds. Removing
+  // the pathname proves that the next forward read uses its retained stream.
+  fs::rename(archive,held);retained.request(1);received=false;until=SDL_GetTicks()+20000;
+  while(retained.pending() && SDL_GetTicks()<until){for(auto &r:retained.take()){assert(r.page==1 && !r.rgb.empty());received=true;}SDL_Delay(2);}
+  assert(received && !retained.pending());retained.stop();fs::rename(held,archive);
   std::cout<<"PASS: bounded base/detail memory; zero hot-path rasterizations; asynchronous CBR/CBZ neighbours; preserved two-page zoom; stale-result cancellation and stop\n";
  }
 };

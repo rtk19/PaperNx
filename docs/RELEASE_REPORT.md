@@ -1,3 +1,9 @@
+# Fork release: 0.17.3
+
+Corrects consecutive comic spread turns by preparing cold images and pair geometry off the UI thread, retaining accepted input until ready, taking the next finger immediately after the previous release, keeping the worker's bounded CBR document/dictionary through reading pauses, and preparing two following normal pairs. Focus loss releases held paper; Switch finger-ID normalization covers release too. Existing menus, layouts, animations, zoom, preferences and reading data remain. See [implementation and verification](COMIC_PERFORMANCE.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.17.3) include the NRO, installation ZIP, exact tagged source, licenses, SHA-256 hashes and test/build evidence. Developer: Refael Bar. Physical Switch acceptance remains unverified.
+
 # Fork release: 0.17.2
 
 Corrects comic stalls by separating bounded base/zoom images, protecting visible pages from speculative eviction, preparing directional neighbours and high-quality zoom surfaces on an independent worker, retaining forward ZIP/RAR5 archive streams and avoiding redundant input-event presents. Includes a smaller folio mesh while preserving the full paper curl. The 0.16 menus and all 0.17.1 reading features/data remain. See [comic performance and verification](COMIC_PERFORMANCE.md).

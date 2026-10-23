@@ -43,6 +43,34 @@ int comicTurnTarget(int page,int steps) {
     }
     return target;
 }
+bool readyComicTurn(int direction,int &target) {
+    configureComicPages();
+    const auto group=comicSpreadPages(currentPage_);
+    const int candidate=direction>0?group.first+group.second:group.first-1;
+    if(candidate<0 || candidate>=pageCount_){target=currentPage_;return true;}
+    bool ready=true,priority=true;
+    auto require=[&](int page) {
+        if(page<0 || page>=pageCount_)return;
+        if(!px_document_comic_size_known(doc_,page) || !pageCache_.get(comicTextureKey(page))) {
+            comicPages_.request(page,false,priority);priority=false;ready=false;
+        }
+    };
+    // Pair detection itself may decompress an unseen image. Wait for those
+    // dimensions as well as the GPU surfaces before consulting the grouping.
+    if(direction>0) {
+        require(candidate);
+        if(comicSpreadActive() && (!px_document_comic_size_known(doc_,candidate) || !comicWidePage(candidate)))require(candidate+1);
+    } else {
+        auto previous=comicGroups_.lower_bound(group.first);
+        if(comicSpreadActive() && previous!=comicGroups_.begin() &&
+           std::prev(previous)->first+std::prev(previous)->second==group.first) {
+            const auto pair=*std::prev(previous);
+            for(int i=0;i<pair.second;++i)require(pair.first+i);
+        } else {if(comicSpreadActive())require(candidate-1);require(candidate);}
+    }
+    if(!ready)return false;
+    target=readerTurnTarget(currentPage_,direction);return true;
+}
 int comicViewportHeight(int h) const {return std::max(1,h-72-(appSettings_.get().expandedViewport?44:72));}
 SDL_FRect comicLeafArtwork(int page,SDL_Rect leaf) {
     float pw=0,ph=0;if(!px_document_page_size(doc_,page,&pw,&ph) || pw<=0 || ph<=0)return {};

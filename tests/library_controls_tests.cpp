@@ -80,7 +80,7 @@ struct AppTest {
         auto position=app.listScroll_;axis(app,0);assert(app.listScroll_==position);
         app.listScroll_=0;snapshot(app,"series-issues");
         const Book issue=app.visibleBooks_[1];app.openLibraryItem(1);assert(app.doc_ && app.currentBookId_==issue.id);
-        app.turnPage(1);app.cancelPageTurn();app.saveCurrentPosition();auto saved=app.progressStore_.get(issue.id);
+        preparedTurn(app,1);app.cancelPageTurn();app.saveCurrentPosition();auto saved=app.progressStore_.get(issue.id);
         app.closeBook();assert(!app.openSeriesKey_.empty() && app.visibleBooks_.size()==14);
         app.openLibraryItem(1);assert(app.currentBookId_==issue.id && app.currentPage_==saved.page);app.closeBook();
         assert(app.closeSeriesShelf() && app.visibleBooks_.size()==2 && app.selectedBookIdx_==shelfIndex);

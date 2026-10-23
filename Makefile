@@ -57,7 +57,7 @@ ICON := assets/branding/PaperNX-icon-switch.jpg
 
 APP_TITLE	:=	PaperNX
 APP_AUTHOR	:=	Refael Bar
-APP_VERSION	:=	0.17.2
+APP_VERSION	:=	0.17.3
 
 #---------------------------------------------------------------------------------
 # options for code generation

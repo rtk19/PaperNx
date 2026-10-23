@@ -1,3 +1,27 @@
+# Consecutive comic spread turns — 0.17.3
+
+The reported 0.17.2 behaviour was: after one spread turn, additional page-turn attempts were ignored for several seconds while zoom remained responsive. The real 37-page, approximately 43 MB CBR and a physical Switch were unavailable; the checks below use original generated archives of the same scale.
+
+## Remaining paths and correction
+
+- A warmed first turn was covered in 0.17.2, but an immediate second turn could still inspect unknown page dimensions and rasterize uncached pages on the UI thread. Even validating queued turns could inspect future archive entries. A cache-only geometry query now gates pair detection and snapshot preparation. A cold turn requests base images from the worker, retains the displayed pair, and keeps accepted navigation until its images and geometry arrive. Queued turns do not inspect unseen headers. Base requests take priority over queued speculative/detail jobs.
+- A new finger starting during the preceding release animation did not own the next live curl. A new DOWN now settles that prior turn before acquiring the next sheet. Cold drags retain their contact/current location; if released before loading completes, a committed gesture becomes a pending turn. Repeated gestures and shoulders preserve their accumulated intent. Zoom, settings, backgrounding, jumps and document changes cancel pending navigation.
+- The worker closed its document after **three seconds of idle time**. Retaining a libarchive cursor inside that document therefore did not retain it across normal reading pauses. The worker now sleeps without closing its bounded document, including its solid dictionary, until configuration changes or shutdown. An isolated probe using the exact 0.17.2 worker failed a forward read after a 3.2-second pause when the archive pathname was temporarily unavailable; the fixed worker passes the same probe.
+- Preparation looks ahead up to four physical pages in the reading direction, covering two subsequent normal pairs. Six base pages remain below 48 MiB; the LRU still has its existing 64 MiB ceiling and protects displayed pages. Detailed zoom surfaces retain their separate two-slot budget.
+- The existing Switch single-contact finger-ID normalization now covers release as well as motion. Focus loss clears held paper and touch ownership. This closes another path where a held curl could reject page buttons while pinch still cancels it; its occurrence on the user's device is not established.
+
+## Verification
+
+The performance suite now prepares only the **first** neighbouring pair, then sends an actual swipe, another swipe during settling, another cold swipe and a shoulder press without processing background results between those events. It asserts that the next unknown header remains unknown on the UI thread, pending input is retained, zoom responds/cancels immediately, and successive cold turns complete without additional UI rasterizations. A second phase sends three queued shoulders and drives the normal processing/animation/preparation path. Focus loss during a held curl releases ownership. A 3.2-second worker-idle test temporarily removes the archive pathname before the next forward request, proving that the stream survived the pause.
+
+Checks run against high-resolution CBZ, generated 37-page ~43.5 MB stored RAR5 and additional ~43 MB compressed solid RAR4/RAR5. Snapshot tests wait explicitly for asynchronous preparation; the performance regression deliberately does not warm the second pair before sending input. Native, ASan/UBSan/leak, portable, packaging and offscreen OpenGL checks accompany the release. Desktop measurements do not establish Switch latency, SD performance or a universal no-stall guarantee. First opening, distant uncached seeks and malformed archives still have their own costs.
+
+In the additional desktop OpenGL runs, three consecutive cold shoulder turns (including their normal animations) completed in **1,616 ms for solid RAR4** and **1,581 ms for solid RAR5**, with **zero UI-thread rasterizations**. The longest measured UI iteration was **18 ms / 22 ms** respectively. These are development-machine measurements, not Switch timings. The baseline and final probe logs, full test logs and exact probe source are included in release evidence.
+
+The paper-only curl, full-width drag, smart wide scans, close-facing pages and bounded spine, RTL/LTR controls, folios, focal pinch, return-to-top/Y, default-on layout preferences, 0.16 menus, reading records and library remain.
+
+---
+
 # Comic interaction performance — 0.17.2
 
 ## Reproduced regression

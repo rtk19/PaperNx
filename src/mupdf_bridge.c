@@ -210,6 +210,10 @@ int px_document_remember_comic_size(PxDocument *d,int page,float width,float hei
     return d && d->comic && isfinite(width) && isfinite(height)?px_comic_remember_size(d->doc,page,width,height):0;
 }
 
+int px_document_comic_size_known(PxDocument *d,int page) {
+    return d && d->comic && px_comic_size_known(d->doc,page);
+}
+
 int px_document_page_size(PxDocument *d, int index, float *width, float *height) {
     if (!d || !width || !height || index < 0 || index >= d->pages) return 0;
     if(d->comic) {

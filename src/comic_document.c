@@ -414,3 +414,8 @@ int px_comic_remember_size(fz_document *document,int page,float width,float heig
     if(doc->entries[page].height<=0){doc->entries[page].width=width;doc->entries[page].height=height;}
     return 1;
 }
+
+int px_comic_size_known(fz_document *document,int page) {
+    ComicDocument *doc=(ComicDocument *)document;
+    return page>=0 && page<doc->count && doc->entries[page].width>0 && doc->entries[page].height>0;
+}

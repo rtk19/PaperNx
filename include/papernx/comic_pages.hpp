@@ -39,9 +39,17 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);if(spec.identity==spec_.identity)return;
         spec_=std::move(spec);++generation_;queue_.clear();results_.clear();requested_.clear();wake_.notify_one();
     }
-    void request(int page,bool detail=false) {
+    void request(int page,bool detail=false,bool priority=false) {
         std::lock_guard<std::mutex> lock(mutex_);const auto key=std::make_pair(page,detail);
-        if(stopped_ || spec_.identity.empty() || page<0 || requested_.count(key) || queue_.size()>=6)return;
+        if(stopped_ || spec_.identity.empty() || page<0)return;
+        if(priority) {
+            // An explicit turn supersedes speculative work, especially a
+            // backwards detail read that would restart a solid RAR stream.
+            for(auto it=queue_.begin();it!=queue_.end();) {
+                if(*it!=key){requested_.erase(*it);it=queue_.erase(it);}else ++it;
+            }
+        }
+        if(requested_.count(key) || queue_.size()>=6)return;
         requested_.insert(key);
         if(detail)queue_.push_back(key);
         else queue_.insert(std::find_if(queue_.begin(),queue_.end(),[](auto job){return job.second;}),key);
@@ -74,9 +82,10 @@ private:
             Spec spec;std::uint64_t generation;int page;bool detail;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                if(!wake_.wait_for(lock,std::chrono::seconds(3),[&]{return stopped_ || opened!=generation_ || (!queue_.empty() && results_.size()<2);})) {
-                    lock.unlock();if(doc)px_document_close(doc);doc=nullptr;continue;
-                }
+                // Keep the bounded document/solid dictionary between turns.
+                // Closing it after three idle seconds replayed the archive on
+                // the next request, even while the visible pages zoomed freely.
+                wake_.wait(lock,[&]{return stopped_ || opened!=generation_ || (!queue_.empty() && results_.size()<2);});
                 if(stopped_)break;
                 if(opened!=generation_) {
                     opened=generation_;lock.unlock();if(doc)px_document_close(doc);doc=nullptr;lock.lock();

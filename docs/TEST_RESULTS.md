@@ -1,3 +1,7 @@
+# Fork verification: 0.17.3
+
+The 30 native and 30 ASan/UBSan/leak tests now exercise immediate consecutive SDL comic swipes and shoulder requests with a cold second pair, cache-only geometry checks, retained pending input, responsive/cancelling zoom, focus-loss recovery and archive retention across a 3.2-second idle pause. Both high-resolution CBZ and a generated 37-page ~43.5 MB CBR run this sequence. The previous worker fails the isolated idle-retention probe; the corrected worker passes. The 8 portable tests, packaging and additional offscreen OpenGL compressed solid RAR4/RAR5 and reader suites are also checked. See [details and device limitations](COMIC_PERFORMANCE.md). A physical Switch and the actual reported CBR remain unavailable.
+
 # Fork verification: 0.17.2
 
 30 native tests and the same 30 under ASan/UBSan/leak detection now include a comic performance suite and a generated 37-page ~43.5 MB RAR5 fixture. Regression assertions cover zero UI-thread rasterizations during warmed toolbar/turn/pan/pinch operations, bounded base/detail textures, protected visible images, asynchronous refinement of both enlarged pages, stale-result cancellation and stopping a producer under back pressure. Warm rendering is exercised while the fixture's backing pathname is unavailable. Document tests verify persistent forward ZIP/RAR5 streams, solid dictionaries and backward/error recovery. Existing compressed/solid RAR4/RAR5, Hebrew, spreads, gestures, captions, settings, library, journal, updater and archive rejection checks remain active.

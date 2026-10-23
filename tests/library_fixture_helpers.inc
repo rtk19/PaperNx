@@ -6,3 +6,13 @@ static bool initReady(PaperNxApp &app) {
     while(app.libraryScanner_.pending() && SDL_GetTicks()<deadline){app.processLibraryScan();SDL_Delay(2);}
     return !app.libraryScanner_.pending();
 }
+// Snapshot/workflow tests explicitly wait for a requested cold comic sheet.
+// The performance suite separately drives real input without this wait.
+static void awaitComicTurn(PaperNxApp &app) {
+    const auto deadline=SDL_GetTicks()+20000;
+    while((app.comicTurnQueued_ || app.comicTouchWaiting_) && SDL_GetTicks()<deadline) {
+        app.processComicPages();app.tickPageTurn();SDL_Delay(2);
+    }
+    assert(!app.comicTurnQueued_ && !app.comicTouchWaiting_);
+}
+static void preparedTurn(PaperNxApp &app,int delta) {app.turnPage(delta);awaitComicTurn(app);}
