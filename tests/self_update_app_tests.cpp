@@ -23,8 +23,8 @@ struct AppTest {
         assert(SDL_RenderReadPixels(app.renderer_,nullptr,surface->format->format,surface->pixels,surface->pitch)==0);fs::create_directories("verification/updates");assert(SDL_SaveBMP(surface,("verification/updates/"+name+".bmp").c_str())==0);SDL_FreeSurface(surface);SDL_SetRenderTarget(app.renderer_,old);
     }
     static void manual(PaperNxApp &app){
-        app.quickMenu_=true;int w,h;app.getWindowSize(w,h);auto actions=app.quickActions();assert(actions.back()=="Check for update");int index=int(actions.size())-1;
-        app.quickScroll_=app.maxUiScroll();snapshot(app,"plus-menu");tap(app,app.quickActionRect(index,w,h));assert(app.updateDialog_&&!app.quickMenu_);wait(app);
+        app.quickMenu_=true;int w,h;app.getWindowSize(w,h);auto actions=app.quickActions();assert(actions.back()=="Check for update");auto r=app.quickSheet(w,h);int index=int(actions.size())-1;
+        app.quickScroll_=std::max(0,index*60-(r.h-100));snapshot(app,"plus-menu");tap(app,{r.x+12,r.y+64+index*60-int(app.quickScroll_),r.w-24,56});assert(app.updateDialog_&&!app.quickMenu_);wait(app);
     }
     static void run(const fs::path &root,const std::string &base){
         auto u=std::make_shared<SelfUpdater>();const auto path=root/"Renamed PaperNX.nro";std::ofstream(path)<<"original application";

@@ -40,7 +40,7 @@ struct AppTest {
         finger(app, SDL_FINGERDOWN, x, y); finger(app, SDL_FINGERUP, x, y);
     }
     static void settingsControl(PaperNxApp &app,int row,bool right=true) {
-        int w,h; app.getWindowSize(w,h); auto r=app.settingsControl(row,w,h);
+        int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).control(row);
         app.aaRow_=row;
         if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
         tap(app,float(r.x+int(r.w*(right?.75:.25)))/w,float(r.y+28)/h);
@@ -61,7 +61,7 @@ struct AppTest {
         int w,h; app.getWindowSize(w,h); auto r=ui::SettingsLayout(w,h).close;
         tap(app,float(r.x+r.w/2)/w,float(r.y+28)/h);
     }
-    static void closeNavigation(PaperNxApp &app) {int w,h;app.getWindowSize(w,h);auto r=ui::NavigationLayout(w,h).close;tap(app,float(r.x+r.w/2)/w,float(r.y+r.h/2)/h);}
+    static void closeNavigation(PaperNxApp &app) { int w,h; app.getWindowSize(w,h); tap(app,float(w-128)/w,116.f/h); }
     #include "v03_app_workflow.hpp"
     #include "v03_stress_workflow.hpp"
     #include "v04_ui_workflow.hpp"
@@ -262,7 +262,7 @@ struct AppTest {
             PaperNxApp app(root); assert(initReady(app)); assert(!app.controller_);
             auto epub = *std::find_if(app.books_.begin(), app.books_.end(), [](const Book &b) { return b.format == Format::Epub; });
             // Open first library card using only finger events.
-            auto card=app.libraryLayout(1280).card(0,0);tap(app,float(card.x+80)/1280,float(card.y+80)/720); assert(app.doc_ && app.screen_ == ScreenState::Reader);
+            tap(app, .06f, .30f); assert(app.doc_ && app.screen_ == ScreenState::Reader);
             if (!px_document_is_epub(app.doc_)) { app.closeBook(); app.openBook(epub); }
             epubId = app.currentBookId_;
             for (int i = 0; i < 10; ++i) tap(app, .75f, .5f);
@@ -313,7 +313,7 @@ struct AppTest {
             savedPage = app.currentPage_;
             int headerW,headerH;app.getWindowSize(headerW,headerH);const auto bookmarkButton=app.readerHeaderButton(2,headerW);
             tap(app,float(bookmarkButton.x+bookmarkButton.w/2)/headerW,float(bookmarkButton.y+bookmarkButton.h/2)/headerH); assert(app.screen_ == ScreenState::BookmarksModal);
-            auto add=app.bookmarkAdd(1280,720);tap(app,float(add.x+add.w/2)/1280,float(add.y+add.h/2)/720); assert(app.progressStore_.get(epubId).bookmarks.size() == 1);
+            tap(app,.5f,636.f/720); assert(app.progressStore_.get(epubId).bookmarks.size() == 1);
             closeNavigation(app); assert(app.screen_ == ScreenState::Reader);
             tap(app, .04f, .04f); assert(app.screen_ == ScreenState::Library && !app.progressDirty_);
             app.category_ = Category::Completed; app.updateVisibleBooks();

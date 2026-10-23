@@ -1,3 +1,9 @@
+# Fork release: 0.17.1
+
+A forward patch that rolls back external application/menu presentation to 0.16.0 and corrects comic paper bounds, centre spines, touch routing and preparation of neighbouring facing pages. The compact reading toolbar, prior reading layouts, Hebrew support, L/R direction, folios, zoom and animations remain. Book top/bottom drags now stay interactive outside visible controls. No stored-data migration or reset is introduced. See [implementation and verification details](READER_INPUT_FIXES.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.17.1) contain the NRO, SD installation layout, corresponding tagged source, licenses, SHA-256 checksums and verification evidence. Numeric version: 0.17.1; developer: Refael Bar. Physical Switch interaction and cold-SD timings remain unverified.
+
 # Fork release: 0.17.0
 
 A structural UI/UX remake, with a Home/resume experience, dedicated book library, persistent application navigation, a guided first-library flow, a folder-import workspace, responsive settings, tiled actions, book-management cards, new contents and saved-place workspaces, a unified journal, colour previews and opening screens. All existing reader behavior and data remain: physical pages and folios, RTL/LTR controls, smart comic spreads, curl animation, full-width drag, focal pinch zoom, return-to-top, scan roots, catalog operations, journal and verified automatic updates. See [screen and feature map](APP_EXPERIENCE.md).

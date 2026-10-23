@@ -58,7 +58,7 @@ void pollUpdates() {
     // Offline/no-update startup checks stay quiet. Explicit checks report all outcomes.
     else if(updateManual_ && (state.state==UpdateState::Current || state.state==UpdateState::Error))showUpdateDialog();
 }
-SDL_Rect updatePanel(int w,int h) const {const int width=std::min(740,w-48),height=std::min(560,h-96);return {(w-width)/2,(h-height)/2,width,height};}
+SDL_Rect updatePanel(int w,int h) const {const int width=std::min(660,w-48),height=std::min(540,h-112);return {(w-width)/2,(h-height)/2,width,height};}
 SDL_Rect updateButton(int index,int count,int w,int h) const {const auto r=updatePanel(w,h);const int step=(r.w-48)/count;return {r.x+24+index*step,r.y+r.h-80,step-8,56};}
 int updateButtonCount(const UpdateStatus &s) const {return !updateNotes_&&s.state==UpdateState::Available&&s.release.installable()?3:1;}
 bool updateBusy(const UpdateStatus &s) const {return s.state==UpdateState::Checking||s.state==UpdateState::Downloading;}
@@ -110,10 +110,8 @@ void renderUpdateDialog(int w,int h,const ThemePalette &pal) {
     const auto s=updater_->status();const auto panel=updatePanel(w,h);
     SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer_,0,0,0,160);SDL_Rect screen{0,0,w,h};SDL_RenderFillRect(renderer_,&screen);
     ui::elevated(renderer_,panel,pal);
-    ui::iconButton(renderer_,*typography_,{panel.x+24,panel.y+24,64,64},ui::Icon::Download,pal,true);
-    ui::eyebrow(renderer_,*typography_,"Fresh pages ahead",panel.x+108,panel.y+24,pal,panel.w-140);
-    typography_->renderText(renderer_,typography_->titleFont(),ui::label(updateNotes_?"What's new":"Software update"),panel.x+108,panel.y+52,pal.fg,panel.w-140);
-    const SDL_Rect body{panel.x+32,panel.y+128,panel.w-64,panel.h-236};
+    typography_->renderText(renderer_,typography_->sectionFont(),ui::label(updateNotes_?"What's new":"Software update"),panel.x+24,panel.y+22,pal.fg,panel.w-48);
+    const SDL_Rect body{panel.x+24,panel.y+76,panel.w-48,panel.h-176};
     std::string text;
     if(updateNotes_) {
         text=s.release.title+"\n\n"+s.release.notes;if(s.release.notes.empty())text=ui::label("No release notes");

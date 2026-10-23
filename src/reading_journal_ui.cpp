@@ -1,6 +1,5 @@
 #include "papernx/reading_journal_ui.hpp"
 #include "papernx/ui.hpp"
-#include "papernx/app_visuals.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -88,7 +87,9 @@ void line(SDL_Renderer *r, SDL_Color color, int x, int y, int w) {
 }
 
 void panel(SDL_Renderer *r, const ThemePalette &pal, SDL_Rect rc) {
-    ui::elevated(r,rc,pal,22);
+    ui::surface(r, rc, pal.card, 16);
+    SDL_SetRenderDrawColor(r, pal.cardBorder.r, pal.cardBorder.g, pal.cardBorder.b, 255);
+    SDL_RenderDrawRect(r, &rc);
 }
 
 void drawRing(SDL_Renderer *r, const ThemePalette &pal, int cx, int cy, int radius, int thickness, float fraction) {
@@ -228,13 +229,32 @@ JournalLayout computeLayout(int w, int h, int tab, bool inBookDetail,
     JournalLayout l;
     l.w = w;
     l.h = h;
-    l.sidebar=false;
-    const ui::ShellLayout shell(w,h);const int left=shell.left;
-    l.headerBar={left,0,w-left,96};
-    l.libraryBtn={left,20,56,56};
-    l.goalsBtn={w-224,20,128,56};l.exportBtn={w-364,20,128,56};
-    for(int i=0;i<4;++i)l.navTabs[i]={left+i*((w-left-24)/4),112,(w-left-24)/4-8,56};
-    l.contentArea={left,192,w-left-24,h-208-shell.bottom};
+    l.sidebar = (w >= 900);
+
+    l.headerBar = {0, 0, w, 76};
+    if (l.sidebar) {
+        l.libraryBtn = {16, 10, 150, 56};
+        l.goalsBtn = {w - 240, 10, 150, 56};
+        l.exportBtn = {w - 400, 10, 150, 56};
+
+        l.navPanel = {14, 86, 214, h - 98};
+        for (int i = 0; i < 4; ++i) {
+            l.navTabs[i] = {24, 190 + i * 66, 194, 56};
+        }
+        l.contentArea = {244, 86, w - 262, h - 98};
+    } else {
+        int btnW = std::clamp((w - 180) / 4, 84, 126);
+        l.libraryBtn = {16, 10, btnW, 56};
+        // Always place rightmost header button before w - 88 so global quick menu '+' at {w - 80, 8, 64, 64} is never covered!
+        l.goalsBtn = {w - 88 - btnW, 10, btnW, 56};
+        l.exportBtn = {l.goalsBtn.x - btnW - 10, 10, btnW, 56};
+
+        int tabW = (w - 32) / 4;
+        for (int i = 0; i < 4; ++i) {
+            l.navTabs[i] = {16 + i * tabW, 86, tabW - 4, 56};
+        }
+        l.contentArea = {16, 152, w - 32, h - 164};
+    }
 
     const int cx = l.contentArea.x;
     const int cy = l.contentArea.y;
@@ -669,7 +689,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
 
     // 1. Header Bar
     ui::surface(r, l.headerBar, pal.card, 0);
-    ui::iconButton(r,font,l.libraryBtn,ui::Icon::Back,pal);
+    ui::button(r, font, l.libraryBtn, label(en, "Kitaplık", "Library"), pal, false, false, false);
 
     // Compute title bounds avoiding overlap with right buttons
     int titleX = l.libraryBtn.x + l.libraryBtn.w + 16;
@@ -677,7 +697,8 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
     if (tab_ == 3) rightLimit = l.exportBtn.x - 16;
     int titleMaxW = std::max(120, rightLimit - titleX);
 
-    textSmall(r,font,label(en,"OKUMA HAYATINIZ","YOUR READING LIFE"),titleX,10,pal.accent,titleMaxW);
+    text(r, font, label(en, "Kütüphane / Günlüğüm", "Library / Journal"),
+         titleX, 12, pal.muted, titleMaxW);
     text(r, font, label(en, "Okuma Günlüğüm", "My Reading Journal"),
          titleX, 36, pal.fg, titleMaxW, true);
 
@@ -685,7 +706,7 @@ void ReadingJournalUI::render(SDL_Renderer *r, Typography &font, const ThemePale
     if (tab_ == 3) {
         ui::button(r, font, l.exportBtn, label(en, "Dışa aktar", "Export"), pal, false, false, false);
     }
-
+    line(r, pal.cardBorder, 0, 76, w);
 
     // 2. Navigation Tabs
     if (l.sidebar) {

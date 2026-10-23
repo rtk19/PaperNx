@@ -1,6 +1,5 @@
 #pragma once
 #include "papernx/ui.hpp"
-#include "papernx/app_layout.hpp"
 namespace papernx::ui {
 enum class Icon {Home,Books,Collection,Journal,Folder,Settings,Search,Plus,Back,Bookmark,Type,Rotate,Refresh,Arrow,Grid,Check,Download};
 inline void icon(SDL_Renderer *r,SDL_Rect area,Icon glyph,SDL_Color c) {

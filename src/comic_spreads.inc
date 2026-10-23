@@ -83,7 +83,10 @@ void renderComicSpreadZoom(int w,int h) {
     if(group.second==2) {
         const float seam=clip.x+originX+(w/2.f-clip.x)*pdfZoom_-pdfPanX_;
         const auto pal=palette();SDL_SetRenderDrawColor(renderer_,pal.cardBorder.r,pal.cardBorder.g,pal.cardBorder.b,255);
-        SDL_RenderDrawLineF(renderer_,seam,72,seam,h-(appSettings_.get().expandedViewport?44.f:72.f));
+        for(int side=0;side<2;++side) {
+            const auto r=comicArtworkRect(currentPage_,side);
+            SDL_RenderDrawLineF(renderer_,seam+(side?0:-1),float(r.y),seam+(side?0:-1),float(r.y+r.h-1));
+        }
     }
     SDL_RenderSetClipRect(renderer_,nullptr);
 }
@@ -99,4 +102,36 @@ void drawZoomTop(int w,int h,const ThemePalette &pal) {
     const int x=r.x+r.w/2,y=r.y+19;
     SDL_RenderDrawLine(renderer_,x-9,y+8,x,y);SDL_RenderDrawLine(renderer_,x,y,x+9,y+8);
     SDL_RenderDrawLine(renderer_,x,y,x,y+22);
+}
+
+// Artwork bounds are independent of the fullscreen interaction area. The same
+// geometry drives resting pages, touch contact and the animated physical leaf.
+SDL_Rect comicArtworkRect(int base,int side,bool head=false) {
+    auto layout=readerLayout();const auto group=comicSpreadPages(base);
+    layout.spread=comicSpreadActive() && group.second==2;
+    const int page=layout.spread?readerSidePage(group.first,side):group.first;
+    if(!layout.spread && std::abs(pdfZoom_-1.f)>.0001f && !comicSpreadActive())return comicPageRect(page,head);
+    auto r=comicLeafArtwork(page,layout.leaf(side));
+    if(std::abs(pdfZoom_-1.f)>.0001f) {
+        const float vw=fixedViewportWidth(layout.width),vh=comicViewportHeight(layout.height);
+        const float panX=head?(readingDirection()<0?std::max(0.f,vw*(pdfZoom_-1)):0):float(pdfPanX_);
+        r={currentMargin_+std::max(0.f,vw*(1-pdfZoom_)/2)+(r.x-currentMargin_)*pdfZoom_-panX,
+           72+std::max(0.f,vh*(1-pdfZoom_)/2)+(r.y-72)*pdfZoom_-(head?0:pdfPanY_),r.w*pdfZoom_,r.h*pdfZoom_};
+    }
+    return {int(std::lround(r.x)),int(std::lround(r.y)),std::max(1,int(std::lround(r.w))),std::max(1,int(std::lround(r.h)))};
+}
+SDL_Rect comicTurnBounds(int base,bool head=false) {
+    auto r=comicArtworkRect(base,0,head);
+    if(comicSpreadActive() && comicSpreadPages(base).second==2) {
+        auto other=comicArtworkRect(base,1,head);SDL_Rect joined{};SDL_UnionRect(&r,&other,&joined);r=joined;
+    }
+    return r;
+}
+bool comicCanGrip(float x,float y) {
+    int w,h;getWindowSize(w,h);const auto r=comicTurnBounds(currentPage_);
+    // Outside the paper is always a paging zone. Within an enlarged sheet,
+    // preserve panning; only its outer grip or an exhausted horizontal pan turns.
+    return x*w<r.x || x*w>=r.x+r.w || y*h<r.y || y*h>=r.y+r.h ||
+        x<.12f || x>.88f || (pdfPanX_==0 && x>.5f) ||
+        (pdfPanX_>=std::max(0,int(fixedViewportWidth(w)*(pdfZoom_-1))) && x<.5f);
 }

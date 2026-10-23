@@ -47,7 +47,6 @@ Typography::Typography(const std::filesystem::path &root) : root_(root) {}
 
 Typography::~Typography() {
     clearTextCache();
-    if(displayFont_)TTF_CloseFont(displayFont_);
     for(auto &entry:fallbackFonts_) if(entry.second) TTF_CloseFont(entry.second);
     if(previewFont_) TTF_CloseFont(previewFont_);
     TTF_Font* fonts[] = {titleFont_, uiFont_, smallFont_, readerFont_,sectionFont_,buttonFont_};
@@ -116,7 +115,6 @@ bool Typography::init() {
         (root_/"fonts"/"NotoSans-SemiBold.ttf").string(),
         "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"};
-    displayFont_ = findAndLoad(boldCandidates, 42);
     titleFont_ = findAndLoad(boldCandidates, 30);
     if(!titleFont_) titleFont_=findAndLoad(sansCandidates,30);
     sectionFont_=findAndLoad(boldCandidates,24);

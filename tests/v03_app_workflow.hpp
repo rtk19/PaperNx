@@ -14,10 +14,12 @@ static void v03Plus(PaperNxApp &app) {
 static void v03MenuItem(PaperNxApp &app,int index) {
     assert(app.quickMenu_); int w,h; app.getWindowSize(w,h);
     auto sheet=app.quickSheet(w,h);
-    for(int attempt=0;attempt<12;++attempt) {
-        auto r=app.quickActionRect(index,w,h);auto content=app.quickContent(w,h);
-        if(r.y>=content.y && r.y+r.h<=content.y+content.h){v03RectTap(app,r);return;}
-        v03Drag(app,float(sheet.x+sheet.w/2)/w,float(content.y+content.h-12)/h,float(content.y+12)/h);
+    for(int attempt=0;attempt<8;++attempt) {
+        int y=sheet.y+64+index*60+28-int(app.quickScroll_);
+        if(y>=sheet.y+64 && y<sheet.y+sheet.h-4) {
+            v03RectTap(app,{sheet.x+20,y-20,sheet.w-40,40}); return;
+        }
+        v03Drag(app,float(sheet.x+sheet.w/2)/w,float(sheet.y+sheet.h-24)/h,float(sheet.y+100)/h);
     }
     assert(false && "Quick action must be reachable using finger drag");
 }
@@ -26,8 +28,8 @@ static void v03Tab(PaperNxApp &app,int tab) {
 }
 static void v03Control(PaperNxApp &app,int row,bool right=true) {
     int w,h; app.getWindowSize(w,h); ui::SettingsLayout layout(w,h);
-    for(int attempt=0;attempt<20;++attempt) {
-        auto r=app.settingsControl(row,w,h); r.y-=int(app.settingsScroll_);
+    for(int attempt=0;attempt<8;++attempt) {
+        auto r=layout.control(row); r.y-=int(app.settingsScroll_);
         if(r.y>=layout.content.y && r.y+r.h<=layout.content.y+layout.content.h) {
             app.aaRow_=row;
             if(app.numericSetting())r=right?ui::StepperLayout(r).plus:ui::StepperLayout(r).minus;
@@ -65,7 +67,7 @@ static void v03RevealSeriesIssue(PaperNxApp &app,const std::string &id) {
 static void v03OpenLibraryBook(PaperNxApp &app,const std::string &id) {
     v03RevealSeriesIssue(app,id);
     assert(app.screen_==ScreenState::Library); int w,h; app.getWindowSize(w,h);
-    assert(app.viewMode_==ViewMode::Grid); auto layout=app.libraryLayout(w);
+    assert(app.viewMode_==ViewMode::Grid); ui::LibraryLayout layout(w);
     const auto found=std::find_if(app.visibleBooks_.begin(),app.visibleBooks_.end(),[&](const Book &b){return b.id==id;});
     assert(found!=app.visibleBooks_.end()); const int index=int(found-app.visibleBooks_.begin());
     for(int attempt=0;attempt<12;++attempt) {
@@ -160,10 +162,10 @@ static void v03Workflow(const fs::path &parent) {
         assert(app.currentPage_==page && std::abs(app.scrollY_-y)<1);
         v03Plus(app); v03MenuItem(app,3); assert(app.screen_==ScreenState::BookmarksModal);
         auto beforeBookmarks=app.progressStore_.get(secondId).bookmarks.size();
-        v03RectTap(app,app.bookmarkAdd(w,h));
+        v03RectTap(app,{48,h-112,w-96,56});
         assert(app.progressStore_.get(secondId).bookmarks.size()==beforeBookmarks+1);
         // Delete the just-created row, preserving the original migrated bookmark.
-        auto row=app.bookmarkRow(int(beforeBookmarks),w,h);v03RectTap(app,{row.x+row.w-96,row.y+8,88,56});
+        v03RectTap(app,{w-184,152+int(beforeBookmarks)*56,112,56});
         assert(app.progressStore_.get(secondId).bookmarks.size()==beforeBookmarks);
         v03RectTap(app,{48,152,w-250,56});
         assert(app.screen_==ScreenState::Reader && !app.navigationHistory_.empty());

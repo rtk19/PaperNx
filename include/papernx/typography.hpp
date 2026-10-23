@@ -25,7 +25,6 @@ public:
     const TypographyMetrics &metrics() const { return metrics_; }
     void resetMetrics() { metrics_={}; }
 
-    TTF_Font *displayFont() const { return displayFont_?displayFont_:titleFont_; }
     TTF_Font *titleFont() const { return titleFont_; }
     TTF_Font *uiFont() const { return uiFont_; }
     TTF_Font *smallFont() const { return smallFont_; }
@@ -57,7 +56,6 @@ private:
     std::map<TTF_Font *,FontInfo> fontInfo_;
     std::map<std::pair<int,int>,TTF_Font *> fallbackFonts_;
     std::filesystem::path root_;
-    TTF_Font *displayFont_{nullptr};
     TTF_Font *titleFont_{nullptr};
     TTF_Font *uiFont_{nullptr};
     TTF_Font *smallFont_{nullptr};

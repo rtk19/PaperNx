@@ -38,7 +38,7 @@ static void v04UiWorkflow(const fs::path &parent) {
         metric("tap_to_pressed_present",pressedMs,false);metric("tap_to_action_present",actionMs,false);metric("focus_to_present",focusMs,true);bench<<"}\n";
         snapshot(app,"v04-settings-focus-landscape");
         app.editColor(1);pad(app,SDL_CONTROLLER_BUTTON_DPAD_RIGHT);assert(app.extraStyle_.backgroundColor==app.swatchColors_[app.swatchFocus_]);
-        {auto action=app.colorAction(true,bw,bh);float sx=float(action.x+action.w/2)/bw,sy=float(action.y+action.h/2)/bh;
+        {auto panel=app.colorPanel(bw,bh);float sx=float(panel.x+panel.w-40)/bw,sy=float(panel.y+376)/bh;
             finger(app,SDL_FINGERUP,sx,sy);assert(app.colorEditing_>=0);
             finger(app,SDL_FINGERDOWN,sx,sy,81);finger(app,SDL_FINGERDOWN,sx,sy,82);finger(app,SDL_FINGERUP,sx,sy,81);finger(app,SDL_FINGERUP,sx,sy,82);assert(app.colorEditing_>=0);}
         snapshot(app,"v04-color-swatches");pad(app,SDL_CONTROLLER_BUTTON_B);assert(app.extraStyle_.backgroundColor==old.backgroundColor);
@@ -178,9 +178,10 @@ static void v04UiWorkflow(const fs::path &parent) {
             const auto title=app.catLabel("Ekran yönü · Yatay / Dikey","Display orientation · Landscape / Portrait");
             auto it=std::find(actions.begin(),actions.end(),title);assert(it!=actions.end());
             app.quickMenu_=true;int qw,qh;app.getWindowSize(qw,qh);
+            auto sheet=app.quickSheet(qw,qh);
             app.quickScroll_=app.maxUiScroll();
             const auto idx=int(it-actions.begin());
-            auto action=app.quickActionRect(idx,qw,qh);app.handleQuickMenuTap(action.x+action.w/2,action.y+action.h/2,qw,qh);
+            app.handleQuickMenuTap(sheet.x+24,sheet.y+64+idx*60-int(app.quickScroll_)+24,qw,qh);
             assert(app.choiceKind_==1 && !app.quickMenu_);
             app.choiceIndex_=0;app.commitChoice();
         }

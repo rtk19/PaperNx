@@ -1,4 +1,6 @@
-# PaperNX application experience (0.17.0)
+# PaperNX application experience (0.17.0, historical)
+
+**0.17.1 rolls back the external application and menu redesign below to 0.16.0. The compact reading toolbar remains. See [the correction report](READER_INPUT_FIXES.md) for current behaviour.**
 
 This release changes information architecture, interaction paths and responsive geometry. The companion NX-torrent-player supplies the shared accent family and the separation of browsing from content consumption. Book-library and reading applications inform the resume-reading entry point, cover-first library, saved-place workspace and quiet reading controls. The reader remains native SDL/MuPDF; no browser or heavyweight UI runtime was introduced.
 

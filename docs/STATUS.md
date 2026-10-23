@@ -1,3 +1,7 @@
+# Fork update: 0.17.1
+
+Restores external application menus and screens to 0.16.0 while keeping the compact reading controls and reader features. Comic animations use actual paper bounds, margins establish contact before folding, zoomed pairs can turn, spines stop at artwork edges and both next-group images warm in the correct cache. Book drags from top/bottom margins remain interactive. Existing library, preferences and reading records are retained. See [interaction corrections](READER_INPUT_FIXES.md). Physical Switch acceptance remains unverified.
+
 # Fork update: 0.17.0
 
 Rebuilds the application structure around Home, Library, Collections, Journal and Files, with side navigation in wide layouts and bottom navigation in portrait/compact layouts. Includes first-library guidance, resume hero, new import workspace, responsive settings with reorganized application options, tiled quick actions, a book-action workspace, new contents/bookmarks navigation, selection dialogs, paper-colour preview and staged loading screens. Journal screens share the shell. Reading-page layout, animations, folios, Hebrew direction, zoom, folders, catalog and journal features remain. See [experience and preserved-feature map](APP_EXPERIENCE.md).

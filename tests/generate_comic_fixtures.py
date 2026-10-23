@@ -34,6 +34,9 @@ def main():
     smart_pages=[('p%02d.png'%i,png(640 if i==2 else 240,320,(40+i*25,70,180-i*12))) for i in range(7)]
     smart_info=b'<ComicInfo><Pages><Page Image="5" DoublePage="True"/></Pages></ComicInfo>'
     archive(ROOT/'smart-spreads.cbz',smart_pages+[('ComicInfo.xml',smart_info)])
+    # Below the automatic wide-scan threshold, with visible empty space above
+    # and below a facing pair. Exercises paper-only folds and bounded spines.
+    archive(ROOT/'paper-bounds.cbz',[(f'p{i}.png',png(360,320,(40+i*25,120,185))) for i in range(6)])
     archive(ROOT/'UPPER.CBZ',entries)
     archive(ROOT/'manga.cbz',pages+[('ComicInfo.xml',INFO.replace('<Manga>No</Manga>','<Manga>YesAndRightToLeft</Manga>').encode())])
     archive(ROOT/'unsafe.cbz',entries+[('../outside.png',pages[0][1]),('/absolute.png',pages[0][1]),('.hidden/page.png',pages[0][1])])

@@ -63,8 +63,8 @@ void tickReadingStats() {
     }
 }
 int libraryBookAt(float x,float y) {
-    int w,h;getWindowSize(w,h);auto l=libraryLayout(w);const int px=int(x*w),py=int(y*h);
-    if(py<l.top||py>=libraryBottom(w,h))return -1;
+    int w,h;getWindowSize(w,h);ui::LibraryLayout l(w);const int px=int(x*w),py=int(y*h);
+    if(py<l.top||py>=h-28)return -1;
     const int pos=py-l.top+int(listScroll_);int index=-1;
     if(viewMode_==ViewMode::Grid){const int col=(px-l.left)/l.stepX;
         if(px<l.left||col>=l.columns||(px-l.left)%l.stepX>=l.cardWidth||pos%l.stepY>=l.cardHeight)return -1;
@@ -126,34 +126,12 @@ std::string catalogHeading() const {
     case CatalogPanel::Hidden:return catLabel("Gizlenen kitaplar","Restore Hidden Books");case CatalogPanel::Statistics:return catLabel("Okuma istatistikleri","Reading Statistics");
     case CatalogPanel::DeleteConfirm:return catLabel("Kalıcı silinsin mi?","Delete Permanently?");case CatalogPanel::Text:return catLabel("Düzenle","Edit");default:return {};}
 }
-SDL_Rect catalogPanelRect(int w,int h)const {
-    if(catalogPanel_==CatalogPanel::Text){int width=std::min(960,w-16);return {(w-width)/2,8,width,h-16};}
-    return {std::max(16,(w-900)/2),32,std::min(900,w-32),h-64};
-}
-SDL_Rect catalogKeyRect(int i,int w,int h) const {
-    auto r=catalogPanelRect(w,h);const int step=(r.w-32)/10;
-    return {r.x+16+(i%10)*step,r.y+108+(i/10)*56,step-2,56};
-}
+SDL_Rect catalogPanelRect(int w,int h)const{return {std::max(16,(w-900)/2),32,std::min(900,w-32),h-64};}
 int catalogContentTop(const SDL_Rect &r)const{
     if(catalogPanel_==CatalogPanel::Details)return r.y+std::min(420,r.h-160);
     if(catalogPanel_==CatalogPanel::DeleteConfirm)return r.y+220;
     if(catalogPanel_==CatalogPanel::Statistics)return r.y+180;
-    if(catalogPanel_==CatalogPanel::Actions)return r.y+244;
-    return r.y+112;
-}
-int catalogColumns() const {return (catalogPanel_==CatalogPanel::Actions || catalogPanel_==CatalogPanel::Browse)?2:1;}
-int catalogExtent() const {return ((int(catalogRows().size())+catalogColumns()-1)/catalogColumns())*80;}
-SDL_Rect catalogRowRect(int i,int w,int h) const {
-    const auto r=catalogPanelRect(w,h);const int cols=catalogColumns(),step=(r.w-40)/cols;
-    return {r.x+20+(i%cols)*step,catalogContentTop(r)+(i/cols)*80-int(catalogScroll_),step-12,72};
-}
-SDL_Rect catalogManageRect(int i,int w,int h) const {auto r=catalogRowRect(i,w,h);return {r.x+r.w-124,r.y,124,56};}
-int catalogRowAt(int x,int y,int w,int h) const {
-    for(int i=0;i<int(catalogRows().size());++i){auto r=catalogRowRect(i,w,h);
-        if(catalogPanel_==CatalogPanel::Values && catalogGroup_==CatalogGroup::Collections){if(ui::contains(catalogManageRect(i,w,h),x,y))return i;r.w-=132;}
-        if(ui::contains(r,x,y))return i;
-    }
-    return -1;
+    return r.y+88;
 }
 void closeCatalogPanel(){
     if(catalogPanel_==CatalogPanel::Text){SDL_StopTextInput();setCatalogPanel(textReturn_);return;}
@@ -250,23 +228,23 @@ void activateCatalogRow(int index){
 void moveCatalogFocus(int delta){
     const auto rows=catalogRows();catalogFocus_=std::clamp(catalogFocus_+delta,0,std::max(0,int(rows.size())-1));
     int w,h;getWindowSize(w,h);const auto r=catalogPanelRect(w,h);const int top=catalogContentTop(r);const int height=r.y+r.h-24-top;
-    const float a=(catalogFocus_/catalogColumns())*80.f,b=a+72;if(a<catalogScroll_)catalogScroll_=a;if(b>catalogScroll_+height)catalogScroll_=std::max(0.f,b-height);dirty_=true;
+    const float a=catalogFocus_*64.f,b=a+56;if(a<catalogScroll_)catalogScroll_=a;if(b>catalogScroll_+height)catalogScroll_=std::max(0.f,b-height);dirty_=true;
 }
 void handleCatalogTap(int px,int py,int w,int h){
     rebuildFocus();navigationFocus_.touch(px,py);
     const auto r=catalogPanelRect(w,h);
-    if(ui::contains({r.x+r.w-152,r.y+12,56,56},px,py)){closeCatalogPanel();return;}
+    if(ui::contains({r.x+r.w-124,r.y+12,108,56},px,py)){closeCatalogPanel();return;}
     if(!ui::contains(r,px,py)){if(catalogPanel_!=CatalogPanel::DeleteConfirm)closeCatalogPanel();return;}
     if(catalogPanel_==CatalogPanel::Text){
         if(ui::contains({r.x+20,r.y+r.h-76,r.w/2-24,56},px,py)){commitCatalogText();return;}
         if(ui::contains({r.x+r.w/2+4,r.y+r.h-76,r.w/2-24,56},px,py)){if(!inputText_.empty()){auto n=inputText_.size()-1;while(n>0&&(static_cast<unsigned char>(inputText_[n])&0xc0)==0x80)--n;inputText_.resize(n);}dirty_=true;return;}
-        const auto keys=catalogKeyboard();
-        for(int i=0;i<int(keys.size());++i)if(ui::contains(catalogKeyRect(i,w,h),px,py) && inputText_.size()+keys[i].size()<=1024){inputText_+=keys[i];dirty_=true;break;}
-        return;
+        const auto keys=catalogKeyboard();const int width=(r.w-40)/10;const int keyboardY=r.y+156;
+        const int col=(px-r.x-20)/width,row=(py-keyboardY)/48,index=row*10+col;
+        if(px>=r.x+20&&py>=keyboardY&&col>=0&&col<10&&row>=0&&index<int(keys.size())&&inputText_.size()+keys[index].size()<=1024){inputText_+=keys[index];dirty_=true;}return;
     }
     const int top=catalogContentTop(r);if(py<top||py>=r.y+r.h-16)return;
-    const int index=catalogRowAt(px,py,w,h);if(index<0)return;catalogFocus_=index;
-    if(catalogPanel_==CatalogPanel::Values&&catalogGroup_==CatalogGroup::Collections&&ui::contains(catalogManageRect(index,w,h),px,py)){auto g=catalog_.groups(books_,catalogGroup_);auto it=g.begin();std::advance(it,std::min(index,int(g.size())));if(it!=g.end()){selectedCollection_=it->first;setCatalogPanel(CatalogPanel::CollectionActions);}return;}
+    const int index=int(py-top+catalogScroll_)/64;catalogFocus_=index;
+    if(catalogPanel_==CatalogPanel::Values&&catalogGroup_==CatalogGroup::Collections&&px>=r.x+r.w-148){auto g=catalog_.groups(books_,catalogGroup_);auto it=g.begin();std::advance(it,std::min(index,int(g.size())));if(it!=g.end()){selectedCollection_=it->first;setCatalogPanel(CatalogPanel::CollectionActions);}return;}
     activateCatalogRow(index);
 }
 std::vector<std::string> catalogKeyboard()const{return {"a","b","c","ç","d","e","f","g","ğ","h","ı","i","j","k","l","m","n","o","ö","p","r","s","ş","t","u","ü","v","y","z"," ","0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F","G","I","İ","."};}
@@ -297,12 +275,12 @@ bool handleCatalogEvent(const SDL_Event &e){
         if(owns)catalogTouchOwned_=false;
         if(catalogFingers_.empty())catalogMultiTouch_=false;
         if(activate){const auto panel=catalogPanelRect(w,h);const int top=catalogContentTop(panel);int px=int(e.tfinger.x*w),py=int(e.tfinger.y*h);
-            const int downRow=catalogRowAt(int(catalogTouchStartX_),int(catalogTouchStartY_),w,h),upRow=catalogRowAt(px,py,w,h);
+            const int downRow=int(catalogTouchStartY_-top+catalogScroll_)/64,upRow=int(py-top+catalogScroll_)/64;
             if((catalogTouchStartY_<top && py<top) || downRow==upRow || catalogPanel_==CatalogPanel::Text)handleCatalogTap(px,py,w,h);
         }dirty_=true;return true;}
     if(e.type==SDL_FINGERMOTION){if(!catalogTouchOwned_ || catalogMultiTouch_ || e.tfinger.fingerId!=catalogTouchOwner_)return true;
         int w,h;getWindowSize(w,h);const float current=e.tfinger.y*h,delta=catalogTouchY_-current;
-        if(std::hypot(e.tfinger.x*w-catalogTouchStartX_,e.tfinger.y*h-catalogTouchStartY_)>8 || catalogTouchMoved_){catalogTouchMoved_=true;catalogTouchY_=current;const auto r=catalogPanelRect(w,h);const int available=r.y+r.h-16-catalogContentTop(r);catalogScroll_=std::clamp(catalogScroll_+delta,0.f,float(std::max(0,catalogExtent()-available)));dirty_=true;}return true;}
+        if(std::hypot(e.tfinger.x*w-catalogTouchStartX_,e.tfinger.y*h-catalogTouchStartY_)>8 || catalogTouchMoved_){catalogTouchMoved_=true;catalogTouchY_=current;const auto r=catalogPanelRect(w,h);const int available=r.y+r.h-16-catalogContentTop(r);catalogScroll_=std::clamp(catalogScroll_+delta,0.f,float(std::max(0,int(catalogRows().size())*64-available)));dirty_=true;}return true;}
     if(e.type==SDL_MOUSEWHEEL){catalogScroll_=std::max(0.f,catalogScroll_-e.wheel.y*48.f);dirty_=true;return true;}
     return false; // Mouse fallback is translated by the shared event path.
 }
@@ -310,33 +288,18 @@ void renderCatalogPanel(int w,int h,const ThemePalette &pal){
     if(catalogPanel_==CatalogPanel::None)return;
     SDL_SetRenderDrawBlendMode(renderer_,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer_,0,0,0,150);SDL_Rect full{0,0,w,h};SDL_RenderFillRect(renderer_,&full);
     const auto r=catalogPanelRect(w,h);ui::elevated(renderer_,r,pal);
-    typography_->renderText(renderer_,typography_->titleFont(),catalogHeading(),r.x+20,r.y+18,pal.fg,r.w-224);
-    ui::iconButton(renderer_,*typography_,{r.x+r.w-152,r.y+12,56,56},ui::Icon::Back,pal);
+    typography_->renderText(renderer_,typography_->titleFont(),catalogHeading(),r.x+20,r.y+18,pal.fg,r.w-160);
+    ui::button(renderer_,*typography_,{r.x+r.w-124,r.y+12,108,56},catLabel("Geri","Back"),pal,false,false,true,false);
     // Persisted catalog errors must remain visible above the modal, not hidden under it.
     if(!currentErrorMessage_.empty())
         typography_->renderText(renderer_,typography_->smallFont(),ui::label(currentErrorMessage_),r.x+20,r.y+60,
                                 ui::destructiveColor(pal),r.w-44);
     if(catalogPanel_==CatalogPanel::Text){
-        std::string visible=inputText_+"|";std::size_t first=0;int measured=0;
-        while(first<visible.size()) {
-            const auto tail=(first?std::string("…"):std::string{})+visible.substr(first);
-            typography_->measureText(typography_->uiFont(),tail,&measured,nullptr);
-            if(measured<=r.w-40){visible=tail;break;}
-            ++first;while(first<visible.size() && (static_cast<unsigned char>(visible[first])&0xc0)==0x80)++first;
-        }
-        typography_->renderText(renderer_,typography_->uiFont(),visible,r.x+20,r.y+76,pal.fg,r.w-40);
-        const auto keys=catalogKeyboard();
-        for(int i=0;i<int(keys.size());++i)ui::button(renderer_,*typography_,catalogKeyRect(i,w,h),keys[i]==" "?"_":keys[i],pal);
+        typography_->renderWrapped(renderer_,typography_->uiFont(),inputText_+"|",{r.x+20,r.y+80,r.w-40,64},pal.fg);
+        const auto keys=catalogKeyboard();const int width=(r.w-40)/10;
+        for(int i=0;i<int(keys.size());++i)ui::button(renderer_,*typography_,{r.x+20+(i%10)*width,r.y+156+(i/10)*48,width-4,44},keys[i]==" "?"_":keys[i],pal);
         ui::button(renderer_,*typography_,{r.x+20,r.y+r.h-76,r.w/2-24,56},catLabel("Kaydet","Save"),pal,true);
         ui::button(renderer_,*typography_,{r.x+r.w/2+4,r.y+r.h-76,r.w/2-24,56},catLabel("Geri sil","Backspace"),pal);return;
-    }
-    if(catalogPanel_==CatalogPanel::Actions){
-        const auto book=catalog_.apply(actionBook_);const auto saved=progressStore_.get(book.id);
-        ui::surface(renderer_,{r.x+20,r.y+88,r.w-40,136},pal.header,20);
-        drawCover(book,{r.x+36,r.y+100,76,112},pal);
-        typography_->renderText(renderer_,typography_->titleFont(),book.title,r.x+132,r.y+102,pal.fg,r.w-172);
-        typography_->renderText(renderer_,typography_->smallFont(),book.author,r.x+132,r.y+144,pal.muted,r.w-172);
-        typography_->drawProgressBar(renderer_,r.x+132,r.y+192,r.w-172,4,saved.fraction,pal.cardBorder,pal.accent);
     }
     if(catalogPanel_==CatalogPanel::Details){auto e=catalog_.get(actionBook_.id);const auto p=progressStore_.get(actionBook_.id);const auto display=catalog_.apply(actionBook_);
         std::string last=catLabel("Henüz okunmadı","Not read yet");if(p.lastRead>0){const std::time_t time=p.lastRead;const auto *date=std::localtime(&time);char formatted[32]{};if(date){std::strftime(formatted,sizeof formatted,"%Y-%m-%d %H:%M",date);last=formatted;}}
@@ -352,15 +315,15 @@ void renderCatalogPanel(int w,int h,const ThemePalette &pal){
     if(catalogPanel_==CatalogPanel::Statistics){const auto today=readingStats_.dayMilliseconds(localReadingDay())/60000;const auto total=readingStats_.totalMilliseconds()/60000;
         typography_->renderWrapped(renderer_,typography_->uiFont(),catLabel("Bugün: ","Today: ")+std::to_string(today)+catLabel(" dk\nToplam: "," min\nTotal: ")+std::to_string(total)+catLabel(" dk · Hedef: "," min · Goal: ")+std::to_string(readingStats_.dailyGoal())+catLabel(" dk"," min"),{r.x+20,r.y+80,r.w-40,96},pal.fg);}
     const auto rows=catalogRows();const int top=catalogContentTop(r);SDL_Rect clip{r.x+12,top,r.w-24,std::max(0,r.y+r.h-16-top)};SDL_RenderSetClipRect(renderer_,&clip);
-    for(int i=0;i<int(rows.size());++i){auto row=catalogRowRect(i,w,h);if(row.y+row.h<clip.y||row.y>clip.y+clip.h)continue;
+    for(int i=0;i<int(rows.size());++i){SDL_Rect row{r.x+20,top+i*64-int(catalogScroll_),r.w-40,56};if(row.y+row.h<clip.y||row.y>clip.y+clip.h)continue;
         const bool danger=(catalogPanel_==CatalogPanel::Actions&&rows[i].first==9)||(catalogPanel_==CatalogPanel::DeleteConfirm&&rows[i].first==1);
         const bool manage=catalogPanel_==CatalogPanel::Values&&catalogGroup_==CatalogGroup::Collections;
         if(manage)row.w-=132;
         const auto status=catalog_.get(actionBook_.id).status;
         const bool statusSelected=catalogPanel_==CatalogPanel::Actions && ((rows[i].first==2&&status==ReadingStatus::Reading)||(rows[i].first==3&&status==ReadingStatus::NotStarted)||(rows[i].first==4&&status==ReadingStatus::Completed));
         ui::menuRow(renderer_,*typography_,row,rows[i].second,pal,statusSelected,i==catalogFocus_ && catalogPanel_==CatalogPanel::Actions,danger);
-        if(manage)ui::button(renderer_,*typography_,catalogManageRect(i,w,h),catLabel("Düzenle","Manage"),pal);}
+        if(manage)ui::button(renderer_,*typography_,{row.x+row.w+8,row.y,124,56},catLabel("Düzenle","Manage"),pal);}
     if(rows.empty())typography_->renderText(renderer_,typography_->uiFont(),catLabel("Henüz öğe yok","No items"),r.x+24,top+24,pal.muted,r.w-48);
     SDL_RenderSetClipRect(renderer_,nullptr);
-    if(catalogExtent()>clip.h){const int bar=std::max(24,clip.h*clip.h/(catalogExtent()));SDL_Rect indicator{r.x+r.w-10,top+int(catalogScroll_*(clip.h-bar)/std::max(1,catalogExtent()-clip.h)),4,bar};ui::surface(renderer_,indicator,pal.accent,2);}
+    if(int(rows.size())*64>clip.h){const int bar=std::max(24,clip.h*clip.h/(int(rows.size())*64));SDL_Rect indicator{r.x+r.w-10,top+int(catalogScroll_*(clip.h-bar)/std::max(1,int(rows.size())*64-clip.h)),4,bar};ui::surface(renderer_,indicator,pal.accent,2);}
 }

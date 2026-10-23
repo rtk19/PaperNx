@@ -19,21 +19,21 @@
     }
 
     SDL_Rect choiceSheet(int w,int h) const {
-        int width=std::min(640,w-32);
+        int width=std::min(560,w-32);
         int maxHeight=std::max(180,h-64);
-        int totalHeight=int(choiceOptions().size())*64;
-        int height=std::min(maxHeight,112+totalHeight);
+        int totalHeight=int(choiceOptions().size())*56;
+        int height=std::min(maxHeight,80+totalHeight);
         return {(w-width)/2,(h-height)/2,width,height};
     }
     SDL_Rect choiceContentRect(int w,int h) const {
         auto box=choiceSheet(w,h);
-        return {box.x+16,box.y+88,box.w-32,std::max(56,box.h-100)};
+        return {box.x+16,box.y+64,box.w-32,std::max(56,box.h-76)};
     }
     void ensureChoiceVisible(int w,int h) {
         auto cr=choiceContentRect(w,h);
-        float itemTop=choiceFocusedIndex_*64.f;
-        float itemBottom=itemTop+64.f;
-        float maxScroll=std::max(0.f,float(choiceOptions().size()*64)-cr.h);
+        float itemTop=choiceFocusedIndex_*56.f;
+        float itemBottom=itemTop+56.f;
+        float maxScroll=std::max(0.f,float(choiceOptions().size()*56)-cr.h);
         if(itemTop<choiceScroll_)choiceScroll_=itemTop;
         else if(itemBottom>choiceScroll_+cr.h)choiceScroll_=itemBottom-cr.h;
         choiceScroll_=std::clamp(choiceScroll_,0.f,maxScroll);
@@ -81,7 +81,7 @@
         auto box=choiceSheet(w,h);
         auto cr=choiceContentRect(w,h);
         auto options=choiceOptions();
-        float maxScroll=std::max(0.f,float(options.size()*64)-cr.h);
+        float maxScroll=std::max(0.f,float(options.size()*56)-cr.h);
 
         if(e.type==SDL_KEYDOWN || e.type==SDL_CONTROLLERBUTTONDOWN){
             bool pad=e.type==SDL_CONTROLLERBUTTONDOWN;int k=pad?e.cbutton.button:e.key.keysym.sym;
@@ -140,11 +140,11 @@
                 dirty_=true;
                 return true;
             }
-            if(!ui::contains(box,x,y) || ui::contains({box.x+box.w-76,box.y+12,56,56},x,y)){choiceKind_=-1;dirty_=true;return true;}
+            if(!ui::contains(box,x,y)){choiceKind_=-1;dirty_=true;return true;}
             if(ui::contains(cr,x,y)){
                 int localY=y-cr.y+int(choiceScroll_);
-                int index=localY/64;
-                if(index>=0 && index<int(options.size()) && (localY%64)<56){
+                int index=localY/56;
+                if(index>=0 && index<int(options.size()) && (localY%56)<56){
                     choiceIndex_=index;
                     choiceFocusedIndex_=index;
                     commitChoice();
@@ -177,26 +177,20 @@
         auto box=choiceSheet(w,h);ui::elevated(renderer_,box,pal);
         const char *titles[]={"Yazı tipi","Ekran yönü","","","","","Paper texture","General theme","Interface appearance","Accent color","Book folders","Book folders"};
         const std::string heading=choiceKind_>=0 && choiceKind_<12?ui::label(titles[choiceKind_]):ui::label("Choose an option");
-        typography_->renderText(renderer_,typography_->sectionFont(),heading,box.x+24,box.y+16,pal.fg,box.w-112);
-        typography_->renderText(renderer_,typography_->smallFont(),ui::label("Choose what feels right."),box.x+24,box.y+52,pal.muted,box.w-112);
-        ui::iconButton(renderer_,*typography_,{box.x+box.w-76,box.y+12,56,56},ui::Icon::Back,pal);
+        typography_->renderText(renderer_,typography_->sectionFont(),heading,box.x+24,box.y+16,pal.fg,box.w-48);
         auto cr=choiceContentRect(w,h);
         SDL_RenderSetClipRect(renderer_,&cr);
         auto options=choiceOptions();
         for(int i=0;i<int(options.size());++i){
-            int itemY=cr.y+i*64-int(choiceScroll_);
+            int itemY=cr.y+i*56-int(choiceScroll_);
             if(itemY+56>=cr.y && itemY<=cr.y+cr.h){
                 bool isSelected=(i==choiceIndex_);
                 bool isFocused=(i==choiceFocusedIndex_);
-                SDL_Rect row{cr.x,itemY,cr.w,56};
-                ui::surface(renderer_,row,isSelected?blendColor(pal.header,pal.accent,16):pal.header,16);
-                ui::icon(renderer_,{row.x+8,row.y+4,48,48},isSelected?ui::Icon::Check:ui::Icon::Arrow,isSelected?pal.accent:pal.muted);
-                typography_->renderText(renderer_,typography_->buttonFont(),options[i],row.x+68,row.y+14,pal.fg,row.w-84);
-                if(isFocused)ui::focusRing(renderer_,row,pal);
+                ui::button(renderer_,*typography_,{cr.x,itemY,cr.w,56},options[i],pal,isSelected,false,false,isFocused);
             }
         }
         SDL_RenderSetClipRect(renderer_,nullptr);
-        float maxScroll=std::max(0.f,float(options.size()*64)-cr.h);
+        float maxScroll=std::max(0.f,float(options.size()*56)-cr.h);
         if(maxScroll>0.f){
             int barW=4;
             int barX=box.x+box.w-12;
@@ -205,7 +199,7 @@
             SDL_SetRenderDrawColor(renderer_,pal.muted.r,pal.muted.g,pal.muted.b,80);
             SDL_Rect track{barX,barY,barW,barH};
             SDL_RenderFillRect(renderer_,&track);
-            int thumbH=std::max(20,int(float(cr.h*cr.h)/(options.size()*64)));
+            int thumbH=std::max(20,int(float(cr.h*cr.h)/(options.size()*56)));
             int thumbY=barY+int((choiceScroll_/maxScroll)*(barH-thumbH));
             SDL_SetRenderDrawColor(renderer_,pal.accent.r,pal.accent.g,pal.accent.b,200);
             SDL_Rect thumb{barX,thumbY,barW,thumbH};

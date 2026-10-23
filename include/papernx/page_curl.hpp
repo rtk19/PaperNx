@@ -140,7 +140,7 @@ class PageCurlRenderer {
 
 #if SDL_VERSION_ATLEAST(2,0,18) && !defined(PAPERNX_CURL_FORCE_FALLBACK)
     static bool geometry(SDL_Renderer *renderer, SDL_Texture *front, SDL_Texture *back,
-                         const SDL_Rect &page, const Fold &fold, bool realBack=false) {
+                         const SDL_Rect &page, const Fold &fold, bool realBack=false,bool inkOnly=false) {
         // Buffers retain their capacity across frames; SDL copies queued vertices.
         static thread_local std::vector<Face> faces;
         static thread_local std::vector<SDL_Vertex> batch, highlights, shadows;
@@ -181,7 +181,7 @@ class PageCurlRenderer {
         std::stable_sort(faces.begin(),faces.end(),[](const Face &a,const Face &b){return a.z<b.z;});
         SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
         // Four translucent footprints produce contact shadow and a soft penumbra.
-        for(int pass=3;pass>=0;--pass) {
+        for(int pass=3;!inkOnly && pass>=0;--pass) {
             shadows.clear();
             for(const auto &face:faces) {
                 for(auto v:face.vertices) {
@@ -209,13 +209,13 @@ class PageCurlRenderer {
         auto flush = [&]() {
             if(batch.empty()) return true;
             if(SDL_RenderGeometry(renderer,side && back?back:front,batch.data(),int(batch.size()),nullptr,0)!=0) return false;
-            if(SDL_RenderGeometry(renderer,nullptr,highlights.data(),int(highlights.size()),nullptr,0)!=0) return false;
+            if(!inkOnly && SDL_RenderGeometry(renderer,nullptr,highlights.data(),int(highlights.size()),nullptr,0)!=0) return false;
             batch.clear(); highlights.clear(); return true;
         };
         for(const auto &face:faces) {
             if(face.back!=side) {if(!flush()) return false;side=face.back;}
             for(int i=0;i<3;++i) {
-                batch.push_back(face.vertices[i]);
+                auto ink=face.vertices[i];if(inkOnly)ink.color={255,255,255,255};batch.push_back(ink);
                 auto light=face.vertices[i]; light.color={255,250,235,face.shine[i]}; highlights.push_back(light);
             }
         }
@@ -229,7 +229,7 @@ public:
     // the reverse carries the next physical page, including its folio.
     static void renderSpread(SDL_Renderer *renderer,SDL_Texture *front,SDL_Texture *back,
                              SDL_Texture *under,SDL_Rect page,SDL_Rect book,float progress,
-                             int direction,float anchorY=.78f,float dragY=0.f) {
+                             int direction,float anchorY=.78f,float dragY=0.f,const SDL_Rect *oppositePage=nullptr,[[maybe_unused]] bool inkOnly=false) {
         if(!renderer || !front || !back || !under)return;
         TextureState frontState(front),backState(back),underState(under);
         DrawState state(renderer);SDL_Rect clip=book;
@@ -239,11 +239,22 @@ public:
         progress=std::clamp(progress,0.f,1.f);
         SDL_Rect opposite{direction>0?book.x:book.x+book.w/2,book.y,
             direction>0?book.w/2:book.w-book.w/2,book.h};
+        if(oppositePage)opposite=*oppositePage;
         if(progress<=.00001f){SDL_RenderCopy(renderer,front,nullptr,&page);return;}
         if(progress>=.99999f){SDL_RenderCopy(renderer,back,nullptr,&opposite);return;}
+        if(oppositePage) {
+            const float mix=progress;
+            const int oldSpine=direction>0?page.x:page.x+page.w;
+            const int newSpine=direction>0?opposite.x+opposite.w:opposite.x;
+            const int spine=int(std::lround(oldSpine*(1-mix)+newSpine*mix));
+            page.w=int(std::lround(page.w*(1-mix)+opposite.w*mix));
+            page.h=int(std::lround(page.h*(1-mix)+opposite.h*mix));
+            page.y=int(std::lround(page.y*(1-mix)+opposite.y*mix));
+            page.x=direction>0?spine:spine-page.w;
+        }
         Fold fold(float(page.w),float(page.h),progress,direction,std::clamp(anchorY,0.f,1.f),std::clamp(dragY,-.5f,.5f));
 #if SDL_VERSION_ATLEAST(2,0,18) && !defined(PAPERNX_CURL_FORCE_FALLBACK)
-        if(geometry(renderer,front,back,page,fold,true))return;
+        if(geometry(renderer,front,back,page,fold,true,inkOnly))return;
 #endif
         // Geometry-less renderers still turn one leaf about the centre seam.
         const float projection=std::cos(pi*progress);
@@ -258,7 +269,7 @@ public:
     static void render(SDL_Renderer *renderer, SDL_Texture *previous, SDL_Texture *next,
                        const SDL_Rect &page, float progress, int direction,
                        float anchorY=.78f, float dragY=0.f, [[maybe_unused]] SDL_Texture *back=nullptr,
-                       const SDL_Rect *nextPage=nullptr) {
+                       const SDL_Rect *nextPage=nullptr,[[maybe_unused]] bool inkOnly=false) {
         if(!renderer || !next || page.w<=0 || page.h<=0) return;
         TextureState frontState(previous),backState(back),nextState(next);
         progress=std::clamp(progress,0.f,1.f);
@@ -275,7 +286,7 @@ public:
         Fold fold(float(page.w),float(page.h),progress,direction,std::clamp(anchorY,0.f,1.f),
                   std::clamp(dragY,-.5f,.5f));
 #if SDL_VERSION_ATLEAST(2,0,18) && !defined(PAPERNX_CURL_FORCE_FALLBACK)
-        if(geometry(renderer,previous,back,page,fold)) return;
+        if(geometry(renderer,previous,back,page,fold,false,inkOnly)) return;
 #endif
         // Old/backends without geometry retain a proportional, correctly scaled reveal.
         SDL_RenderCopy(renderer,next,nullptr,&nextRect);

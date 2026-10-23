@@ -2,7 +2,6 @@
 #include "papernx/typography.hpp"
 #include "papernx/theme.hpp"
 #include "papernx/localization.hpp"
-#include "papernx/app_layout.hpp"
 #include <algorithm>
 namespace papernx::ui {
 // Native touch design tokens, in output pixels. Logical sizes scale with layout.
@@ -142,18 +141,24 @@ inline void favorite(SDL_Renderer *r,SDL_Rect rect,const ThemePalette &pal,bool 
     points[10]=points[0]; SDL_RenderDrawLines(r,points,11);
 }
 struct SettingsLayout {
-    SDL_Rect sheet,close,scope,content,preview,footer,reset,heading;
-    int sidebar;bool compact;
-    SettingsLayout(int w,int h):sidebar(w>=1000?224:0),compact(w<1000) {
-        sheet={16,16,w-32,h-32};close={w-168,24,56,56};heading={48,32,w-240,64};
-        const int top=compact?312:164,x=compact?40:272;
-        const int previewW=w>=1180?248:0;
-        scope={x,compact?236:100,w-x-48,56};
-        content={x,top,w-x-48-(previewW?previewW+24:0),h-top-96};
-        preview={content.x+content.w+24,top,previewW,content.h};
-        footer={w-264,h-88,216,56};reset={x,h-88,std::min(216,w-x-304),56};
+    SDL_Rect sheet, close, scope, content, preview, footer;
+    int sidebar;
+    SettingsLayout(int w,int h) {
+        int inset=w<800?8:24;
+        sheet={inset,16,w-2*inset,h-32}; sidebar=w<800?152:210;
+        close={sheet.x+sheet.w-208,sheet.y+8,112,56};
+        int x=sheet.x+sidebar+24;
+        scope={x,sheet.y+72,sheet.w-sidebar-40,56};
+        int previewW=w>=1100?280:0;
+        content={x,sheet.y+148,sheet.w-sidebar-40-previewW-(previewW?24:0),sheet.h-230};
+        preview={x+content.w+24,content.y,previewW,content.h};
+        footer={x,sheet.y+sheet.h-72,scope.w,56};
     }
-    SDL_Rect tab(int i) const {return compact?SDL_Rect{40+(i%3)*((sheet.w-48)/3),104+(i/3)*60,(sheet.w-48)/3-8,56}:SDL_Rect{32,112+i*68,208,60};}
-    SDL_Rect control(int i) const {return {content.x,content.y+i*72,content.w,64};}
+    SDL_Rect tab(int i) const { return {sheet.x+12,sheet.y+80+i*56,sidebar-12,56}; }
+    SDL_Rect control(int i) const { return {content.x,content.y+i*64,content.w,56}; }
+};
+struct LibraryLayout {
+    int columns,cardWidth,cardHeight=330,top=174,stepX,stepY=350,left=32;
+    LibraryLayout(int w) { top=w<900?238:174; columns=std::max(1,(w-48)/224); stepX=(w-64)/columns; cardWidth=stepX-20; }
 };
 } // namespace papernx::ui
