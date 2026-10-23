@@ -2,7 +2,8 @@
 // belong to the paper, never to a fixed overlay (except the open-menu summary).
 void drawReaderLeaf(int page,SDL_Rect leaf) {
     if(page<0 || page>=pageCount_)return; // Blank facing leaf at the end.
-    auto texture=getOrRenderPageTexture(page);
+    auto texture=comic()?nullptr:getOrRenderPageTexture(page);
+    if(comic())drawComicLeaf(page,leaf);
     if(texture) {
         int tw=0,th=0;SDL_QueryTexture(texture,nullptr,nullptr,&tw,&th);
         const auto layout=readerLayout();
@@ -17,16 +18,17 @@ void drawReaderLeaf(int page,SDL_Rect leaf) {
         SDL_RenderSetClipRect(renderer_,clipped?&oldClip:nullptr);
     }
     drawReaderCaption(std::to_string(page+1),
-        {leaf.x+16,leaf.y+leaf.h-ReaderLayout::bottom,std::max(1,leaf.w-32),ReaderLayout::bottom},palette());
+        {leaf.x+16,leaf.y+leaf.h-readerLayout().footerHeight(),std::max(1,leaf.w-32),readerLayout().footerHeight()},palette());
 }
 
 int readerSidePage(int base,int side) const {
     return base+(readingDirection()<0?1-side:side);
 }
 void drawReaderSheets(int page) {
-    const auto layout=readerLayout();
+    auto layout=readerLayout();
+    if(comicSpreadActive())layout.spread=comicSpreadPages(page).second==2;
     if(!layout.spread){drawReaderLeaf(page,layout.leaf(0));return;}
-    const int base=page/2*2;
+    const int base=comicSpreadActive()?comicSpreadPages(page).first:page/2*2;
     for(int side=0;side<2;++side)drawReaderLeaf(readerSidePage(base,side),layout.leaf(side));
 }
 
@@ -54,9 +56,17 @@ PageTurnTexture captureReaderSurface(int width,int height,Draw draw) {
 bool prepareReaderTurn(int from,int target,int direction) {
     auto &turn=pageTurnAnimation_;
     const auto layout=readerLayout();
+    if(comicSpreadActive() && (comicSpreadPages(from).second!=2 || comicSpreadPages(target).second!=2)) {
+        turn.viewport={0,0,layout.width,layout.height};turn.nextViewport=turn.viewport;
+        turn.previous=captureReaderSurface(layout.width,layout.height,[&]{drawReaderSheets(from);});
+        turn.next=captureReaderSurface(layout.width,layout.height,[&]{drawReaderSheets(target);});
+        return turn.previous && turn.next;
+    }
     turn.spread=layout.spread;
     if(layout.spread) {
-        const int side=direction>0?1:0,oldBase=from/2*2,newBase=target/2*2;
+        const int side=direction>0?1:0;
+        const int oldBase=comicSpreadActive()?comicSpreadPages(from).first:from/2*2;
+        const int newBase=comicSpreadActive()?comicSpreadPages(target).first:target/2*2;
         const auto leaf=layout.leaf(side),opposite=layout.leaf(1-side);
         turn.previous=captureReaderSurface(leaf.w,leaf.h,[&]{drawReaderLeaf(readerSidePage(oldBase,side),{0,0,leaf.w,leaf.h});});
         turn.back=captureReaderSurface(opposite.w,opposite.h,[&]{drawReaderLeaf(readerSidePage(newBase,1-side),{0,0,opposite.w,opposite.h});});

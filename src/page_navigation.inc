@@ -66,7 +66,7 @@ void preparePagePreviews() {
     const auto layout=epubLayout(std::max(1,layoutWidth_),std::max(1,layoutHeight_),style);
     spec.width=px_document_is_epub(doc_)?layout.contentWidth():readerLayout().contentWidth();
     spec.height=px_document_is_epub(doc_) && continuous()?0:layout.contentHeight();
-    spec.em=float(style.fontSize);spec.css=px_document_is_epub(doc_)?generateEpubCss(style):"";
+    spec.em=float(style.fontSize);spec.css=px_document_is_epub(doc_)?generateEpubCss(style,appSettings_.get().expandedViewport):"";
     spec.identity=currentBookId_+":"+std::to_string(previewEpoch_)+":"+std::to_string(spec.width)+":"+std::to_string(spec.height)+":"+std::to_string(spec.viewportHeight)+":"+std::to_string(spec.em)+":"+spec.css+":"+
         std::to_string(comicReadingColors())+":"+std::to_string((color.bg.r<<16)|(color.bg.g<<8)|color.bg.b)+":"+std::to_string((color.fg.r<<16)|(color.fg.g<<8)|color.fg.b);
     if(spec.identity!=previewIdentity_) {pagePreviewCache_.clear();failedPreviews_.clear();previewIdentity_=spec.identity;}

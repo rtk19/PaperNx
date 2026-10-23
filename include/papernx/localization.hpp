@@ -11,6 +11,9 @@ inline std::string localizeUiText(const std::string &text, int language) {
         if (language == 0) {
             static constexpr Label enToTr[] = {
                 {" of ", " / "},
+                {"Expanded reading area", "Geniş okuma alanı"},
+                {"Two pages in landscape", "Yatayda iki sayfa"},
+                {"On", "Açık"}, {"Off", "Kapalı"},
                 {"Check for update", "Güncellemeleri denetle"},
                 {"Software update", "Yazılım güncellemesi"},
                 {"What's new", "Yenilikler"},

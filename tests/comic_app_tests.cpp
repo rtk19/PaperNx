@@ -62,6 +62,7 @@ struct AppTest {
     }
     static void run(const fs::path &root) {
         PaperNxApp app(root);assert(app.init());assert(app.typography_->uiFont());ui::language=1;
+        auto legacy=app.appSettings_.get();legacy.landscapeSpreads=false;app.appSettings_.put(legacy);
         SDL_RendererInfo info{};SDL_GetRendererInfo(app.renderer_,&info);std::cout<<"Comic renderer: "<<info.name<<"\n";
         assert(app.books_.size()==6);
         auto book=[&](const char *filename) {return *std::find_if(app.books_.begin(),app.books_.end(),[&](const Book &b){return fs::path(b.path).filename()==filename;});};
@@ -82,7 +83,7 @@ struct AppTest {
         const unsigned builds=app.comicTextureBuilds_;assert(builds>0);
         app.setPdfView(0);app.zoomPdf(3);app.pdfPanY_=400;
         auto imagePoint=[&]{int w,h;app.getWindowSize(w,h);float pw=0,ph=0;assert(px_document_page_size(app.doc_,app.currentPage_,&pw,&ph));
-            const float vw=app.fixedViewportWidth(w),vh=h-144,scale=std::min(vw/pw,vh/ph)*app.pdfZoom_;
+            const float vw=app.fixedViewportWidth(w),vh=app.comicViewportHeight(h),scale=std::min(vw/pw,vh/ph)*app.pdfZoom_;
             return std::pair<float,float>{(.65f*w-app.currentMargin_-std::max(0.f,(vw-pw*scale)/2)+app.pdfPanX_)/scale,
                 (.45f*h-72-std::max(0.f,(vh-ph*scale)/2)+app.pdfPanY_)/scale};};
         const auto focal=imagePoint();app.zoomPdf(4,.65f,.45f);const auto after=imagePoint();

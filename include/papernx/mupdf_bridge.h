@@ -29,6 +29,7 @@ int px_document_pages(PxDocument *doc);
 int px_document_page_size(PxDocument *doc, int page, float *width, float *height);
 int px_document_is_epub(PxDocument *doc);
 int px_document_is_comic(PxDocument *doc);
+int px_document_page_is_spread(PxDocument *doc,int page);
 // True only for an embedded EPUB cover; PDF thumbnails render page one instead.
 int px_document_has_embedded_cover(PxDocument *doc);
 int px_document_relayout(PxDocument *doc, int width, int height, float em, const char *css, char *error, int capacity);

@@ -32,6 +32,7 @@ typedef struct {
     off64_t offset;
     size_t bytes;
     float width,height;
+    int double_page;
 } ComicEntry;
 typedef struct {
     fz_document super;
@@ -113,7 +114,7 @@ static void add_entry(fz_context *ctx,ComicDocument *doc,const char *name,int or
     ComicEntry *entry=&doc->entries[doc->count];
     entry->name=fz_strdup(ctx,name);
     for(char *p=entry->name;*p;++p)if(*p=='\\')*p='/';
-    entry->ordinal=ordinal;entry->offset=offset;entry->bytes=size;entry->width=entry->height=0;++doc->count;
+    entry->ordinal=ordinal;entry->offset=offset;entry->bytes=size;entry->width=entry->height=0;entry->double_page=0;++doc->count;
 }
 static struct archive *open_archive(fz_context *ctx,const char *path) {
     struct archive *reader=archive_read_new();
@@ -194,6 +195,8 @@ static void load_info(fz_context *ctx,ComicDocument *doc,fz_buffer *info) {
                 if(index<0)continue;
                 const char *type=fz_xml_att(page,"Type"),*bookmark=fz_xml_att(page,"Bookmark");
                 if(type && !fz_strcasecmp(type,"FrontCover"))doc->cover=index;
+                const char *spread=fz_xml_att(page,"DoublePage");
+                doc->entries[index].double_page=spread && (!fz_strcasecmp(spread,"True") || !strcmp(spread,"1"));
                 if(bookmark && *bookmark && doc->outline_count<256) {
                     PxTocEntry *entry=&doc->outline[doc->outline_count++];
                     copy_text(entry->title,sizeof entry->title,bookmark);entry->page=index;entry->level=0;entry->y=0;
@@ -367,6 +370,10 @@ fz_document *px_open_comic(fz_context *ctx,const char *path) {
     return (fz_document *)doc;
 }
 int px_comic_cover_page(fz_document *document) {return ((ComicDocument *)document)->cover;}
+int px_comic_page_is_spread(fz_document *document,int page) {
+    ComicDocument *doc=(ComicDocument *)document;
+    return page>=0 && page<doc->count && doc->entries[page].double_page;
+}
 int px_comic_toc(fz_context *ctx,fz_document *document,PxTocEntry *entries,int capacity) {
     (void)ctx;ComicDocument *doc=(ComicDocument *)document;
     int count=doc->outline_count?doc->outline_count:doc->count;if(count>capacity)count=capacity;

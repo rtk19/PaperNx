@@ -127,7 +127,7 @@ inline double readingContrast(SDL_Color a, SDL_Color b) {
     double x = luminance(a), y = luminance(b);
     return (std::max(x, y) + .05) / (std::min(x, y) + .05);
 }
-inline std::string generateEpubCss(const ReaderPreferences &style) {
+inline std::string generateEpubCss(const ReaderPreferences &style,bool expandedViewport=true) {
     const auto &pal = g_palettes[std::clamp(style.theme, 0, 5)];
     auto bg = readingColor(style.backgroundColor, pal.bg), fg = readingColor(style.textColor, pal.fg);
     char css[2048];
@@ -137,7 +137,7 @@ inline std::string generateEpubCss(const ReaderPreferences &style) {
         bg.r, bg.g, bg.b, fg.r, fg.g, fg.b);
     // The application owns the outer page margins. MuPDF's default @page
     // adds another 2em horizontally and 3em vertically, wasting screen area.
-    std::string result = "@page { margin: 0 !important; padding: 0 !important; } ";
+    std::string result = expandedViewport?"@page { margin: 0 !important; padding: 0 !important; } ":"";
     result += css;
     result += "u, ins { text-decoration: underline; } s, strike, del { text-decoration: line-through; } ";
     // Selected paper colors override embedded white publisher backgrounds.

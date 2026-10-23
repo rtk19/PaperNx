@@ -33,11 +33,14 @@ int main() {
     const auto path=std::filesystem::temp_directory_path()/"papernx-foundations-settings.db";
     std::filesystem::remove(path); std::filesystem::remove(path.string()+".bak");
     AppSettingsStore store(path); AppPreferences pref;
+    assert(pref.expandedViewport && pref.landscapeSpreads);
+    pref.expandedViewport=false;pref.landscapeSpreads=false;
     pref.uiTheme=2; pref.chromePolicy=2; pref.customUiTheme=5; pref.displayOrientation=2;
     pref.preservePdfZoom=false; pref.paperTexture=2;
     store.put(pref); assert(store.save());
     AppSettingsStore loaded(path); assert(loaded.load());
     assert(loaded.get().uiTheme==2 && loaded.get().chromePolicy==0 && loaded.get().customUiTheme==5); // Legacy custom chrome is ignored.
     assert(loaded.get().displayOrientation==2 && !loaded.get().preservePdfZoom && loaded.get().paperTexture==2);
+    assert(!loaded.get().expandedViewport && !loaded.get().landscapeSpreads);
     std::filesystem::remove(path); std::filesystem::remove(path.string()+".bak");
 }

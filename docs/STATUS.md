@@ -1,3 +1,7 @@
+# Fork update: 0.15.0
+
+Reading-area expansion and landscape spreads are independent default-on settings with original-mode rollback. Comics gain a tight centre gutter, whole wide/ComicInfo double pages, cached local pairing, stable two-page zoom, pinch-centroid anchoring and up-arrow/Y return-to-top. Spread drag follows full-screen travel. See [reading layout](READER_SPREADS.md).
+
 # Fork update: 0.14.0
 
 Landscape paginated books and comics now use two physical leaves with language-aware ordering and centre-seam curls. Folios belong to the animated sheets in landscape and portrait. Duplicate EPUB margins are removed; clear header/footer space remains. Open tools show the visible page range and progress. Continuous scrolling and enlarged artwork retain their selected modes. See [layout and behavior](READER_SPREADS.md) and [verification](TEST_RESULTS.md).

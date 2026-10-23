@@ -224,6 +224,7 @@ int px_document_is_epub(PxDocument *d) {
 }
 
 int px_document_is_comic(PxDocument *d) {return d ? d->comic : 0;}
+int px_document_page_is_spread(PxDocument *d,int page) {return d && d->comic?px_comic_page_is_spread(d->doc,page):0;}
 
 int px_document_has_embedded_cover(PxDocument *d) {
     return d && d->cover != NULL;

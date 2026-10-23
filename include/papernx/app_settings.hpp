@@ -15,6 +15,8 @@ struct AppPreferences {
     bool preservePdfZoom{true};
     bool shoulderPageTurns{true};
     int paperTexture{0}; // off, soft, natural; EPUB canvas only
+    bool expandedViewport{true};
+    bool landscapeSpreads{true};
     std::string defaultBrowserPath;
 };
 

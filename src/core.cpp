@@ -442,6 +442,11 @@ bool AppSettingsStore::load() {
     preferences.sort = record.fontSize - 12;
     preferences.toolbar = record.pdfViewMode;
     preferences.defaultBrowserPath = record.bookPath;
+    if(store_.all().count("APP_READER_V015_")) {
+        const auto layout=store_.get("APP_READER_V015_");
+        preferences.expandedViewport=layout.textAlign!=0;
+        preferences.landscapeSpreads=layout.publisherStyles!=0;
+    }
     if(store_.all().count("APP_DISPLAY_V04_")) {
         const auto display=store_.get("APP_DISPLAY_V04_");
         preferences.chromePolicy=display.fontFamily;
@@ -472,6 +477,10 @@ bool AppSettingsStore::save() const {
     display.publisherStyles=preferences_.shoulderPageTurns?0:1;
     display.pdfColorMode=preferences_.paperTexture;
     store_.put("APP_DISPLAY_V04_",std::move(display));
+    Progress layout;
+    layout.textAlign=preferences_.expandedViewport?1:0;
+    layout.publisherStyles=preferences_.landscapeSpreads?1:0;
+    store_.put("APP_READER_V015_",std::move(layout));
     return store_.save();
 }
 

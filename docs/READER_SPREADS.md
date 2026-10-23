@@ -1,4 +1,15 @@
-# Page layout in 0.14.0
+# Reading layout in 0.15.0
+
+Application settings now have **Expanded reading area** and **Two pages in landscape**. Both default On, including upgrades from older files. They are independently persisted. Turning off Expanded reading area restores the original MuPDF page margins and 72px bottom strip; turning off Two pages restores single-page landscape reading. Text anchors, bookmarks and reading preferences remain intact. Settings reset restores both defaults.
+
+Comic pages meet at a narrow centre gutter with no doubled inner margins. A wide scan (aspect ratio at least 1.2) or ComicInfo `DoublePage=True` is shown whole. Visited group boundaries are cached: pairs resume immediately after a wide scan, forward/back turns preserve their order, and a distant bookmark examines only its neighbours instead of decompressing every previous solid-RAR entry. Direct jumps retain the requested page. A final unpaired comic scan uses the available width.
+
+Landscape comic zoom retains the entire group. The fitted view already owns the bounded page textures, so the first pinch reuses them. Pinch zoom preserves the image point beneath the gesture centroid; controllers use the centre. Artwork pans continuously without changing the group. The up-arrow and **Y** return to the top while keeping the current horizontal position and zoom. Fit page remains a separate action. Outside comic zoom, Y still toggles a bookmark. Wide-scan/group transitions use a whole-sheet turn; two ordinary facing pages use the centre-seam curl.
+
+Spread drag distance now maps to full-screen turn progress rather than half-speed progress. All front/reverse folios remain attached to the sheets. Continuous vertical reading retains its selected mode.
+
+## Original two-page layout (0.14.0)
+
 
 Landscape paginated reading displays two consecutive pages, each with its own
 centred folio in the bottom paper margin. EPUB follows its detected reading
@@ -30,9 +41,7 @@ uses the last visible page. Chapter progress remains at the top for books.
 These controls occupy the clear chrome areas rather than the text area.
 
 Continuous vertical scrolling remains the explicitly selected single-column
-mode, with its existing screen-page counter. Zoomed PDF/comic viewing remains
-one page for detailed pan/zoom; returning to Fit page restores landscape
-spreads. Original comic/PDF artwork keeps its aspect ratio.
+mode, with its existing screen-page counter. Zoomed PDF viewing and single-page comic mode retain detailed pan/zoom. Landscape comic spreads now remain together during zoom. Original comic/PDF artwork keeps its aspect ratio.
 
 EPUB pagination changes when orientation, font or margins change. The existing
 text anchors/bookmarks restore the reading location; page numbers can change.

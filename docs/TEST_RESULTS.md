@@ -1,3 +1,7 @@
+# Fork verification: 0.15.0
+
+The 24 native and 24 ASan/UBSan suites now also cover persisted default-on layout switches, real setting-row taps, smart wide/ComicInfo groups in both directions, no cold texture build on the first pinch, retained spread geometry and pinch focal point, touch/Y return-to-top without adding bookmarks, and full-screen drag progress. Legacy single-page comic zoom/pan controls remain exercised with the spread setting off. Existing geometry/fallback, Hebrew, updater, packaging, portable and OpenGL checks remain active. Physical Switch animation timing and touch feel require hardware acceptance.
+
 # Fork verification: 0.14.0
 
 The new spread suite checks actual EPUB/PDF/CBZ/CBR pixels in light/night themes, RTL/LTR leaf order, owned front/reverse folios, exact animation endpoints after cache eviction, mixed PDF aspect ratios, odd/single-page endings, queued and held/cancelled turns, portrait snapshots and rotation cancellation. Geometry and fallback tests check asymmetric reverse-page ink for mirroring and preservation of texture modulation state. Prior single-leaf touch regressions now explicitly use portrait; landscape workflows assert two-page advancement. Hebrew alignment and emphasis tests remain active with the tighter page margins.

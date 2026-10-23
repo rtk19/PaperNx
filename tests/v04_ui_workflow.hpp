@@ -57,7 +57,7 @@ static void v04UiWorkflow(const fs::path &parent) {
             legacy.customUiTheme=4;legacy.uiTheme=0;app.appSettings_.put(legacy);
             assert(app.appSettings_.get().chromePolicy==0);
             app.openSettings(true,5);
-            assert(app.settingsRows()==8);
+            assert(app.settingsRows()==10);
             app.openChoice(7,0);
             assert(app.choiceOptions().size()==9);
             app.choiceIndex_=4;app.commitChoice(); // Vintage Sepia

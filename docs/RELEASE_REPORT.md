@@ -1,3 +1,9 @@
+# Fork release: 0.15.0
+
+Adds default-on controls for expanded reading area and landscape spreads, with independent return to the original modes. Comic artwork meets at a centre gutter; wide scans and ComicInfo double pages remain whole. Comic spread zoom keeps both pages, reuses fitted textures at the first pinch and anchors to the gesture centroid. The up-arrow or Y returns to the top without resetting zoom or horizontal position. Spread curls now use full-screen finger travel. See [layout details](READER_SPREADS.md).
+
+[Release assets](https://github.com/rtk19/PaperNx/releases/tag/v0.15.0) include NRO, installation ZIP, exact source, licenses, hashes and test evidence. Developer: Refael Bar. Physical Switch acceptance remains unverified.
+
 # Fork release: 0.14.0
 
 Adds landscape two-page spreads for paginated EPUB, PDF, CBZ and CBR, with RTL ordering for Hebrew/manga. A leaf turns across the centre onto its real reverse page; outgoing and incoming page numerals are part of the paper. Portrait also curls its folio. EPUB uses more screen area by removing duplicate MuPDF margins, and fitted artwork gains a smaller bottom margin. Open-tool summaries show a page range for spreads and reach 100% on the final spread. Explicit continuous scroll and zoom/pan modes remain available.
